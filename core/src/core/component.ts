@@ -31,7 +31,7 @@ export type TypeId<T = unknown> = string | { $type: string } | Class<T>;
 export function normalizeType(type: TypeId): string {
   if (typeof type === 'string') return type.includes('.') ? type : `t.${type}`;
   if ('$type' in type && typeof (type as any).$type === 'string') return normalizeType((type as any).$type);
-  throw new Error('TypeId has no $type — class not registered via registerType?');
+  throw new Error('TypeId: object has no $type property');
 }
 
 // ── Utils ──

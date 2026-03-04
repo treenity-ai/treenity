@@ -127,7 +127,7 @@ export async function defaultPatch(
 ): Promise<void> {
   const node = await get(path, ctx);
   if (!node) throw new Error(`Node not found: ${path}`);
-  const copy = JSON.parse(JSON.stringify(node));
+  const copy = structuredClone(node);
   applyOps(copy, ops);
   await set(copy, ctx);
 }

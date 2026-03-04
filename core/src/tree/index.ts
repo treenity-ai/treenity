@@ -192,7 +192,7 @@ export function createMemoryTree(): Tree {
       }
 
       node.$rev = (node.$rev ?? 0) + 1;
-      treeNode.data = JSON.parse(JSON.stringify(node));
+      treeNode.data = structuredClone(node);
     },
 
     async remove(path, _ctx) {
@@ -205,7 +205,7 @@ export function createMemoryTree(): Tree {
     async patch(path, ops, _ctx) {
       const treeNode = navigate(path);
       if (!treeNode?.data) throw new Error(`Node not found: ${path}`);
-      const copy = JSON.parse(JSON.stringify(treeNode.data));
+      const copy = structuredClone(treeNode.data);
       applyOps(copy, ops);
       copy.$rev = (copy.$rev ?? 0) + 1;
       treeNode.data = copy;

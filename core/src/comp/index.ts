@@ -45,17 +45,24 @@ declare module '#core/context' {
 }
 
 // ── Action context for class methods ──
-// Set globally before method call, retrieved with getCtx() on the first line.
-// JS is single-threaded: between setting _ctx and the method's first sync line,
-// nothing can interleave — so getCtx() always captures the right context.
+// Node.js: AsyncLocalStorage (survives await, concurrent-safe)
+// Browser: global _ctx fallback (safe — single-threaded, no concurrent actions)
 
+let _als: any = null;
 let _ctx: ExecCtx | null = null;
+
+// Async init — resolves before any action can fire (server boot is async).
+// Browser: import fails → _als stays null → falls back to _ctx global.
+import('node:async_hooks')
+  .then(m => { _als = new m.AsyncLocalStorage(); })
+  .catch(() => {});
 
 export type ExecCtx = { node: NodeData; store: Tree; signal: AbortSignal; [k: string]: unknown };
 
 export function getCtx(): ExecCtx {
-  if (!_ctx) throw new Error('getCtx(): called outside action context');
-  return _ctx;
+  const ctx = _als?.getStore() ?? _ctx;
+  if (!ctx) throw new Error('getCtx(): called outside action context');
+  return ctx;
 }
 
 // ── Registration ──
@@ -90,10 +97,10 @@ export function registerType<T>(type: string, cls: Class<T>, opts?: CompOptions)
     if (typeof proto[name] === 'function') {
       register(type, `action:${name}`, (ctx: any, data: unknown) => {
         const target = ctx.comp ?? ctx.node;
+        if (_als) return _als.run(ctx, () => proto[name].call(target, data, ctx.deps));
         _ctx = ctx;
-        const result = proto[name].call(target, data, ctx.deps);
-        _ctx = null;
-        return result;
+        try { return proto[name].call(target, data, ctx.deps); }
+        finally { _ctx = null; }
       }, opts?.ports?.[name]);
     }
   }
@@ -109,10 +116,10 @@ export function registerActions<T>(type: TypeId, cls: Class<T>, opts?: CompOptio
     if (typeof proto[name] === 'function') {
       register(t, `action:${name}`, (ctx: any, data: unknown) => {
         const target = ctx.comp ?? ctx.node;
+        if (_als) return _als.run(ctx, () => proto[name].call(target, data, ctx.deps));
         _ctx = ctx;
-        const result = proto[name].call(target, data, ctx.deps);
-        _ctx = null;
-        return result;
+        try { return proto[name].call(target, data, ctx.deps); }
+        finally { _ctx = null; }
       }, opts?.ports?.[name]);
     }
   }
