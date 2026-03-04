@@ -168,6 +168,7 @@ export function buildReplyMarkup(rows: MenuRow[], type: MenuType, lang: string, 
 
 // ── Brahman execution context ──
 
+/** @opaque Runtime-injected, not part of public schema */
 export type BrahmanCtx = {
   ctx: Context;
   store: Tree;

@@ -147,8 +147,29 @@ function extractHandlerArgs(checker: ts.TypeChecker, handlerNode: ts.Node): any[
   return args;
 }
 
+/** Check if a type's declaration has @opaque JSDoc tag */
+function isOpaqueType(checker: ts.TypeChecker, type: ts.Type): boolean {
+  // Try aliasSymbol first (preserved for direct type references)
+  const decl = type.aliasSymbol?.declarations?.[0] ?? type.symbol?.declarations?.[0];
+  if (decl && ts.getJSDocTags(decl).some((tag) => tag.tagName.text === 'opaque')) return true;
+  return false;
+}
+
+/** Check if a parameter's type annotation points to an @opaque type (uses AST node) */
+function isOpaqueParam(checker: ts.TypeChecker, param: ts.ParameterDeclaration): boolean {
+  if (!param.type || !ts.isTypeReferenceNode(param.type)) return false;
+  let sym = checker.getSymbolAtLocation(param.type.typeName);
+  if (!sym) return false;
+  // Resolve through imports to original declaration
+  if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym);
+  const typeDecl = sym?.declarations?.[0];
+  if (!typeDecl) return false;
+  return ts.getJSDocTags(typeDecl).some((tag) => tag.tagName.text === 'opaque');
+}
+
 function typeToJsonSchema(checker: ts.TypeChecker, type: ts.Type, seen = new Set<ts.Type>()): any {
   if (seen.has(type)) return {};
+  if (isOpaqueType(checker, type)) return {};
   if (type.flags & ts.TypeFlags.String) return { type: 'string' };
   if (type.flags & ts.TypeFlags.Number) return { type: 'number' };
   if (type.flags & ts.TypeFlags.Boolean) return { type: 'boolean' };
@@ -305,9 +326,11 @@ function generateClassSchema(program: ts.Program, entry: ComponentEntry, classTo
       if (!sig) continue;
 
       const args: any[] = [];
-      for (const param of sig.parameters) {
-        const paramType = checker.getTypeOfSymbol(param);
-        args.push({ name: param.name, ...typeToJsonSchema(checker, paramType) });
+      for (let i = 0; i < sig.parameters.length; i++) {
+        const astParam = member.parameters[i];
+        if (astParam && isOpaqueParam(checker, astParam)) continue;
+        const paramType = checker.getTypeOfSymbol(sig.parameters[i]);
+        args.push({ name: sig.parameters[i].name, ...typeToJsonSchema(checker, paramType) });
       }
 
       const isGenerator = !!member.asteriskToken;

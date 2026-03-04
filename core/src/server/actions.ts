@@ -13,6 +13,7 @@ import { OpError } from './errors';
 
 export type NodeHandle = ReturnType<typeof serverNodeHandle>;
 
+/** @opaque Runtime-injected, not part of public schema */
 export type ActionCtx = {
   node: NodeData;
   store: Tree;
