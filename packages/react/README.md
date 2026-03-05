@@ -1,0 +1,91 @@
+# @treenity/react
+
+**React binding for Treenity — reactive hooks, admin UI, and component rendering.**
+
+Built on top of `@treenity/core`. Provides hooks for reading and mutating tree nodes, a context-based component renderer, and a full admin interface with node editor, inspector, and tree browser.
+
+## Install
+
+```bash
+npm install @treenity/react @treenity/core react react-dom
+```
+
+## Hooks
+
+```typescript
+import { usePath, useChildren } from '@treenity/react/hooks';
+import { TodoItem } from './types';
+
+// Typed proxy — reactive data + action methods
+const item = usePath('/todo/list/1', TodoItem);
+item.title;          // reactive read
+await item.toggle(); // tRPC mutation → Immer patch → SSE broadcast
+
+// URI-based read (returns raw data)
+const node = usePath('/todo/list/1');
+
+// Reactive children list
+const children = useChildren('/todo/list');
+```
+
+### Available Hooks
+
+| Hook | Description |
+|------|-------------|
+| `usePath(uri)` | Reactive node read by URI string |
+| `usePath(path, Class, key?)` | TypeProxy — reactive fields + typed action methods |
+| `useChildren(path, opts?)` | Reactive children list with optional query filter |
+| `useCanWrite(path)` | Check write permission for current user |
+| `useNavigate()` | Navigation function for tree paths |
+| `useCurrentNode()` | Current node from context |
+| `useTreeContext()` | Current render context name |
+| `useSchema(type)` | JSON schema for a type |
+| `useReg(type, context)` | Resolve registered context handler |
+
+## Component Rendering
+
+Register React views per type + context:
+
+```typescript
+import { register } from '@treenity/core';
+
+register('todo.item', 'react', ({ value, onChange }) => (
+  <div>
+    <span>{value.title}</span>
+    <button onClick={() => onChange({ ...value, done: !value.done })}>
+      {value.done ? 'Undo' : 'Done'}
+    </button>
+  </div>
+));
+```
+
+Render any node with automatic type resolution:
+
+```typescript
+import { Render } from '@treenity/react/context';
+
+<Render value={node} onChange={handleChange} />
+```
+
+## UI Components
+
+Ships with shadcn/ui components (Tailwind CSS v4):
+
+```typescript
+import { Button } from '@treenity/react/ui/button';
+import { Slider } from '@treenity/react/ui/slider';
+```
+
+## Admin UI
+
+`<App />` provides a full admin interface: tree browser, node editor, inspector, ACL editor, login. Used as the default frontend during development.
+
+## Links
+
+- [@treenity/core](https://www.npmjs.com/package/@treenity/core)
+- [GitHub](https://github.com/treenity-ai/treenity)
+- [Quickstart](https://github.com/treenity-ai/treenity/blob/main/docs/quickstart.md)
+
+## License
+
+AGPL-3.0
