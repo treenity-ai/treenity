@@ -6,6 +6,7 @@ export type PropertySchema = {
   description?: string;
   format?: string; // JSON Schema format hint (e.g. "uri", "textarea", "integer", "timestamp")
   refType?: string; // component type name — field can hold ref or embedded value of this type
+  default?: unknown;
   readOnly?: boolean;
   enum?: string[]; // allowed values → renders as <select>
   items?: { type?: string; properties?: Record<string, unknown> }; // for array fields

@@ -12,7 +12,7 @@ type Migrations = Record<number, Migrator>;
 function getMigrations(type: string): { migrations: Migrations; version: number } | null {
   const handler = resolveExact(type, 'migrate');
   if (!handler) return null;
-  const migrations = handler() as unknown as Migrations;
+  const migrations = handler() as Migrations;
   const keys = Object.keys(migrations).map(Number).sort((a, b) => a - b);
   if (!keys.length) return null;
   return { migrations, version: keys[keys.length - 1] };
@@ -22,21 +22,21 @@ function migrateNode(node: NodeData): NodeData {
   const m = getMigrations(node.$type);
   if (!m) return node;
 
-  const nodeV = (node as any).$v as number ?? 0;
+  const nodeV = (node['$v'] as number) ?? 0;
   if (nodeV >= m.version) return node;
 
   const clone = structuredClone(node);
   for (const [v, fn] of Object.entries(m.migrations).sort(([a], [b]) => +a - +b)) {
     if (+v > nodeV) fn(clone as Record<string, unknown>);
   }
-  (clone as any).$v = m.version;
+  clone['$v'] = m.version;
   return clone;
 }
 
 function stampVersion(node: NodeData): void {
   const m = getMigrations(node.$type);
   if (!m) return;
-  (node as any).$v = m.version;
+  node['$v'] = m.version;
 }
 
 export function withMigration(store: Tree): Tree {

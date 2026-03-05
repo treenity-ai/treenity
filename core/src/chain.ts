@@ -1,7 +1,7 @@
 // Minimal call-chain: records property/call path, resolves lazily on await.
 // Ref resolution is opt-in via runPathWithRefs — chain itself is pure.
 
-import { isRef } from '#core';
+import { isRef, type Ref } from '#core';
 
 export type PathSection = string | unknown[]
 

@@ -2,7 +2,7 @@
 
 import type { Tree } from '#tree';
 import { readdir, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { setCurrentMod } from './tracking';
 import type { LoadedMod, ModManifest, TreenityMod } from './types';
 
@@ -169,6 +169,39 @@ export async function loadLocalMods(modsDir: string, target: LoadTarget): Promis
       result.failed.push({ name: entry.name, error });
     }
   }
+
+  return result;
+}
+
+// ── Load all mods: internal + engine + project (CWD) ──
+
+export async function loadAllMods(target: LoadTarget, ...extraDirs: string[]): Promise<LoadResult> {
+  const internalDir = new URL('../mods', import.meta.url).pathname;
+  const engineDir = new URL('../../../mods', import.meta.url).pathname;
+
+  const dirs = [internalDir, engineDir];
+
+  // CWD/mods/ if different from engine mods
+  const projectDir = resolve('mods');
+  if (resolve(projectDir) !== resolve(engineDir)) dirs.push(projectDir);
+
+  dirs.push(...extraDirs);
+
+  const seen = new Set<string>();
+  const result: LoadResult = { loaded: [], failed: [] };
+
+  for (const dir of dirs) {
+    const abs = resolve(dir);
+    if (seen.has(abs)) continue;
+    seen.add(abs);
+
+    const r = await loadLocalMods(dir, target);
+    result.loaded.push(...r.loaded);
+    result.failed.push(...r.failed);
+  }
+
+  if (result.failed.length) console.error('failed mods:', result.failed.map(f => `${f.name}: ${f.error.message}`).join(', '));
+  console.log(`mods: ${result.loaded.join(', ')}`);
 
   return result;
 }

@@ -1,21 +1,18 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import tsconfigPaths from 'vite-tsconfig-paths';
-import modsPlugin from './vite-plugin-mods';
+import treenityPlugin from './vite-plugin-treenity';
 
 const apiPort = process.env.VITE_API_PORT || '3211';
 
 export default defineConfig({
   resolve: { conditions: ['development'] },
   plugins: [
-    modsPlugin(),
-    tsconfigPaths(),
+    treenityPlugin(),
     tailwindcss(),
     react({ babel: { plugins: ['babel-plugin-react-compiler'] } }),
   ],
-  root: 'src',
-  publicDir: '../public',
+  publicDir: 'public',
   optimizeDeps: {
     include: [
       '@flowgram.ai/free-layout-editor',

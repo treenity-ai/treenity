@@ -196,11 +196,11 @@ function LoginScreen({ onLogin }: { onLogin: (userId: string) => void }) {
   );
 }
 
-function LoginModal({ onLogin, onClose }: { onLogin: (userId: string) => void; onClose: () => void }) {
+function LoginModal({ onLogin, onClose }: { onLogin: (userId: string) => void; onClose?: () => void }) {
   return (
-    <div className="login-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="login-overlay" onMouseDown={(e) => { if (onClose && e.target === e.currentTarget) onClose(); }}>
       <div className="login-modal">
-        <button className="login-modal-close" onClick={onClose}>&times;</button>
+        {onClose && <button className="login-modal-close" onClick={onClose}>&times;</button>}
         <LoginForm onLogin={onLogin} />
       </div>
     </div>
@@ -231,9 +231,12 @@ export function App() {
         const res = await trpc.me.query();
         setAuthed(res?.userId ?? null);
         if (!res) clearToken();
-      } catch {
-        clearToken();
-      } finally {
+        setAuthChecked(true);
+      } catch (e: any) {
+        // Only clear token on explicit auth rejection, not network errors
+        // Network errors during server restart should NOT destroy a valid token
+        const isAuthError = e?.data?.code === 'UNAUTHORIZED' || e?.data?.httpStatus === 401;
+        if (isAuthError) clearToken();
         setAuthChecked(true);
       }
     })();
@@ -635,7 +638,10 @@ export function App() {
   }, [mode, handleSelect]);
 
   if (!authChecked) return null;
-  if (!authed || authed.startsWith('anon:')) return <LoginScreen onLogin={(uid) => setAuthed(uid)} />;
+  if (!authed) return <LoginScreen onLogin={(uid) => setAuthed(uid)} />;
+
+  const isAnon = authed.startsWith('anon:');
+  const needsLogin = isAnon || showLoginModal;
   if (mode === 'view') return <NavigateProvider value={navigate}><ViewPage path={viewPath} /></NavigateProvider>;
   if (mode === 'preview') return <NavigateProvider value={navigate}><ViewPage path={viewPath} editorLink /></NavigateProvider>;
 
@@ -761,10 +767,10 @@ export function App() {
         />
       )}
 
-      {showLoginModal && (
+      {needsLogin && (
         <LoginModal
           onLogin={(uid) => { setAuthed(uid); setShowLoginModal(false); }}
-          onClose={() => setShowLoginModal(false)}
+          onClose={isAnon ? undefined : () => setShowLoginModal(false)}
         />
       )}
 

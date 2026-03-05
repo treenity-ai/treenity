@@ -1,0 +1,193 @@
+// Treenity vite plugin:
+// 1. Resolve #subpath imports via nearest package.json (Vite doesn't support them)
+// 2. Resolve @treenity/* exports with array conditions (Vite bug #16153)
+// 3. Auto-discover mod client.ts → virtual:mod-clients
+// 4. Block server.ts from frontend bundle
+
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import type { Plugin } from 'vite';
+
+// ── Package.json resolution ──
+
+type SpecValue = string | string[] | Record<string, string | string[]>;
+type FieldMap = Record<string, SpecValue>;
+
+const pkgCache = new Map<string, { dir: string; imports?: FieldMap; exports?: FieldMap } | null>();
+
+function readPkg(startDir: string) {
+  if (pkgCache.has(startDir)) return pkgCache.get(startDir)!;
+
+  let current = startDir;
+  while (current !== dirname(current)) {
+    const pkgPath = join(current, 'package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      if (pkg.imports || pkg.exports) {
+        const result = { dir: current, imports: pkg.imports as FieldMap, exports: pkg.exports as FieldMap };
+        pkgCache.set(startDir, result);
+        return result;
+      }
+    }
+    current = dirname(current);
+  }
+
+  pkgCache.set(startDir, null);
+  return null;
+}
+
+// Cache for @treenity/* package dirs
+const treenityPkgCache = new Map<string, { dir: string; exports: FieldMap } | null>();
+
+function findTreenityPkg(name: string): { dir: string; exports: FieldMap } | null {
+  if (treenityPkgCache.has(name)) return treenityPkgCache.get(name)!;
+
+  // Walk up from CWD to find node_modules/@treenity/<name>
+  let current = process.cwd();
+  while (current !== dirname(current)) {
+    const pkgDir = join(current, 'node_modules', name);
+    const pkgPath = join(pkgDir, 'package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      // Follow symlink to real path for resolution
+      const realDir = realpathSync(pkgDir);
+      const result = pkg.exports ? { dir: realDir, exports: pkg.exports as FieldMap } : null;
+      treenityPkgCache.set(name, result);
+      return result;
+    }
+    current = dirname(current);
+  }
+
+  treenityPkgCache.set(name, null);
+  return null;
+}
+
+function resolveConditions(pkgDir: string, spec: SpecValue, conditions: string[]): string[] {
+  if (typeof spec === 'string') return [resolve(pkgDir, spec)];
+  if (Array.isArray(spec)) return spec.map(s => resolve(pkgDir, s));
+
+  for (const cond of conditions) {
+    if (spec[cond]) return resolveConditions(pkgDir, spec[cond], conditions);
+  }
+  if (spec.default) return resolveConditions(pkgDir, spec.default, conditions);
+  return [];
+}
+
+function isFile(p: string): boolean {
+  return existsSync(p) && statSync(p).isFile();
+}
+
+const EXT = ['.ts', '.tsx', '.js', '.jsx'];
+const IDX = ['/index.ts', '/index.tsx', '/index.js', '/index.jsx'];
+
+function tryResolve(candidates: string[]): string | undefined {
+  for (const c of candidates) {
+    if (isFile(c)) return c;
+    for (const ext of EXT) { if (isFile(c + ext)) return c + ext; }
+    for (const idx of IDX) { if (isFile(c + idx)) return c + idx; }
+  }
+}
+
+function expandWildcard(spec: SpecValue, matched: string): SpecValue {
+  if (typeof spec === 'string') return spec.replace('*', matched);
+  if (Array.isArray(spec)) return spec.map(s => s.replace('*', matched));
+  return Object.fromEntries(
+    Object.entries(spec).map(([k, v]) => [k, expandWildcard(v, matched)])
+  ) as SpecValue;
+}
+
+function matchPattern(id: string, map: FieldMap, pkgDir: string, conditions: string[]): string | undefined {
+  for (const [pattern, spec] of Object.entries(map)) {
+    if (pattern === id) {
+      return tryResolve(resolveConditions(pkgDir, spec, conditions));
+    }
+
+    if (pattern.includes('*')) {
+      const [prefix, suffix] = pattern.split('*');
+      if (id.startsWith(prefix) && (!suffix || id.endsWith(suffix))) {
+        const matched = id.slice(prefix.length, suffix ? -suffix.length || undefined : undefined);
+        return tryResolve(resolveConditions(pkgDir, expandWildcard(spec, matched), conditions));
+      }
+    }
+  }
+}
+
+// ── Mod discovery ──
+
+const VIRTUAL_ID = 'virtual:mod-clients';
+const RESOLVED_ID = '\0' + VIRTUAL_ID;
+const SERVER_RE = /\/mods\/[^/]+\/server(\.ts)?$/;
+
+function scanClients(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const clients: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const client = resolve(dir, entry.name, 'client.ts');
+    if (existsSync(client)) clients.push(client);
+  }
+  return clients;
+}
+
+// ── Plugin ──
+
+export default function treenityPlugin(): Plugin {
+  const engineRoot = resolve(import.meta.dirname, '../..');
+  let conditions: string[] = [];
+
+  return {
+    name: 'treenity',
+    enforce: 'pre',
+
+    configResolved(config) {
+      conditions = (config.resolve.conditions ?? []).concat('default');
+    },
+
+    resolveId(id, importer) {
+      if (id === VIRTUAL_ID) return RESOLVED_ID;
+      if (!importer) return;
+
+      // Block server.ts from frontend
+      if (id.startsWith('.')) {
+        const resolved = resolve(importer, '..', id).replace(/\\/g, '/');
+        if (SERVER_RE.test(resolved)) {
+          this.error(
+            `Server module imported in frontend build: "${id}"\n` +
+            `  from: ${importer}\n` +
+            `  Mods must not import server.ts from client code`
+          );
+        }
+      }
+
+      // Resolve # imports via nearest package.json imports field
+      if (id.startsWith('#')) {
+        const pkg = readPkg(dirname(importer));
+        if (pkg?.imports) return matchPattern(id, pkg.imports, pkg.dir, conditions);
+      }
+
+      // Resolve @treenity/* exports (Vite doesn't handle array conditions)
+      if (id.startsWith('@treenity/')) {
+        const parts = id.split('/');
+        const pkgName = parts.slice(0, 2).join('/');
+        const subpath = './' + parts.slice(2).join('/');
+        const pkg = findTreenityPkg(pkgName);
+        if (pkg?.exports) {
+          return matchPattern(parts.length > 2 ? subpath : '.', pkg.exports, pkg.dir, conditions);
+        }
+      }
+    },
+
+    load(id) {
+      if (id !== RESOLVED_ID) return;
+
+      const dirs = [
+        resolve(engineRoot, 'core/src/mods'),
+        resolve(engineRoot, 'mods'),
+        resolve(process.cwd(), 'mods'),
+      ];
+
+      const imports = [...new Set(dirs.map(d => resolve(d)))].flatMap(scanClients);
+      return imports.map(p => `import '${p}';`).join('\n') + '\n';
+    },
+  };
+}

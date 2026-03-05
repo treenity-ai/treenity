@@ -3,7 +3,7 @@
 export { defineMod } from './types';
 export type { TreenityMod, ModManifest, ModState, LoadedMod } from './types';
 export { discoverMods } from './discover';
-export { sortByDependencies, loadMods, loadLocalMods, getLoadedMods, getMod, isModLoaded, clearModRegistry } from './loader';
+export { sortByDependencies, loadMods, loadLocalMods, loadAllMods, getLoadedMods, getMod, isModLoaded, clearModRegistry } from './loader';
 export type { LoadTarget, LoadResult } from './loader';
 export { OptimisticBuffer } from './optimistic';
 export type { PendingMutation } from './optimistic';

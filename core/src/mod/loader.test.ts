@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
-import { clearModRegistry, getLoadedMods, getMod, isModLoaded, loadMods, sortByDependencies } from './loader';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { clearModRegistry, getLoadedMods, getMod, isModLoaded, loadLocalMods, loadMods, sortByDependencies } from './loader';
 import type { ModManifest } from './types';
 
 function m(name: string, deps?: string[]): ModManifest {
@@ -164,5 +167,54 @@ describe('loadMods', () => {
     assert.equal(result.failed.length, 1);
     assert.equal(isModLoaded('ok-mod'), true);
     assert.equal(isModLoaded('fail-mod'), false);
+  });
+});
+
+describe('loadLocalMods', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    clearModRegistry();
+    tmpDir = mkdtempSync(join(tmpdir(), 'treenity-mods-'));
+  });
+
+  it('discovers mod with server.ts in a directory', async () => {
+    const modDir = join(tmpDir, 'my-mod');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'server.ts'), 'globalThis.__canary_server_loaded = true;');
+
+    const result = await loadLocalMods(tmpDir, 'server');
+    assert.deepEqual(result.loaded, ['my-mod']);
+    assert.equal(result.failed.length, 0);
+
+    rmSync(tmpDir, { recursive: true });
+  });
+
+  it('skips mod without matching entry file', async () => {
+    const modDir = join(tmpDir, 'server-only');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'server.ts'), '');
+
+    const result = await loadLocalMods(tmpDir, 'client');
+    assert.deepEqual(result.loaded, []);
+
+    rmSync(tmpDir, { recursive: true });
+  });
+
+  it('returns empty for nonexistent directory', async () => {
+    const result = await loadLocalMods('/tmp/no-such-dir-xyz-42', 'server');
+    assert.deepEqual(result.loaded, []);
+    assert.deepEqual(result.failed, []);
+  });
+
+  it('skips hidden directories', async () => {
+    const modDir = join(tmpDir, '.hidden-mod');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'server.ts'), '');
+
+    const result = await loadLocalMods(tmpDir, 'server');
+    assert.deepEqual(result.loaded, []);
+
+    rmSync(tmpDir, { recursive: true });
   });
 });

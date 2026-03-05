@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { startServices } from '#contexts/service/index';
 import { type NodeData } from '#core';
-import { loadLocalMods } from '#mod';
+import { loadAllMods } from '#mod';
 import { createMemoryTree } from '#tree';
 import './mount-adapters';
 import { readFile } from 'node:fs/promises';
@@ -19,17 +19,7 @@ process.chdir = () => { throw new Error('process.chdir is forbidden'); };
 const rootPath = resolve(process.argv[2] || 'root.json');
 const rootNode = JSON.parse(await readFile(rootPath, 'utf-8')) as NodeData;
 
-// Internal mods (core/src/mods/)
-const internalModsDir = new URL('../mods', import.meta.url).pathname;
-const internal = await loadLocalMods(internalModsDir, 'server');
-
-// External mods (root mods/)
-const externalModsDir = new URL('../../../mods', import.meta.url).pathname;
-const external = await loadLocalMods(externalModsDir, 'server');
-
-const allFailed = [...internal.failed, ...external.failed];
-if (allFailed.length) console.error('failed mods:', allFailed.map(f => `${f.name}: ${f.error.message}`).join(', '));
-console.log(`mods: ${[...internal.loaded, ...external.loaded].join(', ')}`);
+await loadAllMods('server');
 
 const port = Number(process.env.PORT) || 3211;
 

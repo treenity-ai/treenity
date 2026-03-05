@@ -26,7 +26,7 @@ export type NodeEvent =
   | { type: 'reconnect'; preserved: boolean };
 
 // Strip empty arrays and $path from node to keep wire format clean
-function cleanEvent(event: NodeEvent): NodeEvent {
+function cleanEvent<T extends NodeEvent>(event: T): T {
   const e = { ...event };
   if ('addVps' in e && e.addVps && e.addVps.length === 0) delete e.addVps;
   if ('rmVps' in e && e.rmVps && e.rmVps.length === 0) delete e.rmVps;
@@ -90,7 +90,7 @@ export function withSubscriptions(
   type DataEvent = Exclude<NodeEvent, { type: 'reconnect' }>;
 
   function emit(raw: DataEvent) {
-    const event = cleanEvent(raw) as DataEvent;
+    const event = cleanEvent(raw);
 
     const exact = exactListeners.get(event.path);
     if (exact) for (const fn of exact) fn(event);

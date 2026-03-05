@@ -4,6 +4,7 @@
 import { registerActionNeeds } from '#comp/needs';
 import { type Class, ComponentData, getComponent, NodeData, normalizeType, register, resolve, type TypeId } from '#core';
 import { trackType } from '#mod/tracking';
+import { type TypeSchema } from '#schema/types';
 import { type Tree } from '#tree';
 
 export type { Class };
@@ -161,7 +162,7 @@ export function getDefaults<T = any>(type: TypeId<T>): Partial<Raw<T>> {
   // 2. Fall back to JSON schema defaults
   const schemaHandler = resolve(type, 'schema');
   if (schemaHandler) {
-    const schema = schemaHandler() as { properties?: Record<string, { default?: unknown }> };
+    const schema = schemaHandler() as Partial<TypeSchema>;
     if (schema?.properties) {
       const out: Record<string, unknown> = {};
       for (const [k, prop] of Object.entries(schema.properties)) {
