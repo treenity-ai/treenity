@@ -44,13 +44,17 @@ register('t.mount.query', 'mount', (config: NodeData, parentStore, ctx, globalSt
 register('t.mount.fs', 'mount', async (config: NodeData) => {
   const root = config['root'] as string | undefined;
   if (!root) throw new Error('t.mount.fs: root required');
-  return createFsTree(root);
+  const tree = await createFsTree(root);
+  // shared: true — full tree paths (multiple mount points into one dir)
+  // default: dedicated — repath to local /
+  return config['shared'] ? tree : createRepathTree(tree, config.$path, '/');
 });
 
 register('t.mount.rawfs', 'mount', async (config: NodeData) => {
   const root = config['root'] as string | undefined;
   if (!root) throw new Error('t.mount.rawfs: root required');
-  return createRawFsStore(root);
+  const tree = await createRawFsStore(root);
+  return config['shared'] ? tree : createRepathTree(tree, config.$path, '/');
 });
 
 // Federation: mount a remote Treenity instance's tree via tRPC.

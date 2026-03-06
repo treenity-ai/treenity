@@ -1,9 +1,14 @@
 import { createNode, ref, register } from '#core';
 import { clearRegistry } from '#core/index.test';
 import { createMemoryTree, type Tree } from '#tree';
+import { createFsTree } from '#tree/fs';
 import { createQueryTree } from '#tree/query';
+import { createRepathTree } from '#tree/repath';
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'node:test';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 import { withMounts } from './mount';
 import { createTypesStore } from './types-mount';
 
@@ -493,5 +498,66 @@ describe('Types mount adapter', () => {
       '/types/test/block/custom-block',
       '/types/test/block/hero',
     ]);
+  });
+});
+
+// Regression: FS mount at nested path should not duplicate prefix in file paths
+describe('FS mount repath (dedicated)', () => {
+  let rootStore: Tree;
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    clearRegistry();
+    rootStore = createMemoryTree();
+    tmpDir = await mkdtemp(join(tmpdir(), 'treenity-fs-mount-'));
+  });
+
+  afterEach(async () => {
+    await rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('dedicated FS mount stores files without mount prefix', async () => {
+    const fsTree = await createFsTree(tmpDir);
+    const repathed = createRepathTree(fsTree, '/data/files', '/');
+
+    register('test.mount.fs', 'mount', () => repathed);
+    await rootStore.set(
+      createNode('/data/files', 'mount-point', {}, {
+        mount: { $type: 'test.mount.fs' },
+      }),
+    );
+
+    const ms = withMounts(rootStore);
+    await ms.set(createNode('/data/files/doc', 'document'));
+
+    // FS dir should contain doc.json, NOT data/files/doc.json
+    const entries = await readdir(tmpDir);
+    assert.ok(entries.includes('doc.json'), `expected doc.json in ${tmpDir}, got: ${entries}`);
+
+    // Read back through mount — path should be full tree path
+    const node = await ms.get('/data/files/doc');
+    assert.equal(node?.$path, '/data/files/doc');
+    assert.equal(node?.$type, 't.document');
+  });
+
+  it('getChildren returns full tree paths', async () => {
+    const fsTree = await createFsTree(tmpDir);
+    const repathed = createRepathTree(fsTree, '/data/files', '/');
+
+    register('test.mount.fs', 'mount', () => repathed);
+    await rootStore.set(
+      createNode('/data/files', 'mount-point', {}, {
+        mount: { $type: 'test.mount.fs' },
+      }),
+    );
+
+    const ms = withMounts(rootStore);
+    await ms.set(createNode('/data/files/a', 'item'));
+    await ms.set(createNode('/data/files/b', 'item'));
+
+    const children = await ms.getChildren('/data/files');
+    assert.equal(children.items.length, 2);
+    const paths = children.items.map(n => n.$path).sort();
+    assert.deepEqual(paths, ['/data/files/a', '/data/files/b']);
   });
 });
