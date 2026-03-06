@@ -1,8 +1,8 @@
 // Board views — kanban board + task detail (editable)
 
 import { type NodeData, register } from '@treenity/core/core';
-import { Render } from '@treenity/react/context';
-import { set, useChildren, usePath } from '@treenity/react/hooks';
+import { Render, RenderContext } from '@treenity/react/context';
+import { set, useChildren, useNavigate, usePath } from '@treenity/react/hooks';
 import { cn } from '@treenity/react/lib/utils';
 import { trpc } from '@treenity/react/trpc';
 import { Button } from '@treenity/react/ui/button';
@@ -155,6 +155,36 @@ function TaskView({ value }: { value: NodeData }) {
 
 register('board.task', 'react', TaskView as any);
 
+function TaskListItem({ value }: { value: NodeData }) {
+  const nav = useNavigate();
+  const priority = typeof value.priority === 'string' ? value.priority : 'normal';
+  const title = typeof value.title === 'string' && value.title
+    ? value.title
+    : value.$path.split('/').at(-1);
+  const aiStatus = typeof (value as any).aiStatus === 'string' ? (value as any).aiStatus : '';
+  const assignee = typeof value.assignee === 'string' ? value.assignee : '';
+
+  return (
+    <button
+      onClick={() => nav(value.$path)}
+      className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/50"
+    >
+      <PriorityDot priority={priority} />
+      <span className="flex-1 truncate text-sm font-medium">{title}</span>
+      {aiStatus && (
+        <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-400">
+          {aiStatus}
+        </span>
+      )}
+      {assignee && !aiStatus && (
+        <span className="text-xs text-muted-foreground">{assignee}</span>
+      )}
+    </button>
+  );
+}
+
+register('board.task', 'react:list', TaskListItem as any);
+
 // ── Helpers ──
 
 function TaskActions({ proxy, status }: { proxy: ReturnType<typeof usePath<BoardTask>>; status: TaskStatus }) {
@@ -206,7 +236,8 @@ function TaskCard({ task, onSelect }: { task: NodeData; onSelect: (path: string)
   const assignee = typeof proxy?.assignee === 'string' ? proxy.assignee : '';
   const priority = typeof proxy?.priority === 'string' ? proxy.priority : 'normal';
   const result = typeof proxy?.result === 'string' ? proxy.result : '';
-  const isAi = assignee === 'metatron';
+  const aiStatus = typeof (task as any).aiStatus === 'string' ? (task as any).aiStatus : '';
+  const isAi = assignee === 'metatron' || !!aiStatus;
 
   return (
     <div
@@ -216,7 +247,11 @@ function TaskCard({ task, onSelect }: { task: NodeData; onSelect: (path: string)
       <div className="mb-1 flex items-center gap-2">
         <PriorityDot priority={priority} />
         <span className="flex-1 text-sm font-semibold leading-tight">{title}</span>
-        {isAi && <AiBadge />}
+        {aiStatus ? (
+          <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-medium text-violet-400">
+            {aiStatus}
+          </span>
+        ) : isAi ? <AiBadge /> : null}
       </div>
 
       {assignee && !isAi && (
@@ -317,3 +352,32 @@ function KanbanView({ value }: { value: NodeData }) {
 }
 
 register('board.kanban', 'react', KanbanView as any);
+
+// ── board.column view ──
+
+function ColumnView({ value }: { value: NodeData & BoardColumn }) {
+  const tasks = useChildren(value.$path, { watch: true, watchNew: true });
+  const label = typeof value.label === 'string' ? value.label : value.$path.split('/').at(-1);
+  const color = typeof value.color === 'string' ? value.color : 'border-zinc-400';
+
+  return (
+    <div className="flex flex-col gap-2 p-3">
+      <div className={cn('flex items-center gap-2 border-b-2 pb-1.5', color)}>
+        <span className="text-sm font-bold">{label}</span>
+        <span className="text-xs text-muted-foreground">({tasks.length})</span>
+      </div>
+      <RenderContext name="react:list">
+        {tasks.map(task => (
+          <Render key={task.$path} value={task} />
+        ))}
+        {tasks.length === 0 && (
+          <div className="rounded-md border border-dashed border-border py-4 text-center text-xs text-muted-foreground">
+            Empty
+          </div>
+        )}
+      </RenderContext>
+    </div>
+  );
+}
+
+register('board.column', 'react', ColumnView as any);
