@@ -5,7 +5,7 @@ import { onResolveMiss, register, unregister } from '#core';
 import { createInflight } from '#tree/inflight';
 import * as cache from '@treenity/react/cache';
 import { tree } from '@treenity/react/client';
-import { SystemFallbackView } from '@treenity/react/context';
+import { UixNoView } from '@treenity/react/context';
 import React from 'react';
 import { compileComponent, invalidateCache } from './compile';
 
@@ -55,7 +55,7 @@ register('uix.view', 'react', UixView);
 const dedup = createInflight<void>();
 
 // Watch a type node for future view creation (e.g. AI agent saves view.source via MCP).
-// When the node changes and gains view.source, swap SystemFallbackView for the real view.
+// When the node changes and gains view.source, swap UixNoView for the real view.
 const watched = new Set<string>();
 
 function watchTypeNode(type: string, typePath: string) {
@@ -86,7 +86,7 @@ function watchTypeNode(type: string, typePath: string) {
 onResolveMiss('react', (type) => {
   // Built-in types (no dot) never have UIX views — avoid contaminating tRPC batches
   if (!type.includes('.')) {
-    register(type, 'react', SystemFallbackView);
+    register(type, 'react', UixNoView);
     return;
   }
 
@@ -98,7 +98,7 @@ onResolveMiss('react', (type) => {
     const source = (typeNode as any)?.view?.source;
 
     if (!source || typeof source !== 'string') {
-      register(type, 'react', SystemFallbackView);
+      register(type, 'react', UixNoView);
       // Watch for future view creation (e.g. AI agent saves view.source later)
       watchTypeNode(type, typePath);
       return;

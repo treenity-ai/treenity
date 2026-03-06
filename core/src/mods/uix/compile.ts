@@ -2,8 +2,8 @@
 // Turns raw JSX/TSX code string into a React component
 
 import { register } from '#core';
-import { Render, RenderContext, RenderField } from '@treenity/react/context';
-import { useChildren, usePath } from '@treenity/react/hooks';
+import { Render, RenderContext, RenderField, viewCtx } from '@treenity/react/context';
+import { execute, useChildren, usePath } from '@treenity/react/hooks';
 import React from 'react';
 import { compileJSX } from './jsx-parser';
 
@@ -22,6 +22,8 @@ const SCOPE: Record<string, unknown> = {
   RenderField,
   usePath,
   useChildren,
+  execute,
+  viewCtx,
 };
 
 const cache = new Map<string, React.FC<any>>();
