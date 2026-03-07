@@ -3,7 +3,7 @@
 // ACL security (no leaked data), and action return values.
 
 import { registerType } from '#comp';
-import { createNode, R, S, W } from '#core';
+import { createNode, R, S, W, register } from '#core';
 import { createMemoryTree } from '#tree';
 import assert from 'node:assert/strict';
 import type { Socket } from 'node:net';
@@ -97,6 +97,7 @@ describe('e2e: tRPC over HTTP', () => {
     registerType('streamer', Streamer);
     registerType('secret', Secret);
     registerType('task.priority', Priority);
+    register('test.task', 'schema', () => ({ type: 'object', title: 'Test Task' }));
   });
 
   beforeEach(async () => {
@@ -924,7 +925,7 @@ describe('e2e: tRPC over HTTP', () => {
 
       // Create new child (simulates action:task creating a task node)
       await pub.set.mutate({ node: {
-        $path: '/agent-test/tasks/t-1', $type: 'agent.task',
+        $path: '/agent-test/tasks/t-1', $type: 'test.task',
         prompt: 'test task', status: 'pending', createdAt: 12345,
       } });
 
@@ -933,7 +934,7 @@ describe('e2e: tRPC over HTTP', () => {
       assert.equal(received[0].type, 'set', 'Event type should be "set"');
       assert.equal(received[0].path, '/agent-test/tasks/t-1');
       const node = (received[0] as any).node;
-      assert.equal(node.$type, 'agent.task');
+      assert.equal(node.$type, 'test.task');
       assert.equal(node.prompt, 'test task');
       assert.equal(node.status, 'pending');
     });

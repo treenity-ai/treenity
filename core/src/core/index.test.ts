@@ -15,9 +15,21 @@ import {
   resolve,
   unregister,
 } from './index';
+import { registerBuiltins } from '#mods/treenity/builtins';
+
+const testTypes = ['test.doc', 'test.item', 'test.session', 'test.task'];
+
+export function registerTestTypes() {
+  for (const t of testTypes)
+    register(t, 'schema', () => ({ $id: t, type: 'object' as const, title: t, properties: {} }));
+}
+
+registerTestTypes();
 
 export function clearRegistry(): void {
   mapRegistry((t, c) => unregister(t, c));
+  registerBuiltins();
+  registerTestTypes();
 }
 
 describe('Node', () => {

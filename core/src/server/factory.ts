@@ -3,6 +3,7 @@
 
 import { type ServiceHandle, startServices } from '#contexts/service/index';
 import { A, createNode, R, S, W } from '#core';
+import { addOnLog, makeLogPath } from '#log';
 import { loadLocalMods } from '#mod';
 import { createMemoryTree, type Tree } from '#tree';
 import type { Server } from 'node:http';
@@ -63,7 +64,15 @@ export async function treenity(config?: TreenityConfig): Promise<TreenityServer>
   const seedFn = config?.seed ?? defaultSeed;
   await seedFn(mountable, createEnsure(mountable));
 
-  // 5. Autostart services
+  // 5. Wire log → tree
+  addOnLog(entry => {
+    const p = makeLogPath()
+    process.stderr.write(`[log hit] ${p} ${entry.level}: ${entry.msg.slice(0, 60)}\n`)
+    mountable.set({ $path: p, $type: 't.log', ...entry })
+      .catch(e => process.stderr.write(`[log write err] ${e.message}\n`))
+  })
+
+  // 6. Autostart services
   let serviceHandle: ServiceHandle | null = null;
   if (autostart) {
     serviceHandle = await startServices(store, store.subscribe.bind(store) as import('#contexts/service/index').ServiceCtx['subscribe']);

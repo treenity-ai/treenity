@@ -47,7 +47,7 @@ declare module '#core/context' {
 
 // ── Action context for class methods ──
 // Node.js: AsyncLocalStorage (survives await, concurrent-safe)
-// Browser: global _ctx fallback (safe — single-threaded, no concurrent actions)
+// Browser: global _ctx fallback (NOT safe with concurrent async actions — needs polyfill)
 
 let _als: any = null;
 let _ctx: ExecCtx | null = null;
@@ -57,6 +57,10 @@ let _ctx: ExecCtx | null = null;
 import('node:async_hooks')
   .then(m => { _als = new m.AsyncLocalStorage(); })
   .catch(() => {});
+
+// Wire ExecCtx into logger — safe (returns null outside action context)
+import { setCtxProvider } from '#log';
+setCtxProvider(() => _als?.getStore() ?? _ctx);
 
 export type ExecCtx = { node: NodeData; store: Tree; signal: AbortSignal; [k: string]: unknown };
 

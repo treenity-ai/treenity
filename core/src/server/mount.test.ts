@@ -375,9 +375,9 @@ describe('Types mount adapter', () => {
     register('test.block.text', 'schema', () => ({ label: 'Text', fields: {} }));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types');
-    assert.equal(children.items.length, 1); // /types/test folder
-    assert.equal(children.items[0].$path, '/types/test');
-    assert.equal(children.items[0].$type, 't.dir');
+    const testFolder = children.items.find(n => n.$path === '/types/test');
+    assert.ok(testFolder, '/types/test folder should exist');
+    assert.equal(testFolder.$type, 't.dir');
   });
 
   it('getChildren returns type nodes in category', async () => {
@@ -409,7 +409,9 @@ describe('Types mount adapter', () => {
     await backingStore.set(createNode('/types/custom', 'dir'));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types');
-    assert.equal(children.items.length, 2); // /types/test + /types/custom
+    const paths = children.items.map(n => n.$path);
+    assert.ok(paths.includes('/types/test'), '/types/test should exist');
+    assert.ok(paths.includes('/types/custom'), '/types/custom should exist');
   });
 
   it('registry wins on conflict', async () => {

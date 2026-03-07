@@ -17,7 +17,7 @@ export function createClient(url: string, token?: string) {
           EventSource: EventSource as any,
           connectionParams: () => (token ? { token } : {}),
         }),
-        false: httpBatchLink({ url, headers: () => headers }),
+        false: httpBatchLink({ url, maxURLLength: 2048, headers: () => headers }),
       }),
     ],
   });

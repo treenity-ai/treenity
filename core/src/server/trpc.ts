@@ -66,6 +66,7 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
     // Session-level claims (agents) override dynamic buildClaims (users)
     const claims = ctx.session?.claims ?? (userId ? await buildClaims(baseStore, userId) : ['public']);
     const store = withAcl(baseStore, userId, claims);
+
     const result = await next({ ctx: { ...ctx, store } });
 
     if (!result.ok) {

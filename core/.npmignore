@@ -1,0 +1,13 @@
+# Test files
+**/*.test.ts
+**/*.test.js
+**/*.test.d.ts
+
+# Source maps
+**/*.map
+
+# TypeScript configs
+tsconfig*.json
+
+# Dev scripts
+src/schema/extract-schemas.ts

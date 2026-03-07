@@ -1,7 +1,6 @@
 // Unified logging: tree-persisted nodes + ring buffer fallback + debug filter + console intercept
 
-import { AsyncLocalStorage } from 'node:async_hooks'
-import type { Tree } from '#tree'
+import dayjs from 'dayjs'
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
@@ -16,35 +15,26 @@ export interface LogEntry {
   path?: string
 }
 
-export interface LogContext {
-  userId?: string
-  method?: string
-  path?: string
-}
+// ── Execution context provider — set by comp/index.ts to avoid circular imports ──
 
-export const logContext = new AsyncLocalStorage<LogContext>()
+type CtxProvider = () => Record<string, unknown> | null
+let _getCtx: CtxProvider = () => null
 
-// ── Tree storage ──
+export function setCtxProvider(fn: CtxProvider) { _getCtx = fn }
 
-let logTree: Tree | undefined
+// ── Log listeners ──
 
-export function setLogTree(tree: Tree) {
-  logTree = tree
-  // flush ring buffer to tree
-  for (const entry of getOrdered()) {
-    writeNode(entry)
-  }
-  buffer.length = 0
-  cursor = 0
-  total = 0
-}
+type OnLog = (entry: LogEntry) => void
+const listeners: OnLog[] = []
+
+export function addOnLog(fn: OnLog) { listeners.push(fn) }
 
 // ── Timestamp ID: YYMMDD-HHmmss-mmm-NNN ──
 
 let lastMs = 0
 let seq = 0
 
-function makeLogPath(): string {
+export function makeLogPath(): string {
   const now = Date.now()
   if (now === lastMs) {
     seq++
@@ -53,22 +43,14 @@ function makeLogPath(): string {
     seq = 0
   }
 
-  const d = new Date(now)
-  const yy = String(d.getFullYear()).slice(2)
-  const MM = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const hh = String(d.getHours()).padStart(2, '0')
-  const mm = String(d.getMinutes()).padStart(2, '0')
-  const ss = String(d.getSeconds()).padStart(2, '0')
-  const ms = String(d.getMilliseconds()).padStart(3, '0')
+  const stamp = dayjs(now).format('YYMMDD-HHmmss-SSS')
   const sq = String(seq).padStart(3, '0')
 
-  return `/sys/logs/${yy}${MM}${dd}-${hh}${mm}${ss}-${ms}-${sq}`
+  return `/sys/logs/${stamp}-${sq}`
 }
 
-function writeNode(entry: LogEntry) {
-  if (!logTree) return
-  logTree.set({ $path: makeLogPath(), $type: 't.log', ...entry }).catch(() => {})
+function notify(entry: LogEntry) {
+  for (const fn of listeners) fn(entry)
 }
 
 // ── Ring buffer (fallback before tree init) ──
@@ -97,21 +79,21 @@ function push(level: LogLevel, args: unknown[]) {
   }
 
   const msg = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ')
-  const ctx = logContext.getStore()
+  const ctx = _getCtx()
 
   const entry: LogEntry = {
     t: Date.now(),
     level,
     msg,
-    ...(code && { code }),
-    ...(sub && { sub }),
-    ...(ctx?.userId && { userId: ctx.userId }),
-    ...(ctx?.method && { method: ctx.method }),
-    ...(ctx?.path && { path: ctx.path }),
+    code,
+    sub,
+    userId: ctx?.userId as string | undefined,
+    method: ctx?.method as string | undefined,
+    path: ctx?.path as string | undefined,
   }
 
-  if (logTree) {
-    writeNode(entry)
+  if (listeners.length) {
+    notify(entry)
   } else {
     if (total < MAX) {
       buffer.push(entry)

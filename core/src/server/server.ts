@@ -18,6 +18,9 @@ import { withRefIndex } from './refs';
 import { withValidation } from './validate';
 import { withVolatile } from './volatile';
 import { createWatchManager, type WatchManager } from './watch';
+import { createLogger } from '#log';
+
+const log = createLogger('http');
 
 export type RouteHandler = (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, store: Tree) => Promise<void>;
 
@@ -132,7 +135,10 @@ export function createHttpServer(pipeline: Pipeline, opts?: HttpServerOpts): Ser
     // tRPC routes
     if (pathname.startsWith('/trpc')) {
       const path = pathname.replace(/^\/trpc/, '').replace(/^\//, '');
-      await nodeHTTPRequestHandler({ req, res, router, path, createContext });
+      await nodeHTTPRequestHandler({
+        req, res, router, path, createContext,
+        onError: ({ error, path: p }) => log.error(`trpc ${p}: ${error.message}`),
+      });
       return;
     }
 
@@ -141,7 +147,10 @@ export function createHttpServer(pipeline: Pipeline, opts?: HttpServerOpts): Ser
 
     // Fallback: try tRPC for legacy non-prefixed calls
     const path = pathname.replace(/^\//, '');
-    await nodeHTTPRequestHandler({ req, res, router, path, createContext });
+    await nodeHTTPRequestHandler({
+      req, res, router, path, createContext,
+      onError: ({ error, path: p }) => log.error(`trpc ${p}: ${error.message}`),
+    });
   });
 }
 

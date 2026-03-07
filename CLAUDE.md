@@ -25,6 +25,7 @@ Inspired by Unity3D component model, Plan9 filesystem, Unix pipes.
 - Bug fix → regression test covering the exact broken scenario.
 
 ## Errors
+- **Always fix root causes, not symptoms.** If a bad value appears — find WHERE it enters the system and reject it there. Don't patch downstream code to tolerate garbage.
 - Never use fallback values to mask failures. `x = response?.data?.value || []` is WRONG — validate and throw.
 - Never silently skip errors in try blocks. FORBIDDEN!
 - Only catch exceptions you can meaningfully handle. Always log the error.

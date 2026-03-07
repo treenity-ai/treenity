@@ -30,6 +30,7 @@ export function createTrpcTransport(opts: TrpcTransportOpts): TreenityClient & {
         }),
         false: httpBatchLink({
           url: `${opts.url}/trpc/`,
+          maxURLLength: 2048,
           headers: () => {
             const t = getToken();
             return t ? { Authorization: `Bearer ${t}` } : {};
