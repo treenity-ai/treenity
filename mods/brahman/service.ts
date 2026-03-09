@@ -2,9 +2,8 @@
 // Session + auth middleware, command routing, callback queries, start/stop lifecycle
 
 import { run as runBot, type RunnerHandle } from '@grammyjs/runner';
-import { getComp } from '@treenity/core/comp';
+import { getComponent, type NodeData, register } from '@treenity/core';
 import type { ServiceCtx, ServiceHandle } from '@treenity/core/contexts/service';
-import { type NodeData, register } from '@treenity/core/core';
 import { Autostart } from '@treenity/core/mods/autostart/service';
 import type { ActionCtx } from '@treenity/core/server/actions';
 import { Bot } from 'grammy';
@@ -19,7 +18,7 @@ export function setBotFactory(f: ((token: string) => unknown) | undefined) { _bo
 // ── Bot service registration ──
 
 register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): Promise<ServiceHandle> => {
-  const config = getComp(node, BotConfig);
+  const config = getComponent(node, BotConfig);
   if (!config?.token) throw new Error('brahman.bot: token not configured');
 
   const bot = (_botFactory?.(config.token) ?? new Bot(config.token)) as Bot;
@@ -75,7 +74,7 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
       await svcCtx.store.set(userNode);
     }
 
-    const userData = getComp(userNode, BrahmanUser);
+    const userData = getComponent(userNode, BrahmanUser);
     if (userData?.banned) return;
 
     // Mark as unblocked if previously blocked (user restarted bot)
@@ -84,7 +83,7 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
       await svcCtx.store.set(userNode);
     }
 
-    const sessionComp = getComp(sessionNode, BrahmanSession);
+    const sessionComp = getComponent(sessionNode, BrahmanSession);
     const sessionData = (sessionComp as any)?.data ?? {};
     if (!sessionData.history) sessionData.history = (sessionComp as any)?.history ?? [];
 
@@ -125,7 +124,7 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
   async function findPageByCommand(cmd: string) {
     const pages = await getPages();
     return pages.find(p => {
-      const pc = getComp(p, PageConfig);
+      const pc = getComponent(p, PageConfig);
       return pc?.command === `/${cmd}` || pc?.command === cmd;
     });
   }
@@ -174,7 +173,7 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
     } else if (data.startsWith('lang:')) {
       const newLang = data.slice(5);
       if (bCtx.botLangs.includes(newLang)) {
-        const userData = getComp(bCtx.user, BrahmanUser);
+        const userData = getComponent(bCtx.user, BrahmanUser);
         if (userData) {
           (userData as any).lang = newLang;
           await svcCtx.store.set(bCtx.user);
@@ -292,7 +291,7 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
   const unsub = svcCtx.subscribe(botPath, async () => {
     const fresh = await svcCtx.store.get(botPath);
     if (!fresh) return;
-    const cfg = getComp(fresh, BotConfig);
+    const cfg = getComponent(fresh, BotConfig);
     const shouldRun = cfg?.running !== false;
 
     if (shouldRun && !runner) {

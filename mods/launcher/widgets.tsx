@@ -1,6 +1,6 @@
 // Launcher widgets — react:widget context for compact live views on the home screen
 
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import type { RenderProps } from '@treenity/react/context';
 import { useChildren, usePath } from '@treenity/react/hooks';
 import { cn } from '@treenity/react/lib/utils';

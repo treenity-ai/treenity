@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import { Render, RenderContext, type View } from '@treenity/react/context';
 import { set, useChildren, useNavigate, usePath } from '@treenity/react/hooks';
 import { minimd } from '@treenity/react/lib/minimd';

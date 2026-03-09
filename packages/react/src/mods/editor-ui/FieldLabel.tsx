@@ -1,8 +1,15 @@
 // FieldLabel — interactive label for Inspector fields
 // Click → dropdown menu (value/$ref/$map + copy/clear), drop target for tree nodes
 
-import { isRef } from '@treenity/core/core';
-import { useEffect, useRef, useState } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '#components/ui/dropdown-menu';
+import { isRef } from '@treenity/core';
+import { useState } from 'react';
 
 type FieldMode = 'value' | 'ref' | 'map';
 
@@ -22,21 +29,9 @@ export function FieldLabel({ label, value, onChange }: {
   onChange?: (next: unknown) => void;
 }) {
   const [dragOver, setDragOver] = useState(false);
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLLabelElement>(null);
   const mode = getFieldMode(value);
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-
   function switchMode(next: FieldMode) {
-    setOpen(false);
     if (!onChange || next === mode) return;
     if (next === 'value') {
       onChange(0);
@@ -48,30 +43,13 @@ export function FieldLabel({ label, value, onChange }: {
     }
   }
 
-  function handleCopy() {
-    setOpen(false);
-    navigator.clipboard.writeText(JSON.stringify(value));
-  }
-
-  function handleClear() {
-    setOpen(false);
-    if (onChange) onChange(undefined);
-  }
-
-  // No onChange = read-only label, no menu
   if (!onChange) {
     return <label>{label}</label>;
   }
 
   return (
     <label
-      ref={wrapRef}
-      className={dragOver ? 'text-primary' : undefined}
-      onClick={(e) => {
-        e.preventDefault();
-        setOpen(!open);
-      }}
-      style={{ cursor: 'pointer' }}
+      className={dragOver ? 'text-primary cursor-pointer' : 'cursor-pointer'}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes('application/treenity-path')) {
           e.preventDefault();
@@ -89,28 +67,25 @@ export function FieldLabel({ label, value, onChange }: {
         }
       }}
     >
-      <span className="block overflow-hidden text-ellipsis">{label}</span>
-
-      {open && (
-        <div className="tree-menu" style={{ left: 0, right: 'auto' }}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <span className="block overflow-hidden text-ellipsis">{label}</span>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-[100px]">
           {(['value', 'ref', 'map'] as FieldMode[]).map((m) => (
-            <button
-              key={m}
-              className="tree-menu-item"
-              onClick={(e) => { e.stopPropagation(); switchMode(m); }}
-            >
-              {mode === m ? '\u25CF ' : '  '}{MODE_LABELS[m]}
-            </button>
+            <DropdownMenuItem key={m} onClick={() => switchMode(m)}>
+              {mode === m ? '\u25CF ' : '\u00A0\u00A0'}{MODE_LABELS[m]}
+            </DropdownMenuItem>
           ))}
-          <hr className="my-1 border-border/30" />
-          <button className="tree-menu-item" onClick={(e) => { e.stopPropagation(); handleCopy(); }}>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => navigator.clipboard.writeText(JSON.stringify(value))}>
             Copy
-          </button>
-          <button className="tree-menu-item" onClick={(e) => { e.stopPropagation(); handleClear(); }}>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onChange(undefined)}>
             Clear
-          </button>
-        </div>
-      )}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </label>
   );
 }

@@ -2,7 +2,7 @@
 // Raw IDB API, no dependencies. Fire-and-forget friendly.
 // Degrades silently if IDB unavailable (private browsing, SSR).
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 
 const DB_NAME = 'treenity';
 const DB_VERSION = 1;

@@ -3,8 +3,7 @@
 
 import { Billboard, OrbitControls, Text, Trail } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { getComp } from '@treenity/core/comp';
-import { type NodeData, register } from '@treenity/core/core';
+import { getComponent, type NodeData, register } from '@treenity/core';
 import { useResolvedNode } from '@treenity/react/bind/hook';
 import * as cache from '@treenity/react/cache';
 import { useCurrentNode } from '@treenity/react/context';
@@ -381,16 +380,16 @@ function TreeNode({ path }: { path: string }) {
 
   if (!node) return null;
 
-  const obj = getComp(node, T3dObject);
-  const mesh = getComp(node, T3dMesh);
-  const material = getComp(node, T3dMaterial);
-  const light = getComp(node, T3dLight);
-  const camera = getComp(node, T3dCamera);
-  const text = getComp(node, T3dText);
-  const particles = getComp(node, T3dParticles);
-  const line = getComp(node, T3dLine);
-  const trail = getComp(node, T3dTrail);
-  const script = getComp(node, T3dScript);
+  const obj = getComponent(node, T3dObject);
+  const mesh = getComponent(node, T3dMesh);
+  const material = getComponent(node, T3dMaterial);
+  const light = getComponent(node, T3dLight);
+  const camera = getComponent(node, T3dCamera);
+  const text = getComponent(node, T3dText);
+  const particles = getComponent(node, T3dParticles);
+  const line = getComponent(node, T3dLine);
+  const trail = getComponent(node, T3dTrail);
+  const script = getComponent(node, T3dScript);
 
   // Build inner visual content
   let visual: React.ReactNode = null;

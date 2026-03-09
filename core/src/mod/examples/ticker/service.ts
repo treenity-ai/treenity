@@ -1,9 +1,8 @@
-import { getComp } from '#comp';
-import { type NodeData, register } from '#core';
+import { getComponent, type NodeData, register } from '#core';
 import { TickerConfig } from './types';
 
 register('ticker', 'service', async (node: NodeData, ctx) => {
-  const config = getComp(node, TickerConfig);
+  const config = getComponent(node, TickerConfig);
   const interval = (config?.intervalSec ?? 10) * 1000;
 
   const timer = setInterval(async () => {

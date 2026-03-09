@@ -1,7 +1,7 @@
 // Reusable type preview — Storybook-like: context switcher + live render + schema form editor
 
 import { Render, RenderContext } from '#context';
-import { type ComponentData, getContextsForType, type NodeData } from '@treenity/core/core';
+import { type ComponentData, getContextsForType, type NodeData } from '@treenity/core';
 import { useMemo, useState } from 'react';
 
 // ── Mock data generator (by JSON Schema field type) ──

@@ -1,9 +1,9 @@
 // Brahman bot tests — fake Grammy, real store, full signal flow
 // Tests: template engine, keyboards, tag filtering, page/action execution, middleware
 
+import { type NodeData, resolve } from '@treenity/core';
 import { registerType } from '@treenity/core/comp';
 import type { ServiceCtx } from '@treenity/core/contexts/service';
-import { type NodeData, resolve } from '@treenity/core/core';
 import { serverNodeHandle } from '@treenity/core/server/actions';
 import { createMemoryTree, type Tree } from '@treenity/core/tree';
 import assert from 'node:assert/strict';
@@ -141,7 +141,7 @@ async function seedTestBot(store: Tree) {
   for (const d of ['pages', 'users', 'sessions'])
     await store.set({ $path: `${BOT}/${d}`, $type: 'dir' } as NodeData);
 
-  // /start page — fields on node directly (getComp returns node when $type matches)
+  // /start page — fields on node directly (getComponent returns node when $type matches)
   await store.set({
     $path: `${BOT}/pages/start`, $type: 'brahman.page',
     command: '/start', positions: [`${BOT}/pages/start/_actions/welcome`],

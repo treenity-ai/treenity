@@ -1,8 +1,8 @@
+import { type ComponentData, isComponent, type NodeData, register } from '@treenity/core';
+import type { TypeSchema } from '@treenity/core/schema/types';
 import { Render, RenderContext, type ViewCtx } from '@treenity/react/context';
 import { useChildren } from '@treenity/react/hooks';
 import { useSchema } from '@treenity/react/schema-loader';
-import { type ComponentData, isComponent, type NodeData, register } from '@treenity/core/core';
-import type { TypeSchema } from '@treenity/core/schema/types';
 import React, { useMemo } from 'react';
 import type { ColumnConfig, UITable } from './types';
 import { useDebouncedSync } from './use-debounced-sync';

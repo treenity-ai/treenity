@@ -1,6 +1,6 @@
 // Launcher view — dashboard with drag-drop from tree + context switching
 
-import { isRef, type NodeData, register, resolveExact } from '@treenity/core/core';
+import { isRef, type NodeData, register, resolveExact } from '@treenity/core';
 import { Render, RenderContext, type View } from '@treenity/react/context';
 import { useChildren, useNavigate, usePath } from '@treenity/react/hooks';
 import { cn } from '@treenity/react/lib/utils';

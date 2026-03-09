@@ -19,8 +19,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { NodeData } from '@treenity/core';
 import { getDefaults } from '@treenity/core/comp';
-import type { NodeData } from '@treenity/core/core';
 import { set, useChildren, usePath } from '@treenity/react/hooks';
 import { trpc } from '@treenity/react/trpc';
 import { Camera, File, GripVertical, Mic, MoreHorizontal, Plus, Trash2, Video, X } from 'lucide-react';

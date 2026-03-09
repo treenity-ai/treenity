@@ -1,8 +1,7 @@
 // Brahman helpers — template engine, formatting, keyboards, execution runtime
 // Shared between action handlers and bot service
 
-import { getComp } from '@treenity/core/comp';
-import { type NodeData, resolve as resolveCtx } from '@treenity/core/core';
+import { getComponent, type NodeData, resolve as resolveCtx } from '@treenity/core';
 import type { Tree } from '@treenity/core/tree';
 import { type Context, InlineKeyboard, Keyboard } from 'grammy';
 import { BrahmanUser, type MenuRow, type MenuType, PageConfig, type TString, type WaitState } from './types';
@@ -186,7 +185,7 @@ export type BrahmanCtx = {
 // ── Find action component on a node ──
 
 export function findActionComp(node: NodeData): Record<string, unknown> | undefined {
-  // Node itself is the action (same logic as getComp: node.$type match → return node)
+  // Node itself is the action (same logic as getComponent: node.$type match → return node)
   if (node.$type?.startsWith('brahman.action.')) return node;
   // Fallback: scan nested components
   for (const [k, v] of Object.entries(node)) {
@@ -206,7 +205,7 @@ export class StopProcess extends Error { constructor() { super('StopProcess'); }
 // ── Build template context from BrahmanCtx ──
 
 export function buildTemplateData(bCtx: BrahmanCtx): Record<string, unknown> {
-  const userData = getComp(bCtx.user, BrahmanUser);
+  const userData = getComponent(bCtx.user, BrahmanUser);
   return {
     ...bCtx.session,
     user: userData ?? {},
@@ -258,7 +257,7 @@ export async function executePage(pagePath: string, bCtx: BrahmanCtx): Promise<v
   const pageNode = await bCtx.store.get(pagePath);
   if (!pageNode) return;
 
-  const pageComp = getComp(pageNode, PageConfig);
+  const pageComp = getComponent(pageNode, PageConfig);
   if (!pageComp) return;
 
   // Push to history
@@ -284,7 +283,7 @@ export async function executePage(pagePath: string, bCtx: BrahmanCtx): Promise<v
 
     // 403 = user blocked the bot
     if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
-      const userData = getComp(bCtx.user, BrahmanUser);
+      const userData = getComponent(bCtx.user, BrahmanUser);
       if (userData) {
         (userData as any).blocked = true;
         await bCtx.store.set(bCtx.user);
@@ -298,7 +297,7 @@ export async function executePage(pagePath: string, bCtx: BrahmanCtx): Promise<v
 
     try {
       const { items: pages } = await bCtx.store.getChildren(`${bCtx.botPath}/pages`);
-      const errorPage = pages.find(p => getComp(p, PageConfig)?.command === '/error');
+      const errorPage = pages.find(p => getComponent(p, PageConfig)?.command === '/error');
       if (errorPage) await executePage(errorPage.$path, bCtx);
     } catch (innerErr) {
       console.error(`[brahman:${bCtx.botPath}] error page failed:`, innerErr);

@@ -1,9 +1,13 @@
 // Inspector — view + edit panel for selected node (Unity-style inspector)
 // Shell only: delegates rendering to registered views, provides generic edit UI
 
+import './Inspector.css';
+import { ConfirmDialog } from '#components/ConfirmDialog';
 import { PathBreadcrumb } from '#components/PathBreadcrumb';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#components/ui/collapsible';
+import { ScrollArea } from '#components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '#components/ui/tabs';
 import { NodeProvider, Render, RenderContext } from '#context';
 import { toPlain } from '#lib/to-plain';
@@ -17,9 +21,9 @@ import {
   getViewContexts,
   pickDefaultContext,
 } from '#mods/editor-ui/node-utils';
-import { type ComponentData, type GroupPerm, isRef, type NodeData, resolve } from '@treenity/core/core';
+import { type ComponentData, type GroupPerm, isRef, type NodeData, resolve } from '@treenity/core';
 import type { TypeSchema } from '@treenity/core/schema/types';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { proxy, snapshot, useSnapshot } from 'valtio';
 import { AclEditor } from './AclEditor';
@@ -298,21 +302,17 @@ function NodeCard({
   type: string;
   onChangeType: (t: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="border-t border-border mt-2 pt-0.5 first:border-t-0 first:mt-0 first:pt-0">
-      <div
-        className="flex items-center justify-between py-2 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none"
-        onClick={() => setOpen((v) => !v)}
-      >
+    <Collapsible className="border-t border-border mt-2 pt-0.5 first:border-t-0 first:mt-0 first:pt-0">
+      <CollapsibleTrigger className="flex w-full items-center justify-between py-2 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none">
         <span>Node</span>
         <span className="flex items-center gap-2 normal-case tracking-normal font-normal text-[11px] font-mono text-foreground/50">
           {path}
           <span className="text-primary">{type}</span>
-          {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          <ChevronRight className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-90" />
         </span>
-      </div>
-      {open && (
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <div className="py-0.5 pb-2.5">
           <div className="field">
             <label>$path</label>
@@ -323,14 +323,15 @@ function NodeCard({
             <input value={type} onChange={(e) => onChangeType(e.target.value)} />
           </div>
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
 
 export function Inspector({ path, currentUserId, onDelete, onAddComponent, onSelect, onSetRoot, toast }: Props) {
   const node = usePath(path);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [st] = useState(() => proxy({
     context: 'react',
@@ -531,25 +532,33 @@ export function Inspector({ path, currentUserId, onDelete, onAddComponent, onSel
             variant="destructive"
             size="sm"
             className="h-7"
-            onClick={() => {
-              if (confirm(`Delete ${node.$path}?`)) onDelete(node.$path);
-            }}
+            onClick={() => setConfirmDelete(true)}
           >
             Delete
           </Button>
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={setConfirmDelete}
+            title={`Delete ${node.$path}?`}
+            description="This action cannot be undone."
+            variant="destructive"
+            onConfirm={() => onDelete(node.$path)}
+          />
         </div>
       </div>
 
       {/* Rendered view */}
-      <div className="editor-body">
-        <ErrorBoundary>
-          <RenderContext name={snap.context}>
-            <div className="node-view">
-              <Render value={node} />
-            </div>
-          </RenderContext>
-        </ErrorBoundary>
-      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-4">
+          <ErrorBoundary>
+            <RenderContext name={snap.context}>
+              <div className="node-view">
+                <Render value={node} />
+              </div>
+            </RenderContext>
+          </ErrorBoundary>
+        </div>
+      </ScrollArea>
 
       {/* Slide-out edit panel */}
       <div className={`edit-panel${snap.editing ? ' open' : ''}`}>
@@ -570,7 +579,8 @@ export function Inspector({ path, currentUserId, onDelete, onAddComponent, onSel
           </TabsList>
         </Tabs>
 
-        <div className="edit-panel-body">
+        <ScrollArea className="flex-1">
+          <div className="p-3.5">
           {snap.tab === 'properties' ? (
             <>
               <NodeCard path={node.$path} type={snap.nodeType} onChangeType={(v) => { st.nodeType = v; st.dirty = true; }} />
@@ -669,7 +679,8 @@ export function Inspector({ path, currentUserId, onDelete, onAddComponent, onSel
               />
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
         <div className="edit-panel-actions">
           {snap.stale && (

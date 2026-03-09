@@ -1,13 +1,13 @@
-// Tests for getComp, setComp, newComp, getCtx
+// Tests for setComp, newComp, getCtx
 // Key behavior: when node.$type matches component $type, node itself IS the component.
 
-import { getComp, getCtx, newComp, registerType, setComp } from '#comp';
-import { createNode, register, type NodeData } from '#core';
+import { getCtx, newComp, registerType, setComp } from '#comp';
+import { createNode, getComponent, type NodeData } from '#core';
+import { clearRegistry } from '#core/index.test';
+import { executeAction } from '#server/actions';
 import { createMemoryTree } from '#tree';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clearRegistry } from '#core/index.test';
-import { executeAction } from '#server/actions';
 
 class TestItem {
   name = '';
@@ -21,12 +21,12 @@ class TestMeta {
 }
 registerType('test.meta', TestMeta);
 
-// ── getComp ──
+// ── getComponent ──
 
-describe('getComp', () => {
+describe('getComponent', () => {
   it('returns node itself when node.$type matches component type', () => {
     const node: NodeData = { $path: '/a', $type: 'test.item', name: 'sword', quantity: 3 };
-    const comp = getComp(node, TestItem);
+    const comp = getComponent(node, TestItem);
     assert.ok(comp);
     assert.equal(comp.name, 'sword');
     assert.equal(comp.quantity, 3);
@@ -37,7 +37,7 @@ describe('getComp', () => {
       $path: '/a', $type: 'dir',
       meta: { $type: 'test.meta', title: 'Hello', description: 'world' },
     };
-    const comp = getComp(node, TestMeta);
+    const comp = getComponent(node, TestMeta);
     assert.ok(comp);
     assert.equal(comp.title, 'Hello');
     assert.equal(comp.description, 'world');
@@ -49,7 +49,7 @@ describe('getComp', () => {
       $path: '/a', $type: 'test.item',
       item: { $type: 'test.item', name: 'from-key', quantity: 99 },
     };
-    const comp = getComp(node, TestItem);
+    const comp = getComponent(node, TestItem);
     assert.ok(comp);
     // Node-level has no name/quantity fields → undefined, not the named key values
     assert.equal(comp.name, undefined);
@@ -58,7 +58,7 @@ describe('getComp', () => {
 
   it('returns undefined when no match', () => {
     const node: NodeData = { $path: '/a', $type: 'dir' };
-    assert.equal(getComp(node, TestItem), undefined);
+    assert.equal(getComponent(node, TestItem), undefined);
   });
 });
 

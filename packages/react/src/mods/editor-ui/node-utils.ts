@@ -1,4 +1,4 @@
-import { getContextsForType, isComponent, type NodeData, resolve } from '@treenity/core/core';
+import { getContextsForType, isComponent, type NodeData, resolve } from '@treenity/core';
 import type { PropertySchema, TypeSchema } from '@treenity/core/schema/types';
 
 export function getComponents(node: NodeData): [string, Record<string, unknown>][] {

@@ -4,9 +4,17 @@
 // speak(to?) with hear events, move, remember, interact(target, action)
 // No ANTHROPIC_API_KEY → mock mode (random actions for demo)
 
-import { getComp, newComp, setComp } from '@treenity/core/comp';
-import { createNode, getContextsForType, getMeta, type NodeData, register, resolve } from '@treenity/core/core';
+import {
+  createNode,
+  getComponent,
+  getContextsForType,
+  getMeta,
+  type NodeData,
+  register,
+  resolve,
+} from '@treenity/core';
 import '@treenity/core/contexts/service';
+import { newComp, setComp } from '@treenity/core/comp';
 import { type ActionCtx, serverNodeHandle } from '@treenity/core/server/actions';
 import {
   type AgentEvent,
@@ -32,17 +40,17 @@ function dist(a: SimPosition, b: SimPosition) {
 }
 
 function getNearby(agent: NodeData, all: NodeData[]): NodeData[] {
-  const pos = getComp(agent, SimPosition);
+  const pos = getComponent(agent, SimPosition);
   if (!pos) return [];
   return all.filter((a) => {
     if (a.$path === agent.$path) return false;
-    const ap = getComp(a, SimPosition);
+    const ap = getComponent(a, SimPosition);
     return ap && dist(pos, ap) <= pos.radius;
   });
 }
 
 function eName(n: NodeData): string {
-  return getComp(n, SimDescriptive)?.name ?? n.$path.split('/').at(-1)!;
+  return getComponent(n, SimDescriptive)?.name ?? n.$path.split('/').at(-1)!;
 }
 
 // Discover registered action:* handlers for a type → MCP-style tool list with meta
@@ -81,8 +89,8 @@ function collectEnvironment(agent: NodeData, allEntities: NodeData[]): string {
 
   return near
     .map((n, i) => {
-      const d = getComp(n, SimDescriptive);
-      const p = getComp(n, SimPosition);
+      const d = getComponent(n, SimDescriptive);
+      const p = getComponent(n, SimPosition);
       const actions = getEntityActions(n.$type);
       const actionsStr = actions.length ? `\n   Actions: ${formatActions(actions)}` : '';
       return `${i + 1}. ${n.$type} "${d?.name ?? n.$path}" ${d?.icon ?? ''} at (${p?.x},${p?.y}): ${d?.description ?? ''}${actionsStr}`;
@@ -92,13 +100,13 @@ function collectEnvironment(agent: NodeData, allEntities: NodeData[]): string {
 
 // Get per-agent event history
 function getAgentEvents(n: NodeData): AgentEvent[] {
-  const ev = getComp(n, SimEvents);
+  const ev = getComponent(n, SimEvents);
   return ev?.entries ?? [];
 }
 
 // Append event to agent's inbox (capped at 30)
 function pushAgentEvent(n: NodeData, event: AgentEvent) {
-  const ev = getComp(n, SimEvents);
+  const ev = getComponent(n, SimEvents);
   const entries = [...(ev?.entries ?? []), event].slice(-30);
   setComp(n, SimEvents, { entries });
 }
@@ -166,10 +174,10 @@ async function callLLM(
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return mockThink(agent, allEntities);
 
-  const desc = getComp(agent, SimDescriptive);
-  const pos = getComp(agent, SimPosition);
-  const mem = getComp(agent, SimMemory);
-  const ai = getComp(agent, SimAi);
+  const desc = getComponent(agent, SimDescriptive);
+  const pos = getComponent(agent, SimPosition);
+  const mem = getComponent(agent, SimMemory);
+  const ai = getComponent(agent, SimAi);
 
   const myName = desc?.name ?? 'agent';
 
@@ -272,19 +280,19 @@ function mockThink(agent: NodeData, all: NodeData[]): Tool[] {
 
 /** @description Start the agent simulation loop */
 register('sim.world', 'action:start', async (ctx: ActionCtx) => {
-  const cfg = getComp(ctx.node, SimConfig)!;
+  const cfg = getComponent(ctx.node, SimConfig)!;
   setComp(ctx.node, SimConfig, { ...cfg, running: true });
 }, { description: 'Start the simulation' });
 
 /** @description Stop the agent simulation loop */
 register('sim.world', 'action:stop', async (ctx: ActionCtx) => {
-  const cfg = getComp(ctx.node, SimConfig)!;
+  const cfg = getComponent(ctx.node, SimConfig)!;
   setComp(ctx.node, SimConfig, { ...cfg, running: false });
 }, { description: 'Stop the simulation' });
 
 /** @description Update simulation settings (roundDelay, model, dimensions) */
 register('sim.world', 'action:set-config', async (ctx: ActionCtx, params: any) => {
-  const cfg = getComp(ctx.node, SimConfig)!;
+  const cfg = getComponent(ctx.node, SimConfig)!;
   const next = { ...cfg };
   if (params.roundDelay !== undefined) next.roundDelay = Number(params.roundDelay);
   if (params.model !== undefined) next.model = String(params.model);
@@ -321,7 +329,7 @@ register('sim.world', 'action:add-entity', async (ctx: ActionCtx, params: any) =
 // Agent actions (callable by other agents via interact, or by UI)
 /** @description Move agent to a new position on the map */
 register('sim.agent', 'action:move', async (ctx: ActionCtx, params: any) => {
-  const pos = getComp(ctx.node, SimPosition)!;
+  const pos = getComponent(ctx.node, SimPosition)!;
   const next = { ...pos };
   if (params.x !== undefined) next.x = Math.round(Number(params.x));
   if (params.y !== undefined) next.y = Math.round(Number(params.y));
@@ -331,15 +339,15 @@ register('sim.agent', 'action:move', async (ctx: ActionCtx, params: any) => {
 /** @description Update agent properties (systemPrompt, radius, name, icon, description) */
 register('sim.agent', 'action:update', async (ctx: ActionCtx, params: any) => {
   if (params.systemPrompt !== undefined) {
-    const ai = getComp(ctx.node, SimAi)!;
+    const ai = getComponent(ctx.node, SimAi)!;
     setComp(ctx.node, SimAi, { ...ai, systemPrompt: String(params.systemPrompt) });
   }
   if (params.radius !== undefined) {
-    const pos = getComp(ctx.node, SimPosition)!;
+    const pos = getComponent(ctx.node, SimPosition)!;
     setComp(ctx.node, SimPosition, { ...pos, radius: Number(params.radius) });
   }
   if (params.name !== undefined || params.icon !== undefined || params.description !== undefined) {
-    const desc = getComp(ctx.node, SimDescriptive)!;
+    const desc = getComponent(ctx.node, SimDescriptive)!;
     const next = { ...desc };
     if (params.name !== undefined) next.name = String(params.name);
     if (params.icon !== undefined) next.icon = String(params.icon);
@@ -351,13 +359,13 @@ register('sim.agent', 'action:update', async (ctx: ActionCtx, params: any) => {
 // Item actions — example extensible types
 /** @description Examine the item and return its description */
 register('sim.item', 'action:examine', async (ctx: ActionCtx) => {
-  const desc = getComp(ctx.node, SimDescriptive);
+  const desc = getComponent(ctx.node, SimDescriptive);
   return { description: desc?.description ?? 'Nothing special.' };
 }, { description: 'Look at the item closely' });
 
 /** @description Use or interact with the item */
 register('sim.item', 'action:use', async (ctx: ActionCtx, params: any) => {
-  const desc = getComp(ctx.node, SimDescriptive);
+  const desc = getComponent(ctx.node, SimDescriptive);
   return { result: `You used ${desc?.name ?? 'item'}. ${params.how ?? ''}` };
 }, { description: 'Interact with the item', params: 'how?' });
 
@@ -380,10 +388,10 @@ register('sim.world', 'service', async (node, ctx) => {
   async function runRound() {
     const world = await ctx.store.get(wp);
     if (!world) return;
-    const cfg = getComp(world, SimConfig);
+    const cfg = getComponent(world, SimConfig);
     if (!cfg?.running) return;
 
-    const round = getComp(world, SimRound)!;
+    const round = getComponent(world, SimRound)!;
     const num = round.current ?? 0;
     const allEntities = await getAllEntities();
     const agents = allEntities.filter((n) => n.$type === 'sim.agent');
@@ -414,7 +422,7 @@ register('sim.world', 'service', async (node, ctx) => {
       if (r.status !== 'fulfilled') continue;
       const { agent, tools } = r.value;
       const agentName = eName(agent);
-      const desc = getComp(agent, SimDescriptive);
+      const desc = getComponent(agent, SimDescriptive);
 
       for (const t of tools) {
         const ts = Date.now();
@@ -455,7 +463,7 @@ register('sim.world', 'service', async (node, ctx) => {
           case 'move': {
             const fresh = await ctx.store.get(agent.$path);
             if (!fresh) break;
-            const pos = getComp(fresh, SimPosition)!;
+            const pos = getComponent(fresh, SimPosition)!;
             setComp(fresh, SimPosition, {
               ...pos,
               x: Math.max(0, Math.min(cfg.width, t.x as number)),
@@ -475,7 +483,7 @@ register('sim.world', 'service', async (node, ctx) => {
           case 'remember': {
             const fresh = await ctx.store.get(agent.$path);
             if (!fresh) break;
-            const mem = getComp(fresh, SimMemory);
+            const mem = getComponent(fresh, SimMemory);
             setComp(fresh, SimMemory, {
               entries: [...(mem?.entries ?? []), t.text as string].slice(-20),
             });
@@ -565,7 +573,7 @@ register('sim.world', 'service', async (node, ctx) => {
     while (!stopped) {
       try {
         const w = await ctx.store.get(wp);
-        const cfg = w ? getComp(w, SimConfig) : null;
+        const cfg = w ? getComponent(w, SimConfig) : null;
         if (cfg?.running) await runRound();
         await new Promise((r) => setTimeout(r, cfg?.roundDelay ?? 5000));
       } catch (e: any) {

@@ -1,4 +1,5 @@
 import { Button } from '#components/ui/button';
+import { Dialog, DialogContent } from '#components/ui/dialog';
 import { Input } from '#components/ui/input';
 import { Label } from '#components/ui/label';
 import { useState } from 'react';
@@ -87,23 +88,10 @@ export function LoginScreen({ onLogin }: { onLogin: (userId: string) => void }) 
 
 export function LoginModal({ onLogin, onClose }: { onLogin: (userId: string) => void; onClose?: () => void }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onMouseDown={(e) => { if (onClose && e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="relative">
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
-            onClick={onClose}
-          >
-            &times;
-          </Button>
-        )}
+    <Dialog open onOpenChange={(open) => { if (!open && onClose) onClose(); }}>
+      <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-fit" showCloseButton={!!onClose}>
         <LoginForm onLogin={onLogin} />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

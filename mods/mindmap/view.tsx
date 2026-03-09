@@ -1,7 +1,7 @@
 // MindMap View — Miro-style horizontal tree with organic curves
 // Activated by adding mindmap.map component to any node
 
-import { register } from '@treenity/core/core';
+import { register } from '@treenity/core';
 import type { View } from '@treenity/react/context';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MindMapTree } from './radial-tree';

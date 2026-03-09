@@ -1,7 +1,7 @@
 // Chat preview — Telegram-style visualization of page actions
 // Registered as react:chat for brahman.page
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import { useChildren, usePath } from '@treenity/react/hooks';
 import { Camera, File, Mic, Video } from 'lucide-react';
 import type { MenuRow, MenuType, TString } from '../types';
@@ -59,7 +59,7 @@ function TgHtml({ text }: { text: string }) {
   return <>{Array.from(doc.body.childNodes).map(domToReact)}</>;
 }
 
-function getComp(node: NodeData): Record<string, unknown> {
+function getComponent(node: NodeData): Record<string, unknown> {
   if (node.$type?.startsWith('brahman.action.')) return node;
   for (const [k, v] of Object.entries(node)) {
     if (k.startsWith('$')) continue;
@@ -141,7 +141,7 @@ const FILE_ICONS: Record<string, React.ReactNode> = {
 // ── Action renderers ──
 
 function renderAction(node: NodeData, index: number, isFirstBubble: boolean): React.ReactNode {
-  const c = getComp(node);
+  const c = getComponent(node);
   const type = node.$type;
 
   switch (type) {

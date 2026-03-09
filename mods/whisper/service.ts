@@ -1,13 +1,12 @@
 // Whisper service — autostart-compatible, registers HTTP route dynamically
 
-import { getComp } from '@treenity/core/comp';
-import { register } from '@treenity/core/core';
+import { getComponent, register } from '@treenity/core';
 import { routeRegistry } from '@treenity/core/server/server';
 import { createWhisperHandler } from './route';
 import { WhisperConfig } from './types';
 
 register('whisper.service', 'service', async (node, _ctx) => {
-  const config = getComp(node, WhisperConfig);
+  const config = getComponent(node, WhisperConfig);
   if (!config) throw new Error(`[whisper] missing config on ${node.$path}`);
 
   const routePath = config.url || node.$path;

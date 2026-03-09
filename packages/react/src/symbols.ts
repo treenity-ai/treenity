@@ -1,7 +1,7 @@
 // Symbol-based component location metadata.
 // Stamped on deserialization (cache.put). Survive spread, invisible to JSON/keys/entries.
 
-import { isComponent, type NodeData } from '@treenity/core/core';
+import { isComponent, type NodeData } from '@treenity/core';
 
 export const $key = Symbol.for('treenity.$key');
 export const $node = Symbol.for('treenity.$node');

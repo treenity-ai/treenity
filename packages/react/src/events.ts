@@ -1,7 +1,7 @@
 // Server event subscription — module-level, not tied to any React component.
 // Listens to trpc.events SSE and updates the cache.
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import { applyPatch, type Operation } from 'fast-json-patch';
 import * as cache from './cache';
 import { trpc } from './trpc';

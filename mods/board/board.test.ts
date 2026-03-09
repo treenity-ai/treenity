@@ -1,6 +1,6 @@
 // Board task tests — status flow, actions, field updates
 
-import { type NodeData, resolve } from '@treenity/core/core';
+import { type NodeData, resolve } from '@treenity/core';
 import './types';
 import { createMemoryTree } from '@treenity/core/tree';
 import assert from 'node:assert/strict';

@@ -1,10 +1,13 @@
 // react:form handlers — editable fields for inspector panel
 import * as cache from '#cache';
 import { tree as clientStore } from '#client';
-import { useSchema } from '#schema-loader';
 // react view handlers — readOnly display for same types
 // Covers: string, text, textarea, number, integer, boolean, array, object, image, uri, url, select, timestamp, path
-import { register, resolve as resolveHandler } from '@treenity/core/core';
+import { Popover, PopoverContent, PopoverTrigger } from '#components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#components/ui/select';
+import { Switch } from '#components/ui/switch';
+import { useSchema } from '#schema-loader';
+import { register, resolve as resolveHandler } from '@treenity/core';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
 import { createElement, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
@@ -97,15 +100,16 @@ function StringForm({ value, onChange }: FP) {
   // enum → select dropdown
   if (value.enum && value.enum.length > 0) {
     return (
-      <select
-        value={String(value.value ?? '')}
-        onChange={(e) => onChange?.({ ...value, value: e.target.value })}
-      >
-        <option value="">—</option>
-        {value.enum.map((v) => (
-          <option key={v} value={v}>{v}</option>
-        ))}
-      </select>
+      <Select value={String(value.value ?? '')} onValueChange={(v) => onChange?.({ ...value, value: v })}>
+        <SelectTrigger className="h-7 text-xs font-mono">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
+        <SelectContent>
+          {value.enum.map((v) => (
+            <SelectItem key={v} value={v}>{v}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     );
   }
 
@@ -152,11 +156,9 @@ function IntegerForm({ value, onChange }: FP) {
 function BooleanForm({ value, onChange }: FP) {
   return (
     <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        className="w-auto"
+      <Switch
         checked={!!value.value}
-        onChange={(e) => onChange?.({ ...value, value: e.target.checked })}
+        onCheckedChange={(checked) => onChange?.({ ...value, value: checked })}
       />
       <span className="text-xs text-muted-foreground">{value.label}</span>
     </label>
@@ -214,15 +216,16 @@ function TimestampForm({ value, onChange }: FP) {
 function SelectForm({ value, onChange }: FP) {
   const opts = value.enum ?? [];
   return (
-    <select
-      value={String(value.value ?? '')}
-      onChange={(e) => onChange?.({ ...value, value: e.target.value })}
-    >
-      <option value="">—</option>
-      {opts.map((v) => (
-        <option key={v} value={v}>{v}</option>
-      ))}
-    </select>
+    <Select value={String(value.value ?? '')} onValueChange={(v) => onChange?.({ ...value, value: v })}>
+      <SelectTrigger className="h-7 text-xs font-mono">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        {opts.map((v) => (
+          <SelectItem key={v} value={v}>{v}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -299,11 +302,10 @@ function ObjectForm({ value, onChange }: FP) {
                 {k}
               </span>
               {typeof v === 'boolean' ? (
-                <input
-                  type="checkbox"
-                  className="w-auto mt-1.5"
+                <Switch
+                  className="mt-1"
                   checked={v}
-                  onChange={(e) => emit({ ...obj, [k]: e.target.checked })}
+                  onCheckedChange={(checked) => emit({ ...obj, [k]: checked })}
                 />
               ) : typeof v === 'number' ? (
                 <input
@@ -482,8 +484,7 @@ function PathView({ value }: FP) {
 
 // Compact tree picker dropdown for selecting a node path
 // Lazy-loads children via trpc on expand, caches into front/cache
-export function MiniTree({ onSelect, onClose }: { onSelect: (path: string) => void; onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+export function MiniTree({ onSelect }: { onSelect: (path: string) => void }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState('');
@@ -498,15 +499,6 @@ export function MiniTree({ onSelect, onClose }: { onSelect: (path: string) => vo
   useEffect(() => {
     fetchChildren('/');
   }, []);
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
 
   async function fetchChildren(path: string) {
     if (loaded.has(path)) return;
@@ -594,10 +586,7 @@ export function MiniTree({ onSelect, onClose }: { onSelect: (path: string) => vo
   const rootNode = nodes.get('/');
 
   return (
-    <div
-      ref={ref}
-      className="absolute z-50 mt-1 w-64 max-h-60 overflow-auto bg-popover border border-border rounded-lg shadow-lg"
-    >
+    <>
       <div className="p-1.5 border-b border-border">
         <input
           className="text-[11px] w-full"
@@ -611,7 +600,7 @@ export function MiniTree({ onSelect, onClose }: { onSelect: (path: string) => vo
         {rootNode && renderNode('/', 0)}
         {!rootNode && rootKids.map((r) => renderNode(r, 0))}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -801,14 +790,22 @@ function PathForm({ value, onChange }: FP) {
               <X className="h-3 w-3" />
             </button>
           )}
-          <button
-            type="button"
-            className="border-0 bg-transparent p-0 px-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0 text-[11px]"
-            onClick={() => setPickerOpen((v) => !v)}
-            title="Browse tree"
-          >
-            &#9776;
-          </button>
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="border-0 bg-transparent p-0 px-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0 text-[11px]"
+                title="Browse tree"
+              >
+                &#9776;
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 max-h-60 overflow-auto p-0">
+              <MiniTree
+                onSelect={(p) => { applyNode(p); setPickerOpen(false); }}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Inline typed editor for embedded value */}
@@ -822,13 +819,6 @@ function PathForm({ value, onChange }: FP) {
           </div>
         )}
       </div>
-
-      {pickerOpen && (
-        <MiniTree
-          onSelect={(p) => { applyNode(p); setPickerOpen(false); }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
     </div>
   );
 }

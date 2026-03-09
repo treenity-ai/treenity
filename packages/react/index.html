@@ -4,8 +4,33 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Treenity</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style type="text/tailwindcss">
+      @theme inline extend {
+        --color-background: #0d1117;
+        --color-foreground: #e6edf3;
+        --color-card: #161b22;
+        --color-card-foreground: #e6edf3;
+        --color-popover: #161b22;
+        --color-popover-foreground: #e6edf3;
+        --color-primary: #2ecc71;
+        --color-primary-foreground: #ffffff;
+        --color-secondary: #21262d;
+        --color-secondary-foreground: #e6edf3;
+        --color-muted: #161b22;
+        --color-muted-foreground: #7d8590;
+        --color-accent: rgba(46, 204, 113, 0.15);
+        --color-accent-foreground: #2ecc71;
+        --color-destructive: #f85149;
+        --color-destructive-foreground: #e6edf3;
+        --color-border: #30363d;
+        --color-input: #30363d;
+        --color-ring: #2ecc71;
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

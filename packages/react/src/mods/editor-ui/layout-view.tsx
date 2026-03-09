@@ -3,9 +3,9 @@
 
 import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
-import { type ComponentData, type NodeData, register } from '@treenity/core/core';
-import { getComponents, getPlainFields } from './node-utils';
+import { type ComponentData, type NodeData, register } from '@treenity/core';
 import { EmptyNodePlaceholder } from './empty-placeholder';
+import { getComponents, getPlainFields } from './node-utils';
 
 function DefaultLayout({ value }: { value: ComponentData }) {
   if (!('$path' in value)) return null;

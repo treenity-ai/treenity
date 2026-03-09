@@ -1,4 +1,4 @@
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { clearComputed, getComputed, setComputed, subscribeComputed } from './computed';

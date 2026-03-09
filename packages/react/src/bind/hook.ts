@@ -2,7 +2,7 @@
 
 import * as cache from '#cache';
 import { set, usePath } from '#hooks';
-import { isRef, type NodeData } from '@treenity/core/core';
+import { isRef, type NodeData } from '@treenity/core';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useSnapshot } from 'valtio';
 import { proxy } from 'valtio/vanilla';

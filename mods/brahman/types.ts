@@ -1,7 +1,8 @@
 // Brahman — Telegram bot constructor
 // Component types for bot config, pages, actions, users, sessions
 
-import { getComp, getCtx, registerType } from '@treenity/core/comp';
+import { getComponent } from '@treenity/core';
+import { getCtx, registerType } from '@treenity/core/comp';
 import type { BrahmanCtx } from './helpers';
 
 // ── Shared types ──
@@ -216,7 +217,7 @@ export class IfElseAction {
     try {
       const condition = format(this.condition, bCtx);
       const evalFn = new Function('session', 'data', 'user', `return !!(${condition})`);
-      const userData = getComp(bCtx.user, BrahmanUser);
+      const userData = getComponent(bCtx.user, BrahmanUser);
       result = evalFn(session, session, userData);
     } catch { /* eval failed → false */ }
 
@@ -287,7 +288,7 @@ export class TagAction {
       if (idx >= 0) tags.splice(idx, 1);
     }
 
-    const userComp = getComp(bCtx.user, BrahmanUser);
+    const userComp = getComponent(bCtx.user, BrahmanUser);
     if (userComp) {
       (userComp as any).tags = tags;
       await store.set(bCtx.user);
@@ -315,7 +316,7 @@ export class BroadcastAction {
     const filterTags = this.userTags ?? [];
 
     for (const userNode of users) {
-      const userData = getComp(userNode, BrahmanUser);
+      const userData = getComponent(userNode, BrahmanUser);
       if (!userData || userData.banned || userData.blocked) continue;
       if (filterTags.length > 0 && !checkTags(userData.tags ?? [], filterTags)) continue;
 
@@ -370,7 +371,7 @@ export class SetValueAction {
       try {
         const formatted = format(this.value, bCtx);
         const evalFn = new Function('session', 'data', 'user', `return (${formatted})`);
-        const userData = getComp(bCtx.user, BrahmanUser);
+        const userData = getComponent(bCtx.user, BrahmanUser);
         session[this.saveTo] = evalFn(session, session, userData);
       } catch {
         session[this.saveTo] = this.value;
@@ -456,7 +457,7 @@ export class EvalAction {
     try {
       const fn = new Function('ctx', 'session', 'data', 'user', 'store',
         `return (async function() { ${this.value} }).call(null)`);
-      const userData = getComp(bCtx.user, BrahmanUser);
+      const userData = getComponent(bCtx.user, BrahmanUser);
       await fn(ctx, session, session, userData, store);
     } catch (err) {
       console.error(`[brahman:eval]`, err);
@@ -498,7 +499,7 @@ export class EmitTextAction {
       const cmd = text.slice(1).split(/\s/)[0];
       const { items: pages } = await store.getChildren(`${bCtx.botPath}/pages`);
       const page = pages.find(p => {
-        const pc = getComp(p, PageConfig);
+        const pc = getComponent(p, PageConfig);
         return pc?.command === `/${cmd}` || pc?.command === cmd;
       });
       if (page) {
@@ -626,7 +627,7 @@ export class KeywordSelectAction {
           const cmd = el.message.slice(1);
           const { items: pages } = await store.getChildren(`${bCtx.botPath}/pages`);
           const page = pages.find(p => {
-            const pc = getComp(p, PageConfig);
+            const pc = getComponent(p, PageConfig);
             return pc?.command === `/${cmd}` || pc?.command === cmd;
           });
           if (page) await executePage(page.$path, bCtx);

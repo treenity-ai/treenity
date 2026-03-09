@@ -3,8 +3,7 @@
 // AgentView: profile, editable prompt, memory, event inbox
 // ItemView: description card
 
-import { getComp } from '@treenity/core/comp';
-import { type NodeData, register } from '@treenity/core/core';
+import { getComponent, type NodeData, register } from '@treenity/core';
 import { useCurrentNode } from '@treenity/react/context';
 import { useChildren } from '@treenity/react/hooks';
 import { trpc } from '@treenity/react/trpc';
@@ -26,16 +25,16 @@ type Link = { x1: number; y1: number; x2: number; y2: number; opacity: number };
 function buildLinks(entities: NodeData[]): Link[] {
   const posByName = new Map<string, SimPosition & { $type: string }>();
   for (const a of entities) {
-    const d = getComp(a, SimDescriptive);
-    const p = getComp(a, SimPosition);
+    const d = getComponent(a, SimDescriptive);
+    const p = getComponent(a, SimPosition);
     if (d && p) posByName.set(d.name, p);
   }
   const links: Link[] = [];
   const seen = new Set<string>();
   for (const a of entities) {
-    const desc = getComp(a, SimDescriptive);
-    const pos = getComp(a, SimPosition);
-    const nearby = getComp(a, SimNearby);
+    const desc = getComponent(a, SimDescriptive);
+    const pos = getComponent(a, SimPosition);
+    const nearby = getComponent(a, SimNearby);
     if (!desc || !pos || !nearby?.agents) continue;
     for (const other of nearby.agents) {
       const key = [desc.name, other].sort().join('|');
@@ -91,8 +90,8 @@ function WorldView() {
     trpc.execute.mutate(p).catch((e) => setError(errMsg(e)));
   }, []);
 
-  const cfg = getComp(node, SimConfig);
-  const round = getComp(node, SimRound);
+  const cfg = getComponent(node, SimConfig);
+  const round = getComponent(node, SimRound);
   const entities = children.filter((n: NodeData) => n.$type === 'sim.agent' || n.$type === 'sim.item');
   const W = cfg?.width ?? 600;
   const H = cfg?.height ?? 400;
@@ -199,8 +198,8 @@ function WorldView() {
         </svg>
 
         {entities.map((a: NodeData) => {
-          const pos = getComp(a, SimPosition);
-          const desc = getComp(a, SimDescriptive);
+          const pos = getComponent(a, SimPosition);
+          const desc = getComponent(a, SimDescriptive);
           if (!pos) return null;
           const isSel = selected === a.$path;
           const isItem = a.$type === 'sim.item';
@@ -309,11 +308,11 @@ function WorldView() {
 
 function AgentView() {
   const node = useCurrentNode();
-  const desc = getComp(node, SimDescriptive);
-  const pos = getComp(node, SimPosition);
-  const mem = getComp(node, SimMemory);
-  const ai = getComp(node, SimAi);
-  const events = getComp(node, SimEvents)?.entries ?? [];
+  const desc = getComponent(node, SimDescriptive);
+  const pos = getComponent(node, SimPosition);
+  const mem = getComponent(node, SimMemory);
+  const ai = getComponent(node, SimAi);
+  const events = getComponent(node, SimEvents)?.entries ?? [];
 
   const [editPrompt, setEditPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -419,8 +418,8 @@ function AgentView() {
 
 function ItemView() {
   const node = useCurrentNode();
-  const desc = getComp(node, SimDescriptive);
-  const pos = getComp(node, SimPosition);
+  const desc = getComponent(node, SimDescriptive);
+  const pos = getComponent(node, SimPosition);
 
   return (
     <div style={{ fontFamily: 'var(--mono)', fontSize: 13, maxWidth: 400 }}>

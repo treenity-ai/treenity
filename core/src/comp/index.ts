@@ -2,7 +2,18 @@
 // registerType(type, cls) → stamps $type, registers class, auto-registers actions from methods
 
 import { registerActionNeeds } from '#comp/needs';
-import { type Class, ComponentData, getComponent, NodeData, normalizeType, register, resolve, type TypeId } from '#core';
+import {
+  type Class,
+  ComponentData,
+  getComponent,
+  NodeData,
+  normalizeType,
+  register,
+  resolve,
+  type TypeId,
+} from '#core';
+// Wire ExecCtx into logger — safe (returns null outside action context)
+import { setCtxProvider } from '#log';
 import { trackType } from '#mod/tracking';
 import { type TypeSchema } from '#schema/types';
 import { type Tree } from '#tree';
@@ -58,8 +69,6 @@ import('node:async_hooks')
   .then(m => { _als = new m.AsyncLocalStorage(); })
   .catch(() => {});
 
-// Wire ExecCtx into logger — safe (returns null outside action context)
-import { setCtxProvider } from '#log';
 setCtxProvider(() => _als?.getStore() ?? _ctx);
 
 export type ExecCtx = { node: NodeData; store: Tree; signal: AbortSignal; [k: string]: unknown };
@@ -131,9 +140,6 @@ export function registerActions<T>(type: TypeId, cls: Class<T>, opts?: CompOptio
 }
 
 // ── Type-safe component access ──
-
-// Alias for getComponent (unified in L0)
-export { getComponent as getComp };
 
 export function setComp<T>(node: NodeData, cls: Class<T>, data: Partial<Raw<T>>, field?: string): void {
   const comp = getComponent(node, cls, field);

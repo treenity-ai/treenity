@@ -1,7 +1,7 @@
 // Action type views — full editors (react) + compact cards (react:list)
 // Each action type gets: icon helper, summary helper, full editor, list item
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import { Checkbox } from '@treenity/react/components/ui/checkbox';
 import { Input } from '@treenity/react/components/ui/input';
 import { set, usePath } from '@treenity/react/hooks';

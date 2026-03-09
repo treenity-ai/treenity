@@ -4,7 +4,7 @@
 
 import * as cache from '#cache';
 import { trpc } from '#trpc';
-import { isRef, type NodeData, type Ref } from '@treenity/core/core';
+import { isRef, type NodeData, type Ref } from '@treenity/core';
 import { clearComputed, getComputed, setComputed } from './computed';
 import { evaluateRef, extractArgPaths, hasOnce, isCollectionRef } from './eval';
 

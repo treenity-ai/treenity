@@ -1,6 +1,6 @@
 // Sensor demo — generates fake readings every second as children
 
-import { createNode, register } from '@treenity/core/core';
+import { createNode, register } from '@treenity/core';
 import '@treenity/core/contexts/service';
 import { SensorReading } from './types';
 

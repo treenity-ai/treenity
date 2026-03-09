@@ -1,6 +1,6 @@
 // Launcher icons — react:icon context with iOS-style SVG icons
 
-import { register } from '@treenity/core/core';
+import { register } from '@treenity/core';
 import type { RenderProps } from '@treenity/react/context';
 import type { FC, ReactNode } from 'react';
 

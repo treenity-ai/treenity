@@ -1,4 +1,4 @@
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import { pathName } from './list-items';
 import { getComponents, getSchema } from './node-utils';
 

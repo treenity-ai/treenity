@@ -1,7 +1,7 @@
 // useTreeData — bridge between Treenity cache and D3 hierarchy
 // Lazily loads children for expanded paths, builds nested tree structure
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import * as cache from '@treenity/react/cache';
 import { getComponents } from '@treenity/react/mods/editor-ui/node-utils';
 import { trpc } from '@treenity/react/trpc';

@@ -1,5 +1,5 @@
 import { useSchema } from '#schema-loader';
-import { type ComponentData, isRef, register, resolve } from '@treenity/core/core';
+import { type ComponentData, isRef, register, resolve } from '@treenity/core';
 import { createElement } from 'react';
 import { FieldLabel, RefEditor } from './FieldLabel';
 import { renderField, StringArrayField } from './form-field';

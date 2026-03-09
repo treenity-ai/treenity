@@ -1,5 +1,13 @@
+import './Tree.css';
+import { ConfirmDialog } from '#components/ConfirmDialog';
 import { Badge } from '#components/ui/badge';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '#components/ui/dropdown-menu';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import * as cache from './cache';
 
 type TreeProps = {
@@ -48,58 +56,45 @@ function BadgeMenu({
   onCreateChild: (path: string) => void;
   onDelete?: (path: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <div ref={ref} className="tree-badge-wrap">
-      <Badge
-        variant="secondary"
-        className="tree-badge cursor-pointer text-[10px] px-1.5 py-0 h-5 font-mono"
-        title={fullType}
-        onClick={(e) => {
-          e.stopPropagation();
-          setOpen(!open);
-        }}
-      >
-        {typeLabel}
-      </Badge>
-      {open && (
-        <div className="tree-menu">
-          <button
-            className="tree-menu-item"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-              onCreateChild(path);
-            }}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <Badge
+            variant="secondary"
+            className="tree-badge cursor-pointer text-[10px] px-1.5 py-0 h-5 font-mono"
+            title={fullType}
           >
+            {typeLabel}
+          </Badge>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-[120px]" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onClick={() => onCreateChild(path)}>
             + Add child
-          </button>
+          </DropdownMenuItem>
           {onDelete && (
-            <button
-              className="tree-menu-item danger"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(false);
-                if (confirm(`Delete ${path}?`)) onDelete(path);
-              }}
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setConfirmDelete(true)}
             >
               × Delete
-            </button>
+            </DropdownMenuItem>
           )}
-        </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {onDelete && (
+        <ConfirmDialog
+          open={confirmDelete}
+          onOpenChange={setConfirmDelete}
+          title={`Delete ${path}?`}
+          description="This action cannot be undone."
+          variant="destructive"
+          onConfirm={() => onDelete(path)}
+        />
       )}
-    </div>
+    </>
   );
 }
 

@@ -1,0 +1,91 @@
+/* Tree sidebar */
+.tree-node {
+  position: relative;
+}
+.tree-children {
+  position: relative;
+  padding-left: 12px;
+}
+.tree-children::before {
+  content: '';
+  position: absolute;
+  left: 15px;
+  top: 0;
+  bottom: 8px;
+  width: 1px;
+  background: var(--border-subtle);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 1px 8px 1px 0;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  height: 28px;
+  position: relative;
+  user-select: none;
+  transition: background var(--transition);
+}
+.tree-row:hover {
+  background: var(--surface-2);
+}
+.tree-row.selected {
+  background: var(--accent-subtle);
+}
+.tree-row.selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.tree-toggle {
+  width: 20px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+.tree-toggle:hover {
+  color: var(--text-2);
+}
+
+.tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-badge {
+  font-size: 10px;
+  color: var(--text-3);
+  padding: 1px 6px;
+  background: var(--surface-3);
+  border-radius: 10px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.tree-badge:hover {
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+
+/* Drag */
+.tree-drop-above {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.tree-drop-below {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}

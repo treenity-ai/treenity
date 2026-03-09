@@ -1,6 +1,6 @@
 // Page layout — DnD sortable list of actions
 // Data model: command & positions are TOP-LEVEL node fields (not in a component).
-// getComp(node, PageConfig) returns the node itself when node.$type === 'brahman.page',
+// getComponent(node, PageConfig) returns the node itself when node.$type === 'brahman.page',
 // so data must be on the node, not nested in node.page.
 
 import {
@@ -20,8 +20,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { NodeData } from '@treenity/core';
 import { getDefaults } from '@treenity/core/comp';
-import type { NodeData } from '@treenity/core/core';
 import { Button } from '@treenity/react/components/ui/button';
 import { Input } from '@treenity/react/components/ui/input';
 import { Render } from '@treenity/react/context';
@@ -149,7 +149,7 @@ export function PageLayoutView({ value }: { value: NodeData }) {
   const children = useChildren(actionsPath, { watch: true, watchNew: true });
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  // Read command & positions from node top-level (getComp returns node itself)
+  // Read command & positions from node top-level (getComponent returns node itself)
   const command = (node?.command as string) ?? '';
   const positions: string[] = (node?.positions as string[]) ?? [];
 

@@ -1,6 +1,6 @@
 // Pipe registry — Angular-style transforms for $map expressions
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 
 export type PipeFn = (input: unknown, ...args: unknown[]) => unknown;
 

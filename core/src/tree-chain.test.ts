@@ -1,10 +1,11 @@
-import assert from 'node:assert/strict'
-import { describe, test } from 'node:test'
-import { createMemoryTree } from '#tree'
-import { registerType } from '#comp'
-import { type TypedRef, refVal } from '#chain'
-import { isRef } from '#core'
-import type { Tree } from '#tree'
+import { refVal, type TypedRef } from '#chain';
+import { registerType } from '#comp';
+import { isRef } from '#core';
+import type { Tree } from '#tree';
+import { createMemoryTree } from '#tree';
+import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
+import { treeChain } from './tree-chain';
 
 // ── Test types ──
 
@@ -75,8 +76,6 @@ async function seed(): Promise<Tree> {
 
   return tree
 }
-
-import { treeChain } from './tree-chain'
 
 describe('treeChain — path building', () => {
   test('$path from dot navigation', () => {
@@ -631,10 +630,10 @@ describe('treeChain — error paths', () => {
 })
 
 describe('treeChain — (Class) where node.$type matches', () => {
-  test('getComp returns node itself when $type matches', async () => {
+  test('getComponent returns node itself when $type matches', async () => {
     const tree = await seed()
     // scanner.$type === 'tch.scanner', Scanner.$type === 'tch.scanner'
-    // getComp returns node itself — all fields at node level
+    // getComponent returns node itself — all fields at node level
     const node = await treeChain(tree).services.scanner
     assert.equal(node.$type, 'tch.scanner')
     assert.equal(node.$path, '/services/scanner')

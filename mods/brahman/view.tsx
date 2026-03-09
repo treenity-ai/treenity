@@ -1,7 +1,7 @@
 // Brahman — view registrations
 // Registers react + react:list handlers for all brahman types
 
-import { register } from '@treenity/core/core';
+import { register } from '@treenity/core';
 import './types';
 
 import {

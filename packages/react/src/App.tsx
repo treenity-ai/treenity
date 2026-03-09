@@ -1,9 +1,18 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '#components/ui/alert-dialog';
 import { Button } from '#components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '#components/ui/dropdown-menu';
 import { Input } from '#components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#components/ui/resizable';
 import { TypePicker } from '#mods/editor-ui/type-picker';
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import * as cache from './cache';
@@ -148,7 +157,7 @@ export function App() {
     function onKeyDown(e: KeyboardEvent) {
       const meta = e.metaKey || e.ctrlKey;
       if (!meta) return;
-      if (document.querySelector('.type-picker-overlay')) return;
+      if (document.querySelector('[data-slot="dialog-overlay"]')) return;
       if (e.key === '/' && selected) {
         e.preventDefault();
         setAddingComponentAt(selected);
@@ -345,8 +354,10 @@ export function App() {
 
   const roots = hasRootNode ? [root] : [];
 
-  const handleCreateRoot = useCallback(async () => {
-    const type = prompt('Root node $type:', 'root');
+  const [rootPromptOpen, setRootPromptOpen] = useState(false);
+  const [rootPromptType, setRootPromptType] = useState('root');
+
+  const handleCreateRoot = useCallback(async (type: string) => {
     if (!type) return;
     try {
       await tree.set({ $path: '/', $type: type } as NodeData);
@@ -449,7 +460,7 @@ export function App() {
               </Button>
             )}
             {!sidebarCollapsed && roots.length === 0 && (
-              <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={handleCreateRoot}>
+              <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => { setRootPromptType('root'); setRootPromptOpen(true); }}>
                 Create root
               </Button>
             )}
@@ -544,6 +555,30 @@ export function App() {
           onCancel={() => setAddingComponentAt(null)}
         />
       )}
+
+      <AlertDialog open={rootPromptOpen} onOpenChange={setRootPromptOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create root node</AlertDialogTitle>
+          </AlertDialogHeader>
+          <Input
+            value={rootPromptType}
+            onChange={(e) => setRootPromptType(e.target.value)}
+            placeholder="$type"
+            className="font-mono"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setRootPromptOpen(false);
+                handleCreateRoot(rootPromptType);
+              }
+            }}
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleCreateRoot(rootPromptType)}>Create</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {needsLogin && (
         <LoginModal

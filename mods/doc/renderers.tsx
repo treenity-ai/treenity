@@ -7,7 +7,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { register } from '@treenity/core/core';
+import { register } from '@treenity/core';
 import { common, createLowlight } from 'lowlight';
 import { useCallback, useEffect, useRef } from 'react';
 import { SlashCommand } from './slash-command';

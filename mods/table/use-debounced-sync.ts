@@ -1,8 +1,10 @@
+import { AnyType, getComponent, type NodeData } from '@treenity/core';
 import { set } from '@treenity/react/hooks';
-import { type NodeData, AnyType, getComponent } from '@treenity/core/core';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const getComp = (node: NodeData, key: string) => getComponent(node, AnyType, key) as Record<string, unknown> | undefined;
+const getField = (node: NodeData, key: string) => getComponent(node, AnyType, key) as Record<string, unknown> | undefined;
+
 
 /**
  * Local state mirror with debounced persistence to tree.
@@ -15,7 +17,7 @@ export function useDebouncedSync<T extends object>(
   defaults?: T,
   delay = 500,
 ): [T, (patch: Partial<T>) => void] {
-  const init = () => ({ ...defaults, ...getComp(node, componentKey) }) as T;
+  const init = () => ({ ...defaults, ...getField(node, componentKey) }) as T;
   const [local, setLocal] = useState<T>(init);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingRef = useRef(false);
@@ -28,12 +30,12 @@ export function useDebouncedSync<T extends object>(
     if (nodeRef.current === node) return;
     nodeRef.current = node;
     if (!pendingRef.current) {
-      setLocal(({ ...defaults, ...getComp(node, componentKey) }) as T);
+      setLocal(({ ...defaults, ...getField(node, componentKey) }) as T);
     }
   }, [node, componentKey]);
 
   const flush = useCallback(() => {
-    const comp = getComp(nodeRef.current, componentKey) ?? {};
+    const comp = getField(nodeRef.current, componentKey) ?? {};
     const updated = { ...nodeRef.current, [componentKey]: { ...comp, ...latestLocal.current } };
     set(updated as NodeData);
     pendingRef.current = false;

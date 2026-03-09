@@ -1,20 +1,19 @@
 // Whisper → Agent bridge service
 // Watches a whisper channel for completed transcriptions, creates agent tasks
 
-import { getComp } from '@treenity/core/comp';
-import { createNode, type NodeData, register } from '@treenity/core/core';
+import { createNode, getComponent, type NodeData, register } from '@treenity/core';
 import { WhisperInbox, WhisperText } from './types';
 
 const log = (msg: string) => console.log(`[whisper.inbox] ${msg}`);
 
 function getText(node: NodeData): string | undefined {
-  const comp = getComp(node, WhisperText);
+  const comp = getComponent(node, WhisperText);
   if (!comp) return undefined;
   return comp.content && comp.content !== '...' ? comp.content : undefined;
 }
 
 register('whisper.inbox', 'service', async (node, ctx) => {
-  const config = getComp(node, WhisperInbox);
+  const config = getComponent(node, WhisperInbox);
   if (!config) throw new Error(`missing config on ${node.$path}`);
 
   const sent = new Set<string>();

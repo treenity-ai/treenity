@@ -1,6 +1,6 @@
 import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData } from '@treenity/core';
 
 const STATUS_COLORS: Record<string, [string, string]> = {
   draft: ['var(--accent-subtle, #1a2a3a)', 'var(--accent)'],

@@ -5,8 +5,8 @@
 // execute:     action caller
 // watch:       universal async generator
 
-import { type Class, getComp, type TypeProxy } from '@treenity/core/comp';
-import { getComponent, type NodeData, normalizeType, resolve } from '@treenity/core/core';
+import { getComponent, type NodeData, normalizeType, resolve } from '@treenity/core';
+import { type Class, type TypeProxy } from '@treenity/core/comp';
 import { deriveURI, parseURI } from '@treenity/core/uri';
 import {
   createContext,
@@ -232,7 +232,7 @@ function makeProxy<T extends object>(
 ): TypeProxy<T> {
   const type = normalizeType(cls);
   const comp = node
-    ? (key ? getComponent(node, key) : getComp(node, cls))
+    ? (key ? getComponent(node, key) : getComponent(node, cls))
     : undefined;
 
   return new Proxy(comp ?? {}, {

@@ -1,10 +1,10 @@
+import { type ComponentData, isComponent, type NodeData, register } from '@treenity/core';
+import type { TypeSchema } from '@treenity/core/schema/types';
 import { useCurrentNode } from '@treenity/react/context';
 import { useChildren } from '@treenity/react/hooks';
 import { useSchema } from '@treenity/react/schema-loader';
-import { type ComponentData, isComponent, type NodeData, register } from '@treenity/core/core';
-import type { TypeSchema } from '@treenity/core/schema/types';
 import React, { useMemo, useState } from 'react';
-import type { ColumnConfig, UITable } from './types';
+import type { UITable } from './types';
 
 // ── Field tree types ──
 

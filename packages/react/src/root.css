@@ -1,0 +1,121 @@
+/* Tailwind disabled — using CDN in index.html to avoid cross-package conflict */
+/* @import 'tailwindcss'; */
+/* @source "."; */
+/* @source "../../src/mods"; */
+
+/* Local fonts */
+@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Light.ttf'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Regular.ttf'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Medium.ttf'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-SemiBold.ttf'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-Light.ttf'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-Regular.ttf'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-Medium.ttf'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter-SemiBold.ttf'); font-weight: 600; font-display: swap; }
+
+/* shadcn/ui theme tokens — now in CDN (index.html), kept here for reference */
+/* @theme inline extend { ... } — see index.html <style type="text/tailwindcss"> */
+
+/* Tailwind theme tokens — unlayered :root beats CDN's layered output */
+:root {
+  --color-background: #0d1117;
+  --color-foreground: #e6edf3;
+  --color-card: #161b22;
+  --color-card-foreground: #e6edf3;
+  --color-popover: #161b22;
+  --color-popover-foreground: #e6edf3;
+  --color-primary: #2ecc71;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #21262d;
+  --color-secondary-foreground: #e6edf3;
+  --color-muted: #161b22;
+  --color-muted-foreground: #7d8590;
+  --color-accent: rgba(46, 204, 113, 0.15);
+  --color-accent-foreground: #2ecc71;
+  --color-destructive: #f85149;
+  --color-destructive-foreground: #e6edf3;
+  --color-border: #30363d;
+  --color-input: #30363d;
+  --color-ring: #2ecc71;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Legacy aliases */
+  --bg: var(--color-background);
+  --surface: var(--color-card);
+  --surface-2: var(--color-secondary);
+  --surface-3: var(--color-border);
+  --border: var(--color-border);
+  --border-subtle: var(--color-border);
+  --text: var(--color-foreground);
+  --text-2: var(--color-muted-foreground);
+  --text-3: color-mix(in srgb, var(--color-muted-foreground) 60%, transparent);
+  --accent: var(--color-primary);
+  --accent-subtle: var(--color-accent);
+  --danger: var(--color-destructive);
+  --danger-subtle: color-mix(in srgb, var(--color-destructive) 15%, transparent);
+  --success: #3fb950;
+  --success-subtle: rgba(63, 185, 80, 0.15);
+  --warning: #d29922;
+  --radius: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'SF Mono', SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  --transition: 0.15s ease;
+}
+@layer base {
+  *,
+  ::before,
+  ::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+}
+html,
+body {
+  height: 100%;
+  font-family: var(--font);
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@layer base {
+  input,
+  textarea,
+  select {
+    width: 100%;
+    padding: 4px 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 12px;
+    font-family: var(--mono);
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  input:focus,
+  textarea:focus,
+  select:focus {
+    border-color: var(--accent);
+  }
+  input:read-only {
+    color: var(--text-2);
+    cursor: default;
+  }
+  input:read-only:focus {
+    border-color: var(--border);
+  }
+  textarea {
+    min-height: 80px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+}

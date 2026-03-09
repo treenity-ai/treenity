@@ -1,4 +1,4 @@
-import { type NodeData, R, S } from '@treenity/core/core';
+import { type NodeData, R, S } from '@treenity/core';
 import { registerPrefab } from '@treenity/core/mod';
 
 registerPrefab('core', 'seed', [

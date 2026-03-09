@@ -2,7 +2,7 @@
 // useSyncExternalStore-friendly: stable snapshots, targeted notifications
 // IDB persistence: fire-and-forget writes, hydrate() on startup.
 
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import * as idb from './idb';
 import { stampNode } from './symbols';
 

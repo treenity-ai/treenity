@@ -1,7 +1,8 @@
 import { Button } from '#components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '#components/ui/collapsible';
 import { Input } from '#components/ui/input';
-import { A, type GroupPerm, R, S, W } from '@treenity/core/core';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { A, type GroupPerm, R, S, W } from '@treenity/core';
+import { ChevronRight, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import * as cache from './cache';
 
@@ -136,7 +137,6 @@ function ancestorChain(path: string): { path: string; owner?: string; acl?: Grou
 }
 
 export function AclEditor({ path, owner, rules, currentUserId, onChange }: Props) {
-  const [open, setOpen] = useState(false);
   const [newGroup, setNewGroup] = useState('');
   const chain = useMemo(() => ancestorChain(path), [path]);
 
@@ -162,11 +162,8 @@ export function AclEditor({ path, owner, rules, currentUserId, onChange }: Props
   }
 
   return (
-    <div className="border-t border-border mt-2 pt-0.5 first:border-t-0 first:mt-0 first:pt-0">
-      <div
-        className="flex items-center justify-between py-2 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none"
-        onClick={() => setOpen((v) => !v)}
-      >
+    <Collapsible className="border-t border-border mt-2 pt-0.5 first:border-t-0 first:mt-0 first:pt-0">
+      <CollapsibleTrigger className="flex w-full items-center justify-between py-2 pb-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none">
         <span>Access Control</span>
         <span className="flex items-center gap-2 normal-case tracking-normal font-normal">
           {effective && (
@@ -192,14 +189,10 @@ export function AclEditor({ path, owner, rules, currentUserId, onChange }: Props
               </span>
             </span>
           )}
-          {open ? (
-            <ChevronDown className="h-3 w-3" />
-          ) : (
-            <ChevronRight className="h-3 w-3" />
-          )}
+          <ChevronRight className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-90" />
         </span>
-      </div>
-      {open && (
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         <div className="py-0.5 pb-2.5 space-y-3">
           <div className="field">
             <label className="text-xs text-muted-foreground">$owner</label>
@@ -258,8 +251,8 @@ export function AclEditor({ path, owner, rules, currentUserId, onChange }: Props
             </div>
           )}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

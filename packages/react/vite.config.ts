@@ -1,7 +1,7 @@
-import tailwindcss from '@tailwindcss/vite';
+// import tailwindcss from '@tailwindcss/vite'; // disabled — using CDN in index.html
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { defineConfig } from 'vite';
 import treenityPlugin from './vite-plugin-treenity';
 
 const projectRoot = process.env.INIT_CWD || process.cwd();
@@ -11,7 +11,7 @@ export default defineConfig({
   resolve: { conditions: ['development'] },
   plugins: [
     treenityPlugin({ modsDirs: [resolve(projectRoot, 'mods')] }),
-    tailwindcss(),
+    // tailwindcss(), // disabled — using CDN in index.html
     react({ babel: { plugins: ['babel-plugin-react-compiler'] } }),
   ],
   publicDir: 'public',

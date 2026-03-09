@@ -1,6 +1,6 @@
 // Sensor generator demo — on-demand scan that streams N readings via generator action
 
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import { type ActionCtx } from '@treenity/core/server/actions';
 
 /** @description Stream N sensor readings as a generator, persisting each as a child node */

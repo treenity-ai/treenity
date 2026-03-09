@@ -2,6 +2,8 @@
 // <Render> + <RenderContext> + <NodeProvider>
 // Depends on: core (resolve), React
 
+import { execute } from '#hooks';
+import { $key, $node } from '#symbols';
 import {
   type ComponentData,
   hasMissResolver,
@@ -9,10 +11,8 @@ import {
   resolve,
   resolveExact,
   subscribeRegistry,
-} from '@treenity/core/core';
+} from '@treenity/core';
 import { createContext, createElement, type FC, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
-import { execute } from '#hooks';
-import { $key, $node } from '#symbols';
 
 // ── Tree context (rendering context string) ──
 

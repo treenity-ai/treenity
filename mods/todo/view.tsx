@@ -1,4 +1,4 @@
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import { useChildren, usePath } from '@treenity/react/hooks';
 import { useState } from 'react';
 import { TodoItem, TodoList } from './types';

@@ -2,8 +2,8 @@
 // POST ?id=channel-id with audio body → create node immediately, transcribe in background, update node
 
 import { type AutomaticSpeechRecognitionPipeline, pipeline } from '@huggingface/transformers';
+import { createNode } from '@treenity/core';
 import { newComp } from '@treenity/core/comp';
-import { createNode } from '@treenity/core/core';
 import type { Tree } from '@treenity/core/tree';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';

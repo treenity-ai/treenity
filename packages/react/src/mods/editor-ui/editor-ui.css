@@ -1,0 +1,181 @@
+/* Form fields */
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.field:last-child {
+  margin-bottom: 0;
+}
+.field label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  width: 60px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  position: relative;
+}
+.field:has(textarea),
+.field.stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+.field:has(textarea) label,
+.field.stack label {
+  min-width: unset;
+  margin-bottom: 3px;
+}
+
+/* Component data view — shows field values in default view */
+.comp-view-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.comp-view-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.comp-view-header .comp-type {
+  font-family: var(--mono);
+  color: var(--accent);
+  background: var(--accent-subtle);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  text-transform: none;
+}
+.comp-view-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.comp-view-label {
+  color: var(--text-3);
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.comp-view-value {
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* Info bar — compact chips for components and fields */
+.node-info-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.node-info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+.node-info-chip-label {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.node-info-chip.data .node-info-chip-val {
+  color: var(--text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Children grid — file explorer cards with staggered reveal */
+.children-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.child-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all var(--transition);
+  animation: child-in 0.25s ease both;
+}
+.child-card:hover {
+  background: var(--surface);
+}
+@keyframes child-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.child-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+.child-info {
+  flex: 1;
+  min-width: 0;
+}
+.child-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.child-type {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  margin-top: 1px;
+}
+.child-chevron {
+  color: var(--text-3);
+  font-size: 18px;
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+.child-card:hover .child-chevron {
+  transform: translateX(2px);
+  color: var(--text-2);
+}
+
+.node-empty {
+  color: var(--text-3);
+  font-size: 13px;
+  padding: 40px;
+  text-align: center;
+}

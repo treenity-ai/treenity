@@ -1,7 +1,6 @@
 // Canary smoke tests — run at server startup to verify core mechanics
 
-import { type NodeData, register } from '@treenity/core/core';
-import { getComp } from '@treenity/core/comp';
+import { getComponent, type NodeData, register } from '@treenity/core';
 import { executeAction } from '@treenity/core/server/actions';
 import '@treenity/core/contexts/service';
 import { CanaryItem } from './types';
@@ -38,11 +37,11 @@ register('canary.runner', 'service', async (node, ctx) => {
     if (n.$type !== 'canary.item') throw new Error(`wrong type: ${n.$type}`);
   });
 
-  // ── 2. getComp resolves node-level type ──
-  await assert('getComp resolves main component', async () => {
+  // ── 2. getComponent resolves node-level type ──
+  await assert('getComponent resolves main component', async () => {
     const n = await store.get(itemPath);
-    const comp = getComp(n!, CanaryItem);
-    if (!comp) throw new Error('getComp returned undefined');
+    const comp = getComponent(n!, CanaryItem);
+    if (!comp) throw new Error('getComponent returned undefined');
     if (comp.value !== 0) throw new Error(`wrong value: ${comp.value}`);
   });
 

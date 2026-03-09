@@ -1,4 +1,4 @@
-import { isRef, resolveExact } from '@treenity/core/core';
+import { isRef, resolveExact } from '@treenity/core';
 import { createElement, useState } from 'react';
 import { FieldLabel, RefEditor } from './FieldLabel';
 

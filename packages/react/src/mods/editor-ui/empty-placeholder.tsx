@@ -1,5 +1,5 @@
 import { set } from '#hooks';
-import type { NodeData } from '@treenity/core/core';
+import type { NodeData } from '@treenity/core';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { TypePicker } from './type-picker';

@@ -2,7 +2,7 @@
 // Resolves source from $ref, applies $map pipeline
 // #field (self) and #/path.field (external) args resolved from context
 
-import type { NodeData, Ref } from '@treenity/core/core';
+import type { NodeData, Ref } from '@treenity/core';
 import { isRefArg, type MapExpr, parseMapExpr, type PipeArg } from './parse';
 import { getPipe } from './pipes';
 

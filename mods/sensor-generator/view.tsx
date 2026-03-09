@@ -1,6 +1,6 @@
 // Sensor generator — on-demand scan, streams results via streamAction subscription
 
-import { type NodeData, register } from '@treenity/core/core';
+import { type NodeData, register } from '@treenity/core';
 import { useCurrentNode } from '@treenity/react/context';
 import { trpc } from '@treenity/react/trpc';
 import { useCallback, useRef, useState } from 'react';

@@ -1,7 +1,8 @@
+import './editor-ui.css';
 import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
 import { trpc } from '#trpc';
-import { type ComponentData, type NodeData, register } from '@treenity/core/core';
+import { type ComponentData, type NodeData, register } from '@treenity/core';
 import { useCallback, useState } from 'react';
 import { EmptyNodePlaceholder } from './empty-placeholder';
 import { getComponents, getPlainFields, getSchema } from './node-utils';

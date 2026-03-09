@@ -1,7 +1,7 @@
 // AgentSim tests — round engine, proximity, tools, quorum
 
+import { createNode, getComponent, resolve } from '@treenity/core';
 import type { ServiceHandle } from '@treenity/core/contexts/service';
-import { createNode, getComponent, resolve } from '@treenity/core/core';
 import { createMemoryTree, type Tree } from '@treenity/core/tree';
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';

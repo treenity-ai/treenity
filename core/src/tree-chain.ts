@@ -2,10 +2,10 @@
 // Navigate tree via dots, auto-follow refs, execute actions, typed components.
 // Layer L2: uses Tree (L1) + comp (L2). No server dependency.
 
-import { isComponent, isRef, normalizeType, resolve, type NodeData } from '#core'
-import { getComp, type Class, type TypeClass, type Raw } from '#comp'
-import type { Tree } from '#tree'
-import type { Chain } from './chain'
+import { type Class, type Raw, type TypeClass } from '#comp';
+import { getComponent, isComponent, isRef, type NodeData, normalizeType, resolve } from '#core';
+import type { Tree } from '#tree';
+import type { Chain } from './chain';
 
 type Spec = { cls: Class | null; key?: string }
 type Op = string | [string, unknown[]]
@@ -48,7 +48,7 @@ async function exec(tree: Tree, path: string, spec: Spec | null, ops: Op[]): Pro
       cur = ck
       curType = cur.$type
     } else if (spec.cls) {
-      const comp = getComp(node, spec.cls)
+      const comp = getComponent(node, spec.cls)
       if (!comp) throw new Error(`Type "${normalizeType(spec.cls)}" not found on ${path}`)
       cur = comp
       curType = comp.$type ?? curType

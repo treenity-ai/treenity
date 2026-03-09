@@ -1,6 +1,6 @@
 // Board seed — kanban at /board, typed columns with query mounts
 
-import { type NodeData } from '@treenity/core/core';
+import { type NodeData } from '@treenity/core';
 import { registerPrefab } from '@treenity/core/mod';
 
 registerPrefab('board', 'seed', [
