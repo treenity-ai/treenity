@@ -99,7 +99,10 @@ export function useChildren(parentPath: string, opts?: WatchOpts) {
 
     trpc.getChildren
       .query({ path: parentPath, limit: opts?.limit, watch: opts?.watch, watchNew: opts?.watchNew })
-      .then((result: any) => cache.putMany(result.items as NodeData[], parentPath));
+      .then((result: any) => {
+        if (result.truncated) console.warn(`[tree] Children of ${parentPath} truncated — results may be incomplete`);
+        cache.putMany(result.items as NodeData[], parentPath);
+      });
   }, [parentPath, gen, opts?.limit, opts?.watch, opts?.watchNew]);
 
   return useSyncExternalStore(
@@ -111,10 +114,17 @@ export function useChildren(parentPath: string, opts?: WatchOpts) {
 // ── set: optimistic update + server persist ──
 
 export async function set(next: NodeData) {
+  const prev = cache.get(next.$path);
   cache.put(next);
-  await tree.set(next);
-  const fresh = await tree.get(next.$path);
-  if (fresh) cache.put(fresh);
+  try {
+    await tree.set(next);
+    const fresh = await tree.get(next.$path);
+    if (fresh) cache.put(fresh);
+  } catch (err) {
+    // F15: rollback optimistic cache on server reject (validation, ACL, OCC)
+    if (prev) cache.put(prev); else cache.remove(next.$path);
+    throw err;
+  }
 }
 
 // ── execute: action caller ──
