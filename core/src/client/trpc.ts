@@ -88,5 +88,9 @@ export function createTrpcTransport(opts: TrpcTransportOpts): TreenityClient & {
     },
 
     trpc,
+    destroy() {
+      if (eventSub) { eventSub.unsubscribe(); eventSub = null; }
+      pathCbs.clear();
+    },
   };
 }
