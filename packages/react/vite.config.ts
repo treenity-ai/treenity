@@ -26,7 +26,7 @@ export default defineConfig({
   server: {
     port: 3210,
     host: '0.0.0.0',
-    allowedHosts: ['*.trycloudflare.com', 'treenity.pro', '*.treenity.pro'],
+    allowedHosts: ['treenity.pro', 'frp.treenity.pro'],
     proxy: {
       '/trpc/': { target: `http://127.0.0.1:${apiPort}`, changeOrigin: true },
       '/api/': { target: `http://127.0.0.1:${apiPort}`, changeOrigin: true },

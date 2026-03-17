@@ -59,7 +59,7 @@ export function ComponentSection({
   toast,
   onActionComplete,
 }: ComponentSectionProps) {
-  const isMain = !onToggle;
+  const isMain = !name;
 
   return (
     <div className="border-t border-border mt-2 pt-0.5 first:border-t-0 first:mt-0 first:pt-0">

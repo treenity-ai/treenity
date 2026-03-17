@@ -532,7 +532,7 @@ const KanbanView: View<BoardKanban> = ({ value, ctx }) => {
 
       {selectedTask && selectedNode && (
         <Dialog open onOpenChange={open => { if (!open) setSelectedTask(null); }}>
-          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg" aria-describedby={undefined}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[960px]" aria-describedby={undefined}>
             <DialogTitle className="sr-only">Task</DialogTitle>
             <Render value={selectedNode} />
           </DialogContent>
