@@ -1,6 +1,7 @@
 // Minimal markdown → HTML for chat bubbles (~50 lines)
 // Covers: headers, bold, italic, inline code, code blocks, links, lists, blockquotes, hr
 import './minimd.css';
+import { sanitizeHref } from './sanitize-href';
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -11,7 +12,12 @@ function inline(s: string): string {
     .replace(/__(.+?)__/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/_(.+?)_/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+      const safe = sanitizeHref(url);
+      if (!safe) return text;
+      const safeUrl = safe.replace(/"/g, '&quot;');
+      return `<a href="${safeUrl}" target="_blank" rel="noopener">${text}</a>`;
+    });
 }
 
 export function minimd(src: string): string {

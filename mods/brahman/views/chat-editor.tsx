@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@treenity/react/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@treenity/react/components/ui/select';
 import { set, useChildren, usePath } from '@treenity/react/hooks';
+import { sanitizeHref } from '@treenity/react/lib/sanitize-href';
 import { trpc } from '@treenity/react/trpc';
 import { Camera, File, GripVertical, Mic, MoreHorizontal, Plus, Trash2, Video } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -101,7 +102,8 @@ function sanitizeHtml(html: string): string {
     if (!ALLOWED_TAGS.has(tag)) return inner;
     if (tag === 'a') {
       const href = el.getAttribute('href');
-      return href ? `<a href="${href}">${inner}</a>` : inner;
+      const safe = href ? sanitizeHref(href) : null;
+      return safe ? `<a href="${safe}">${inner}</a>` : inner;
     }
     return `<${tag}>${inner}</${tag}>`;
   }

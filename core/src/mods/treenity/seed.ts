@@ -1,4 +1,4 @@
-import { type NodeData, R, S } from '@treenity/core';
+import { type NodeData, A, R, S, W } from '@treenity/core';
 import { registerPrefab } from '@treenity/core/mod';
 
 // Universal infra — works with any storage backend (FS, memory, Mongo)
@@ -40,7 +40,7 @@ registerPrefab('core', 'seed', [
 
 // Mongo-dependent infra — auth, orders, entities
 registerPrefab('mongo', 'seed', [
-  { $path: 'auth', $type: 'dir' },
+  { $path: 'auth', $type: 'dir', $acl: [{ g: 'admins', p: R | W | A | S }, { g: 'public', p: 0 }] },
   { $path: 'auth/users', $type: 'mount-point',
     connection: { $type: 'connection', db: 'treenity', collection: 'users' },
     mount: { $type: 't.mount.mongo' },
@@ -49,6 +49,7 @@ registerPrefab('mongo', 'seed', [
   { $path: 'auth/sessions', $type: 'mount-point',
     connection: { $type: 'connection', db: 'treenity', collection: 'sessions' },
     mount: { $type: 't.mount.mongo' },
+    $acl: [{ g: 'admins', p: R | W | A | S }, { g: 'authenticated', p: 0 }, { g: 'public', p: 0 }],
   },
   { $path: 'mnt', $type: 'dir' },
   { $path: 'mnt/orders', $type: 't.mount.mongo',
