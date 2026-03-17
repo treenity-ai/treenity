@@ -1,6 +1,6 @@
 import { createNode } from '#core';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -243,5 +243,49 @@ describe('FsStore', () => {
     });
     assert.equal(tasks.items.length, 2);
     assert.ok(tasks.items.every(n => n.$type === 't.task'));
+  });
+
+  // ── Symlink protection tests ──
+
+  it('blocks symlink that escapes root', async () => {
+    const tree = await setup();
+    const outsideDir = await mkdtemp(join(tmpdir(), 'treenity-fs-escape-'));
+    try {
+      // Symlink inside root pointing outside
+      await symlink(outsideDir, join(dir, 'escape'));
+      // Trying to set a node under the symlinked path should fail
+      await assert.rejects(
+        () => tree.set({ $path: '/escape/secret', $type: 't.test' }),
+        /symlink|traversal/i,
+      );
+    } finally {
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('skips symlinks in getChildren walk', async () => {
+    const tree = await setup();
+    await tree.set(createNode('/safe', 'dir'));
+    await tree.set(createNode('/safe/real', 'test'));
+    // Create symlink inside safe/ pointing elsewhere
+    const outsideDir = await mkdtemp(join(tmpdir(), 'treenity-fs-sym-'));
+    await writeFile(join(outsideDir, 'evil.json'), '{"$path":"/safe/evil","$type":"t.hack"}');
+    // safe/ is in dir form (has child real.json), so symlink goes inside safe/
+    await symlink(outsideDir, join(dir, 'safe', 'linked'));
+    try {
+      const { items } = await tree.getChildren('/safe');
+      const paths = items.map(n => n.$path);
+      assert.ok(!paths.includes('/safe/evil'), 'should not follow symlinks');
+      assert.ok(paths.includes('/safe/real'), 'should include real children');
+    } finally {
+      await rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('creates files with 0o600 permissions', async () => {
+    const tree = await setup();
+    await tree.set(createNode('/secret', 'test'));
+    const s = await stat(join(dir, 'secret.json'));
+    assert.equal(s.mode & 0o777, 0o600);
   });
 });
