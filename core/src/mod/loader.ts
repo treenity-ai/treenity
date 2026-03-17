@@ -69,6 +69,20 @@ export function clearModRegistry(): void {
   loaded.clear();
 }
 
+// ── Timeout helper ──
+
+const MOD_TIMEOUT_MS = 30_000;
+
+async function withTimeout<T>(promise: Promise<T>, label: string, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`[mod] ${label} timed out after ${ms}ms`)),
+      ms,
+    );
+    promise.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 // ── Loader ──
 
 export type LoadTarget = 'server' | 'client';
@@ -78,11 +92,17 @@ export interface LoadResult {
   failed: { name: string; error: Error }[];
 }
 
+export interface LoadModsOpts {
+  modTimeout?: number;
+}
+
 export async function loadMods(
   manifests: ModManifest[],
   target: LoadTarget,
   tree?: Tree,
+  opts?: LoadModsOpts,
 ): Promise<LoadResult> {
+  const timeout = opts?.modTimeout ?? MOD_TIMEOUT_MS;
   const sorted = sortByDependencies(manifests);
   const result: LoadResult = { loaded: [], failed: [] };
 
@@ -106,21 +126,29 @@ export async function loadMods(
         mod = exported.default as TreenityMod;
       }
 
-      if (mod?.onLoad) await mod.onLoad();
+      const t0 = performance.now();
+
+      if (mod?.onLoad) {
+        await withTimeout(mod.onLoad(), `${manifest.name}.onLoad`, timeout);
+      }
 
       // Seed (server-only, needs tree)
       if (target === 'server' && tree) {
         if (mod?.seed) {
-          await mod.seed(tree);
+          await withTimeout(mod.seed(tree), `${manifest.name}.seed`, timeout);
         } else if (manifest.seed && manifest.packagePath) {
           const seedMod = await import(join(manifest.packagePath, manifest.seed));
-          await seedMod.default(tree);
+          await withTimeout(seedMod.default(tree), `${manifest.name}.seed`, timeout);
         }
       }
+
+      const elapsed = Math.round(performance.now() - t0);
+      console.log(`[mod] ${manifest.name} loaded in ${elapsed}ms`);
 
       entry.mod = mod;
       entry.state = 'loaded';
       entry.loadedAt = Date.now();
+      entry.loadDurationMs = elapsed;
       result.loaded.push(manifest.name);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));

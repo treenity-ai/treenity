@@ -8,8 +8,8 @@ export interface TreenityMod {
   server?: () => Promise<unknown>;
   client?: () => Promise<unknown>;
   seed?: (tree: Tree) => Promise<void>;
-  onLoad?: () => void | Promise<void>;
-  onUnload?: () => void | Promise<void>;
+  onLoad?: () => Promise<void>;
+  onUnload?: () => Promise<void>;
 }
 
 // package.json "treenity" field shape (npm discovery)
@@ -33,6 +33,7 @@ export interface LoadedMod {
   state: ModState;
   error?: Error;
   loadedAt?: number;
+  loadDurationMs?: number;
 }
 
 export function defineMod(mod: TreenityMod): TreenityMod {

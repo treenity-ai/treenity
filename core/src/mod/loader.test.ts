@@ -156,6 +156,66 @@ describe('loadMods', () => {
     assert.ok(parentIdx < childIdx, 'parent should load before child');
   });
 
+  it('records loadDurationMs on success', async () => {
+    await loadMods([m('dur')], 'server');
+    const mod = getMod('dur')!;
+    assert.equal(typeof mod.loadDurationMs, 'number');
+    assert.ok(mod.loadDurationMs >= 0);
+  });
+
+  it('times out on hanging onLoad', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'treenity-timeout-'));
+    const modDir = join(dir, 'hang-mod');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'server.mjs'), `
+      export default {
+        name: 'hang-mod',
+        onLoad: () => new Promise(() => {}),
+      };
+    `);
+
+    const manifest = {
+      name: 'hang-mod',
+      version: '1.0.0',
+      server: './server.mjs',
+      packagePath: modDir,
+    };
+
+    const result = await loadMods([manifest], 'server', undefined, { modTimeout: 100 });
+    assert.equal(result.failed.length, 1);
+    assert.ok(result.failed[0].error.message.includes('timed out'));
+    assert.equal(getMod('hang-mod')?.state, 'failed');
+
+    rmSync(dir, { recursive: true });
+  });
+
+  it('times out on hanging seed', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'treenity-timeout-'));
+    const modDir = join(dir, 'hang-seed');
+    mkdirSync(modDir);
+    writeFileSync(join(modDir, 'server.mjs'), `
+      export default {
+        name: 'hang-seed',
+        seed: () => new Promise(() => {}),
+      };
+    `);
+
+    const manifest = {
+      name: 'hang-seed',
+      version: '1.0.0',
+      server: './server.mjs',
+      packagePath: modDir,
+    };
+
+    const { createMemoryTree } = await import('#tree');
+    const tree = createMemoryTree();
+    const result = await loadMods([manifest], 'server', tree, { modTimeout: 100 });
+    assert.equal(result.failed.length, 1);
+    assert.ok(result.failed[0].error.message.includes('timed out'));
+
+    rmSync(dir, { recursive: true });
+  });
+
   it('subsequent failed mod does not block already-loaded mods', async () => {
     const mods: ModManifest[] = [
       m('ok-mod'),
