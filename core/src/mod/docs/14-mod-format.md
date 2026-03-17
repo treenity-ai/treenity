@@ -9,7 +9,7 @@ treenity-mod-weather/
   package.json
   src/
     index.ts          — defineMod() — точка входа
-    types.ts          — registerComp() — компоненты
+    types.ts          — registerType() — компоненты
     service.ts        — register(type, 'service', ...) — сервисы
     view.tsx          — register(type, 'react', ...) — React-рендеры
     schemas.ts        — register(type, 'schema', ...) — JSON Schema

@@ -141,7 +141,7 @@ export function registerActions<T>(type: TypeId, cls: Class<T>, opts?: CompOptio
 
 // ── Type-safe component access ──
 
-export function setComp<T>(node: NodeData, cls: Class<T>, data: Partial<Raw<T>>, field?: string): void {
+export function setComponent<T>(node: NodeData, cls: Class<T>, data: Partial<Raw<T>>, field?: string): void {
   const comp = getComponent(node, cls, field);
   if (comp) {
     Object.assign(comp as object, data);
@@ -149,11 +149,11 @@ export function setComp<T>(node: NodeData, cls: Class<T>, data: Partial<Raw<T>>,
     const $type = normalizeType(cls);
     const name = field ?? $type.split('.').at(-1)!;
     if (node[name]) throw new Error(`Component ${name} already exists on ${node.$path}`);
-    node[name] = newComp<T>(cls, data);
+    node[name] = newComponent<T>(cls, data);
   }
 }
 
-export function newComp<T>(cls: Class<T>, data: Partial<Raw<T>>): ComponentData<T> {
+export function newComponent<T>(cls: Class<T>, data: Partial<Raw<T>>): ComponentData<T> {
   const $type = normalizeType(cls);
   return Object.assign({ $type }, data, { $type }) as ComponentData<T>;
 }

@@ -34,8 +34,8 @@ register('physics', 'service', async (node, ctx) => {
       hasType: ['sim.position', 'sim.velocity'],
     });
     for (const e of items) {
-      const pos = getComp(e, Position);
-      const vel = getComp(e, Velocity);
+      const pos = getComponent(e, Position);
+      const vel = getComponent(e, Velocity);
       pos.x += vel.dx * dt;
       pos.y += vel.dy * dt;
       await ctx.store.set(e);
@@ -98,7 +98,7 @@ Unity слаб в: business apps, dashboards, collaborative tools, digital twins
 | Hierarchy panel | ✅ | Tree browser | ✅ |
 | Inspector | ✅ | Inspector + schema forms | ✅ |
 | 3D viewport | ✅ | mods/three (react-three-fiber) | ⚠️ базовый |
-| Component attach | ✅ | Inspector + setComp | ✅ |
+| Component attach | ✅ | Inspector + setComponent | ✅ |
 | Prefabs | ✅ | Templates (applyTemplate) | ✅ |
 | Scene serialization | ✅ | Ноды в дереве (JSON) | ✅ бесплатно |
 | Real-time collab | ❌ | OCC + subscriptions | ✅ |

@@ -1,7 +1,7 @@
-// Tests for setComp, newComp, getCtx
+// Tests for setComponent, newComponent, getCtx
 // Key behavior: when node.$type matches component $type, node itself IS the component.
 
-import { getCtx, newComp, registerType, setComp } from '#comp';
+import { getCtx, newComponent, registerType, setComponent } from '#comp';
 import { createNode, getComponent, type NodeData } from '#core';
 import { clearRegistry } from '#core/index.test';
 import { executeAction } from '#server/actions';
@@ -62,12 +62,12 @@ describe('getComponent', () => {
   });
 });
 
-// ── setComp ──
+// ── setComponent ──
 
-describe('setComp', () => {
+describe('setComponent', () => {
   it('updates node directly for node-level component', () => {
     const node: NodeData = { $path: '/a', $type: 'test.item', name: 'old', quantity: 1 };
-    setComp(node, TestItem, { name: 'new', quantity: 5 });
+    setComponent(node, TestItem, { name: 'new', quantity: 5 });
     assert.equal(node.name, 'new');
     assert.equal(node.quantity, 5);
   });
@@ -77,14 +77,14 @@ describe('setComp', () => {
       $path: '/a', $type: 'dir',
       meta: { $type: 'test.meta', title: 'old', description: 'old' },
     };
-    setComp(node, TestMeta, { title: 'new' });
+    setComponent(node, TestMeta, { title: 'new' });
     assert.equal((node.meta as any).title, 'new');
     assert.equal((node.meta as any).description, 'old'); // not overwritten
   });
 
   it('creates new named-key component when not found', () => {
     const node: NodeData = { $path: '/a', $type: 'dir' };
-    setComp(node, TestItem, { name: 'created', quantity: 10 });
+    setComponent(node, TestItem, { name: 'created', quantity: 10 });
     // default key = last segment of $type = 'item'
     assert.ok(node.item);
     assert.equal((node.item as any).$type, 'test.item');
@@ -94,14 +94,14 @@ describe('setComp', () => {
 
   it('partial update preserves existing fields on node-level', () => {
     const node: NodeData = { $path: '/a', $type: 'test.item', name: 'keep', quantity: 1 };
-    setComp(node, TestItem, { quantity: 99 });
+    setComponent(node, TestItem, { quantity: 99 });
     assert.equal(node.name, 'keep');
     assert.equal(node.quantity, 99);
   });
 
   it('preserves $path and $type on node-level update', () => {
     const node: NodeData = { $path: '/a', $type: 'test.item', name: 'x', quantity: 0 };
-    setComp(node, TestItem, { name: 'y' });
+    setComponent(node, TestItem, { name: 'y' });
     assert.equal(node.$path, '/a');
     assert.equal(node.$type, 'test.item');
   });
@@ -109,24 +109,24 @@ describe('setComp', () => {
   it('throws when key already exists with different content', () => {
     const node: NodeData = { $path: '/a', $type: 'dir', meta: { $type: 'other', x: 1 } };
     assert.throws(
-      () => setComp(node, TestMeta, { title: 'fail' }),
+      () => setComponent(node, TestMeta, { title: 'fail' }),
       (e: Error) => e.message.includes('already exists'),
     );
   });
 });
 
-// ── newComp ──
+// ── newComponent ──
 
-describe('newComp', () => {
+describe('newComponent', () => {
   it('creates component with $type and data', () => {
-    const comp = newComp(TestItem, { name: 'sword', quantity: 3 });
+    const comp = newComponent(TestItem, { name: 'sword', quantity: 3 });
     assert.equal(comp.$type, 'test.item');
     assert.equal(comp.name, 'sword');
     assert.equal(comp.quantity, 3);
   });
 
   it('$type cannot be overridden by data', () => {
-    const comp = newComp(TestItem, { name: 'x', $type: 'hacked' } as any);
+    const comp = newComponent(TestItem, { name: 'x', $type: 'hacked' } as any);
     assert.equal(comp.$type, 'test.item');
   });
 });

@@ -14,7 +14,7 @@ import {
   resolve,
 } from '@treenity/core';
 import '@treenity/core/contexts/service';
-import { newComp, setComp } from '@treenity/core/comp';
+import { newComponent, setComponent } from '@treenity/core/comp';
 import { type ActionCtx, serverNodeHandle } from '@treenity/core/server/actions';
 import {
   type AgentEvent,
@@ -108,7 +108,7 @@ function getAgentEvents(n: NodeData): AgentEvent[] {
 function pushAgentEvent(n: NodeData, event: AgentEvent) {
   const ev = getComponent(n, SimEvents);
   const entries = [...(ev?.entries ?? []), event].slice(-30);
-  setComp(n, SimEvents, { entries });
+  setComponent(n, SimEvents, { entries });
 }
 
 // ── LLM tools — base + interact ──
@@ -281,13 +281,13 @@ function mockThink(agent: NodeData, all: NodeData[]): Tool[] {
 /** @description Start the agent simulation loop */
 register('sim.world', 'action:start', async (ctx: ActionCtx) => {
   const cfg = getComponent(ctx.node, SimConfig)!;
-  setComp(ctx.node, SimConfig, { ...cfg, running: true });
+  setComponent(ctx.node, SimConfig, { ...cfg, running: true });
 }, { description: 'Start the simulation' });
 
 /** @description Stop the agent simulation loop */
 register('sim.world', 'action:stop', async (ctx: ActionCtx) => {
   const cfg = getComponent(ctx.node, SimConfig)!;
-  setComp(ctx.node, SimConfig, { ...cfg, running: false });
+  setComponent(ctx.node, SimConfig, { ...cfg, running: false });
 }, { description: 'Stop the simulation' });
 
 /** @description Update simulation settings (roundDelay, model, dimensions) */
@@ -298,7 +298,7 @@ register('sim.world', 'action:set-config', async (ctx: ActionCtx, params: any) =
   if (params.model !== undefined) next.model = String(params.model);
   if (params.width !== undefined) next.width = Number(params.width);
   if (params.height !== undefined) next.height = Number(params.height);
-  setComp(ctx.node, SimConfig, next);
+  setComponent(ctx.node, SimConfig, next);
 }, { description: 'Update simulation settings', params: 'roundDelay?, model?, width?, height?' });
 
 /** @description Add an agent or item entity to the simulation world */
@@ -307,21 +307,21 @@ register('sim.world', 'action:add-entity', async (ctx: ActionCtx, params: any) =
   const type = params.type || 'sim.item';
   const path = `${ctx.node.$path}/${id}`;
   const components: Record<string, any> = {
-    descriptive: newComp(SimDescriptive, {
+    descriptive: newComponent(SimDescriptive, {
       name: params.name || id,
       icon: params.icon || '?',
       description: params.description || '',
     }),
-    position: newComp(SimPosition, {
+    position: newComponent(SimPosition, {
       x: params.x ?? 300,
       y: params.y ?? 200,
       radius: params.radius ?? 100,
     }),
   };
   if (type === 'sim.agent') {
-    components.ai = newComp(SimAi, { systemPrompt: params.systemPrompt || `You are ${params.name}.` });
-    components.memory = newComp(SimMemory, { entries: [] });
-    components.events = newComp(SimEvents, { entries: [] });
+    components.ai = newComponent(SimAi, { systemPrompt: params.systemPrompt || `You are ${params.name}.` });
+    components.memory = newComponent(SimMemory, { entries: [] });
+    components.events = newComponent(SimEvents, { entries: [] });
   }
   await ctx.tree.set(createNode(path, type, {}, components));
 }, { description: 'Add agent or item to the world', params: 'name, icon, type?, x?, y?, radius?, systemPrompt?, description?' });
@@ -333,18 +333,18 @@ register('sim.agent', 'action:move', async (ctx: ActionCtx, params: any) => {
   const next = { ...pos };
   if (params.x !== undefined) next.x = Math.round(Number(params.x));
   if (params.y !== undefined) next.y = Math.round(Number(params.y));
-  setComp(ctx.node, SimPosition, next);
+  setComponent(ctx.node, SimPosition, next);
 }, { description: 'Move to position', params: 'x, y' });
 
 /** @description Update agent properties (systemPrompt, radius, name, icon, description) */
 register('sim.agent', 'action:update', async (ctx: ActionCtx, params: any) => {
   if (params.systemPrompt !== undefined) {
     const ai = getComponent(ctx.node, SimAi)!;
-    setComp(ctx.node, SimAi, { ...ai, systemPrompt: String(params.systemPrompt) });
+    setComponent(ctx.node, SimAi, { ...ai, systemPrompt: String(params.systemPrompt) });
   }
   if (params.radius !== undefined) {
     const pos = getComponent(ctx.node, SimPosition)!;
-    setComp(ctx.node, SimPosition, { ...pos, radius: Number(params.radius) });
+    setComponent(ctx.node, SimPosition, { ...pos, radius: Number(params.radius) });
   }
   if (params.name !== undefined || params.icon !== undefined || params.description !== undefined) {
     const desc = getComponent(ctx.node, SimDescriptive)!;
@@ -352,7 +352,7 @@ register('sim.agent', 'action:update', async (ctx: ActionCtx, params: any) => {
     if (params.name !== undefined) next.name = String(params.name);
     if (params.icon !== undefined) next.icon = String(params.icon);
     if (params.description !== undefined) next.description = String(params.description);
-    setComp(ctx.node, SimDescriptive, next);
+    setComponent(ctx.node, SimDescriptive, next);
   }
 }, { description: 'Update agent properties', params: 'systemPrompt?, radius?, name?, icon?, description?' });
 
@@ -398,7 +398,7 @@ register('sim.world', 'service', async (node, ctx) => {
     if (!agents.length) return;
 
     // Phase: thinking
-    setComp(world, SimRound, { ...round, phase: 'thinking' });
+    setComponent(world, SimRound, { ...round, phase: 'thinking' });
     await ctx.tree.set(world);
 
     const log = round.log ?? [];
@@ -464,7 +464,7 @@ register('sim.world', 'service', async (node, ctx) => {
             const fresh = await ctx.tree.get(agent.$path);
             if (!fresh) break;
             const pos = getComponent(fresh, SimPosition)!;
-            setComp(fresh, SimPosition, {
+            setComponent(fresh, SimPosition, {
               ...pos,
               x: Math.max(0, Math.min(cfg.width, t.x as number)),
               y: Math.max(0, Math.min(cfg.height, t.y as number)),
@@ -484,7 +484,7 @@ register('sim.world', 'service', async (node, ctx) => {
             const fresh = await ctx.tree.get(agent.$path);
             if (!fresh) break;
             const mem = getComponent(fresh, SimMemory);
-            setComp(fresh, SimMemory, {
+            setComponent(fresh, SimMemory, {
               entries: [...(mem?.entries ?? []), t.text as string].slice(-20),
             });
             await ctx.tree.set(fresh);
@@ -551,14 +551,14 @@ register('sim.world', 'service', async (node, ctx) => {
     const freshEntities = await getAllEntities();
     for (const a of freshEntities) {
       const near = getNearby(a, freshEntities);
-      setComp(a, SimNearby, { agents: near.map(eName) });
+      setComponent(a, SimNearby, { agents: near.map(eName) });
       await ctx.tree.set(a);
     }
 
     // Advance round
     const worldFresh = await ctx.tree.get(wp);
     if (!worldFresh) return;
-    setComp(worldFresh, SimRound, {
+    setComponent(worldFresh, SimRound, {
       current: num + 1,
       phase: 'idle',
       log: [...log, ...newEntries].slice(-50),

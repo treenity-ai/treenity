@@ -110,7 +110,7 @@ tRPC merges patch into node, then `store.set()`.
 - No free diff — event sourcing / undo would need snapshot-before + snapshot-after
 - Action author doesn't see the `store.set` — it's implicit in the execute flow
 
-**When to reconsider:** if event sourcing or undo/redo becomes a real requirement, switch to reducer model. The change is localized to `registerComp` + `trpc.execute` (~20 lines).
+**When to reconsider:** if event sourcing or undo/redo becomes a real requirement, switch to reducer model. The change is localized to `registerType` + `trpc.execute` (~20 lines).
 
 ## D15: Reactive subscriptions — watch/unwatch on paths
 

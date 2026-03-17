@@ -4,7 +4,8 @@
 
 ```ts
 // src/mods/sensor/types.ts
-import { getCtx, registerComp, getComp } from '#comp';
+import { getCtx, registerType } from '#comp';
+import { getComponentonent } from '#core';
 
 export class SensorConfig {
   /** @title Интервал @description Секунды между замерами */
@@ -20,20 +21,20 @@ export class SensorConfig {
     const { node, store } = getCtx();
     const { items } = await store.getChildren(node.$path, { limit: 100 });
     return { items: items.map(n => {
-      const r = getComp(n, SensorReading);
+      const r = getComponent(n, SensorReading);
       return r ? { value: r.value, ts: r.ts } : null;
     }).filter(Boolean) };
   }
 }
 
-registerComp('sensor.config', SensorConfig);
+registerType('sensor.config', SensorConfig);
 
 export class SensorReading {
   value = 0;
   ts = 0;
 }
 
-registerComp('sensor.reading', SensorReading);
+registerType('sensor.reading', SensorReading);
 ```
 
 ## 2. service.ts — фоновый процесс
@@ -41,12 +42,12 @@ registerComp('sensor.reading', SensorReading);
 ```ts
 // src/mods/sensor/service.ts
 import { register, createNode, type NodeData } from '#core';
-import { getComp } from '#comp';
+import { getComponent } from '#comp';
 import { type ServiceHandle, type ServiceCtx } from '#contexts/service';
 import { SensorConfig } from './types';
 
 register('sensor', 'service', async (node: NodeData, ctx: ServiceCtx) => {
-  const config = getComp(node, SensorConfig);
+  const config = getComponent(node, SensorConfig);
   const interval = (config?.interval ?? 5) * 1000;
 
   const timer = setInterval(async () => {

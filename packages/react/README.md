@@ -88,4 +88,4 @@ import { Slider } from '@treenity/react/ui/slider';
 
 ## License
 
-AGPL-3.0
+Licensed under FSL-1.1-MIT. Free to use for any purpose. Converts to MIT automatically after two years from each release date.

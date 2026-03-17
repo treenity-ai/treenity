@@ -87,11 +87,11 @@ registerComp('published-date', PublishedDate, { needs: ['status'] });
 ## Type-safe доступ к компонентам
 
 ```ts
-import { getComp, setComp, newComp, getCompField } from '#comp';
+import { getComp, setComponent, newComponent, getCompField } from '#comp';
 
 const status = getComp(node, Status);           // → ComponentData<Status> | undefined
-setComp(node, Status, { value: 'done' });       // обновляет поля
-const fresh = newComp(Status, { value: 'new' }); // создаёт { $type: 'order.status', value: 'new' }
+setComponent(node, Status, { value: 'done' });       // обновляет поля
+const fresh = newComponent(Status, { value: 'new' }); // создаёт { $type: 'order.status', value: 'new' }
 
 const [fieldName, comp] = getCompField(node, Status)!; // → ['status', {...}]
 ```

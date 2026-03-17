@@ -80,7 +80,7 @@ register(MyType, 'react', MyView);
 
 **Запрещённые паттерны:**
 - `value as NodeData & MyType` — value УЖЕ типизирован через View<T>
-- `(node as any).field` — используй `getComp(node, Class)` для типобезопасного доступа
+- `(node as any).field` — используй `getComponent(node, Class)` для типобезопасного доступа
 - `register('type', 'react', handler as any)` — используй `register(Class, 'react', handler)`
 
 ## Ошибки

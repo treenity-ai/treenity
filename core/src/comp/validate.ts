@@ -73,8 +73,16 @@ const typeValidators: Record<string, TypeValidator> = {
       errors.push({ path, message: `expected object, got ${Array.isArray(value) ? 'array' : typeof value}` });
       return;
     }
-    const props = (def as any).properties as Record<string, PropertySchema> | undefined;
-    if (props) validateObject(value as Record<string, unknown>, props, path, errors);
+    const d = def as PropertySchema & { properties?: Record<string, PropertySchema>; required?: string[] };
+    if (d.required) {
+      const obj = value as Record<string, unknown>;
+      for (const key of d.required) {
+        if (obj[key] === undefined || obj[key] === null) {
+          errors.push({ path: path ? `${path}.${key}` : key, message: `required field missing` });
+        }
+      }
+    }
+    if (d.properties) validateObject(value as Record<string, unknown>, d.properties, path, errors);
   },
 };
 
@@ -104,6 +112,16 @@ export function validateComponent(comp: ComponentData, schema: TypeSchema, field
   if (!schema.properties) return [];
   const errors: ValidationError[] = [];
   const basePath = field || comp.$type;
+
+  if (schema.required) {
+    const obj = comp as unknown as Record<string, unknown>;
+    for (const key of schema.required) {
+      if (obj[key] === undefined || obj[key] === null) {
+        errors.push({ path: basePath ? `${basePath}.${key}` : key, message: `required field missing` });
+      }
+    }
+  }
+
   validateObject(comp as unknown as Record<string, unknown>, schema.properties, basePath, errors);
   return errors;
 }

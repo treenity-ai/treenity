@@ -14,7 +14,7 @@ Context   = register(type, context, handler)   // поведение типа в
 
 ```
 src/mods/my-mod/
-  types.ts      — registerComp() — классы компонентов, данные + экшены
+  types.ts      — registerType() — классы компонентов, данные + экшены
   action.ts     — register(type, 'action:name', handler) — node-level экшены
   schemas.ts    — register(type, 'schema', () => ({...})) — JSON Schema для UI
   view.tsx      — register(type, 'react', Component) — React-рендеры

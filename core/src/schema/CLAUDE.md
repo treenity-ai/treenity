@@ -1,5 +1,5 @@
 ## schema
-JSON Schema generation and loading for registerComp/defineComponent classes.
+JSON Schema generation and loading for registerType/defineComponent classes.
 
 ### Файлы
 - extract-schemas.ts — CLI: AST walk via TypeScript compiler API → JSON Schema per class, writes to generated/

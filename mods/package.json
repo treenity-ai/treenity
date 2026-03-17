@@ -6,7 +6,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "AGPL-3.0",
+  "license": "FSL-1.1-MIT",
   "author": "Treenity <hello@treenity.ai> (https://treenity.ai)",
   "homepage": "https://github.com/treenity-ai/treenity",
   "repository": {

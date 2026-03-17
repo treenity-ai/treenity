@@ -32,7 +32,7 @@ Tiptap WYSIWYG with:
 ## Files
 
 ```
-types.ts          — DocPage class + registerComp
+types.ts          — DocPage class + registerType
 fs-codec.ts       — text/markdown decode/encode for FS store
 markdown.ts       — mdToTiptap / tiptapToMd converters
 text.ts           — text context (Tiptap → plain text/markdown)

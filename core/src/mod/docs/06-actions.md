@@ -6,7 +6,7 @@
 ## Шаг 1: определи экшены как методы класса
 
 ```ts
-import { registerComp } from '#comp';
+import { registerType } from '#comp';
 
 export class OrderStatus {
   value: 'incoming' | 'kitchen' | 'ready' = 'incoming';
@@ -18,10 +18,10 @@ export class OrderStatus {
   }
 }
 
-registerComp('order.status', OrderStatus);
+registerType('order.status', OrderStatus);
 ```
 
-Всё. `registerComp` автоматически регистрирует `action:advance` из метода.
+Всё. `registerType` автоматически регистрирует `action:advance` из метода.
 
 ## Шаг 2: вызов из React-вьюшки
 
@@ -114,7 +114,7 @@ invoice.charge({ amount: 10, account: user.account })
 // wired connections → data object:
 invoice.charge({
   amount: amountNode.value,
-  account: getComp(acmeNode, Account),
+  account: getComponent(acmeNode, Account),
 })
 ```
 

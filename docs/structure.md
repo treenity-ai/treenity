@@ -6,7 +6,7 @@ Monorepo with npm workspaces. Three workspace roots: `core/`, `packages/*`, `mod
 core/                     — @treenity/core (npm workspace)
   src/
     core/                 — L0: Node, Component, Context, Ref, Registry (<500 lines)
-    comp/                 — L2: registerComp/registerType, action discovery, needs
+    comp/                 — L2: registerType, action discovery, needs
     tree/                 — L1: Tree interface, cache, query
     store/                — L1: Store interface + adapters (memory, fs, mongo)
     schema/               — JSON Schema generation from registered types

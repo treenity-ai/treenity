@@ -38,8 +38,8 @@ const children = useChildren('/tasks', {
   limit: 50,
 });
 
-const [comp, setComp] = useComponent('/tasks/1', 'status');
-await setComp({ $type: 'status', value: 'done' });
+const [comp, setComponent] = useComponent('/tasks/1', 'status');
+await setComponent({ $type: 'status', value: 'done' });
 
 const results = useAction('/dashboard', 'stats');
 const count = useNodeCount();

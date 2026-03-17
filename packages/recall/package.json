@@ -4,7 +4,7 @@
   "description": "Claude Code session transcript search — BM25 + vector hybrid RAG",
   "type": "module",
   "publishConfig": { "access": "public" },
-  "license": "AGPL-3.0",
+  "license": "FSL-1.1-MIT",
   "author": "Treenity <hello@treenity.ai> (https://treenity.ai)",
   "homepage": "https://github.com/treenity-ai/treenity",
   "repository": {

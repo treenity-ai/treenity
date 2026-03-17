@@ -96,7 +96,7 @@ Each step proves the previous one. No skipping ahead.
 
 ## The Bet
 
-Protocols outlive corporations. Email is 53 years old. HTTP is 35. Linux is 34. Treenity takes the same form: AGPL license, protocol specification over product, local-first architecture where data stays on the user's device.
+Protocols outlive corporations. Email is 53 years old. HTTP is 35. Linux is 34. Treenity takes the same form: FSL-1.1-MIT license (converts to MIT after two years), protocol specification over product, local-first architecture where data stays on the user's device.
 
 The tree has no center. Every instance is a node in a network. Mounts connect them. Each participant owns their data, their processes, their subtree. The platform amplifies users instead of extracting from them.
 

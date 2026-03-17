@@ -6,7 +6,7 @@
 | 02 | [02-core-api.md](02-core-api.md) | Core API: ноды, компоненты, ссылки, пути |
 | 03 | [03-registry.md](03-registry.md) | Registry — система контекстов, fallback, introspection |
 | 04 | [04-store.md](04-store.md) | Store: интерфейс, OCC, реализации, комбинаторы, query |
-| 05 | [05-comp.md](05-comp.md) | registerComp, getCtx, needs, type-safe доступ, JSDoc→Schema |
+| 05 | [05-comp.md](05-comp.md) | registerType, getCtx, needs, type-safe доступ, JSDoc→Schema |
 | 06 | [06-actions.md](06-actions.md) | Экшены: execute/call, generator, вызов с клиента |
 | 07 | [07-realtime.md](07-realtime.md) | Подписки, CDC, React хуки, рендер через контекст |
 | 08 | [08-services.md](08-services.md) | Сервисы, автозапуск |

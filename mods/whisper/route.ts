@@ -3,7 +3,7 @@
 
 import { type AutomaticSpeechRecognitionPipeline, pipeline } from '@huggingface/transformers';
 import { createNode } from '@treenity/core';
-import { newComp } from '@treenity/core/comp';
+import { newComponent } from '@treenity/core/comp';
 import type { Tree } from '@treenity/core/tree';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
@@ -115,16 +115,16 @@ export function createWhisperHandler(cfg: WhisperRouteConfig) {
       const idDirPath = `${cfg.nodePath}/${id}`;
       if (!(await tree.get(idDirPath))) {
         await tree.set(createNode(idDirPath, 'whisper.channel', {}, {
-          checklist: newComp(WhisperChecklist, {}),
+          checklist: newComponent(WhisperChecklist, {}),
         }));
       }
 
       // 1. Create node immediately with audio — appears in tree right away
       const nodePath = `${idDirPath}/${noteId}`;
       const node = createNode(nodePath, 'whisper.transcription', {}, {
-        audio: newComp(WhisperAudio, { filename, size: body.length, mime }),
-        text: newComp(WhisperText, { content: '...' }),
-        meta: newComp(WhisperMeta, {
+        audio: newComponent(WhisperAudio, { filename, size: body.length, mime }),
+        text: newComponent(WhisperText, { content: '...' }),
+        meta: newComponent(WhisperMeta, {
           model: cfg.model,
           language: cfg.language,
           duration: 0,
@@ -158,8 +158,8 @@ export function createWhisperHandler(cfg: WhisperRouteConfig) {
 
           const updated = await tree.get(nodePath);
           if (!updated) return;
-          updated.text = newComp(WhisperText, { content: text });
-          updated.meta = newComp(WhisperMeta, {
+          updated.text = newComponent(WhisperText, { content: text });
+          updated.meta = newComponent(WhisperMeta, {
             model: cfg.model,
             language: cfg.language,
             duration,

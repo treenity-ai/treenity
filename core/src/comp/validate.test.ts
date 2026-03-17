@@ -1,8 +1,8 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert/strict';
-import { validateValue, validateComponent, addTypeValidator, type ValidationError } from './validate';
-import type { PropertySchema, TypeSchema } from '#schema/types';
 import type { ComponentData } from '#core';
+import type { PropertySchema, TypeSchema } from '#schema/types';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { addTypeValidator, validateComponent, validateValue, type ValidationError } from './validate';
 
 // Helper: collect errors from validateValue
 function check(value: unknown, def: Partial<PropertySchema>, path = 'x'): ValidationError[] {
@@ -213,6 +213,34 @@ describe('validateValue', () => {
     });
   });
 
+  // ── Object required ──
+
+  describe('object required', () => {
+    it('rejects missing required fields in nested object', () => {
+      const def = {
+        type: 'object',
+        required: ['x'],
+        properties: {
+          x: { type: 'number', title: 'X' },
+        },
+      };
+      const e = check({}, def as any, 'obj');
+      assert.equal(e.length, 1);
+      assert.equal(e[0].path, 'obj.x');
+    });
+
+    it('passes when nested required fields present', () => {
+      const def = {
+        type: 'object',
+        required: ['x'],
+        properties: {
+          x: { type: 'number', title: 'X' },
+        },
+      };
+      assert.equal(check({ x: 5 }, def as any, 'obj').length, 0);
+    });
+  });
+
   // ── Edge cases ──
 
   it('no type = no validation', () => {
@@ -274,7 +302,35 @@ describe('validateComponent', () => {
     assert.equal(e[0].path, 'budget.amount');
   });
 
-  it('skips null/undefined values', () => {
+  it('rejects missing required fields', () => {
+    const schema: TypeSchema = {
+      title: 'Test',
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: 'Name' },
+      },
+      required: ['name'],
+    };
+    const comp: ComponentData = { $type: 'test' }; // name missing
+    const e = validateComponent(comp, schema, 'test');
+    assert.equal(e.length, 1);
+    assert.equal(e[0].path, 'test.name');
+  });
+
+  it('passes when required fields are present', () => {
+    const schema: TypeSchema = {
+      title: 'Test',
+      type: 'object',
+      properties: {
+        name: { type: 'string', title: 'Name' },
+      },
+      required: ['name'],
+    };
+    const comp: ComponentData = { $type: 'test', name: 'Alice' };
+    assert.equal(validateComponent(comp, schema, 'test').length, 0);
+  });
+
+  it('skips optional fields when not in required', () => {
     const schema: TypeSchema = {
       title: 'Test',
       type: 'object',
@@ -282,7 +338,7 @@ describe('validateComponent', () => {
         name: { type: 'string', title: 'Name' },
       },
     };
-    const comp: ComponentData = { $type: 'test' }; // name missing
+    const comp: ComponentData = { $type: 'test' }; // name missing but not required
     assert.equal(validateComponent(comp, schema, '').length, 0);
   });
 });

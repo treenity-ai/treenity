@@ -6,7 +6,7 @@
 Class JSDoc → extract-schemas.ts → src/schema/generated/*.json → registry('schema') → Inspector / MCP / Client
 ```
 
-`registerComp(type, Class)` регистрирует класс. `npm run schema` сканирует AST, извлекает JSDoc, генерирует JSON Schema. Схема загружается при старте через `register(type, 'schema', () => schema)`. Три потребителя:
+`registerType(type, Class)` регистрирует класс. `npm run schema` сканирует AST, извлекает JSDoc, генерирует JSON Schema. Схема загружается при старте через `register(type, 'schema', () => schema)`. Три потребителя:
 
 1. **Inspector** — рендерит формы с лейблами, подсказками, виджетами
 2. **MCP** — `catalog`, `describe_type`, `search_types` для AI-discovery
@@ -51,7 +51,7 @@ class BlockHero {
   title = '';
   image = '';
 }
-registerComp('mabu.block.hero', BlockHero);
+registerType('mabu.block.hero', BlockHero);
 ```
 
 **Хорошо** — Inspector покажет формы с лейблами и виджетами:
@@ -65,7 +65,7 @@ class BlockHero {
   /** @title Button text @description Learn more */
   cta = '';
 }
-registerComp('mabu.block.hero', BlockHero);
+registerType('mabu.block.hero', BlockHero);
 ```
 
 ### Компонент с экшенами
@@ -87,7 +87,7 @@ class OrderStatus {
   /** @description Advance order to next stage in the flow */
   advance() { /* ... */ }
 }
-registerComp('order.status', OrderStatus);
+registerType('order.status', OrderStatus);
 ```
 
 ### Кросс-ссылки (refType)
@@ -103,7 +103,7 @@ class CafeContact {
   /** @description Submit contact form — validates and logs */
   submit(data: { name: string; email: string; message: string }) { /* ... */ }
 }
-registerComp('cafe.contact', CafeContact);
+registerType('cafe.contact', CafeContact);
 ```
 
 ### Внешние экшены (register-based)
