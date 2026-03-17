@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { toast } from 'sonner';
 import * as cache from './cache';
 import { tree } from './client';
-import { startEvents, stopEvents } from './events';
+import { SSE_CONNECTED, SSE_DISCONNECTED, startEvents, stopEvents } from './events';
 import { NavigateProvider } from './hooks';
 import { Inspector } from './Inspector';
 import { LoginModal, LoginScreen } from './Login';
@@ -109,6 +109,29 @@ export function App() {
   const [filter, setFilter] = useState('');
   const [showHidden, setShowHidden] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [sseDown, setSseDown] = useState(false);
+  const sseDownTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // TODO: remove debounce, extract from App code, remove debounce
+  // SSE connection indicator — debounce disconnect by 2s to avoid flicker
+  useEffect(() => {
+    const onConnect = () => {
+      if (sseDownTimer.current) { clearTimeout(sseDownTimer.current); sseDownTimer.current = undefined; }
+      setSseDown(false);
+    };
+    const onDisconnect = () => {
+      if (!sseDownTimer.current) {
+        sseDownTimer.current = setTimeout(() => { sseDownTimer.current = undefined; setSseDown(true); }, 2000);
+      }
+    };
+    window.addEventListener(SSE_CONNECTED, onConnect);
+    window.addEventListener(SSE_DISCONNECTED, onDisconnect);
+    return () => {
+      window.removeEventListener(SSE_CONNECTED, onConnect);
+      window.removeEventListener(SSE_DISCONNECTED, onDisconnect);
+      if (sseDownTimer.current) clearTimeout(sseDownTimer.current);
+    };
+  }, []);
 
   // Granular: only re-render App when root node appears/disappears
   const hasRootNode = useSyncExternalStore(
@@ -438,6 +461,11 @@ export function App() {
 
   return (
     <NavigateProvider value={navigate}>
+    {sseDown && (
+      <div className="fixed top-0 inset-x-0 z-50 bg-yellow-500 text-black text-center text-sm py-1">
+        Reconnecting to server…
+      </div>
+    )}
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <ResizablePanelGroup orientation="horizontal" className="h-full">
         <ResizablePanel

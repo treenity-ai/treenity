@@ -14,14 +14,44 @@ interface EventsConfig {
   getSelected: () => string | null;
 }
 
+// ── SSE connection events (consumed by App.tsx) ──
+
+export const SSE_CONNECTED = 'sse-connected';
+export const SSE_DISCONNECTED = 'sse-disconnected';
+
 let unsub: (() => void) | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let lastConfig: EventsConfig | null = null;
 
 export function startEvents(config: EventsConfig) {
   stopEvents();
+  lastConfig = config;
 
   const { loadChildren, getExpanded, getSelected } = config;
 
   const sub = trpc.events.subscribe(undefined as void, {
+    onStarted() {
+      window.dispatchEvent(new Event(SSE_CONNECTED));
+    },
+    onConnectionStateChange(state: { state: string }) {
+      if (state.state === 'connecting') {
+        window.dispatchEvent(new Event(SSE_DISCONNECTED));
+      } else if (state.state === 'pending') {
+        // 'pending' = connected and waiting for data — SSE is alive
+        window.dispatchEvent(new Event(SSE_CONNECTED));
+      }
+    },
+    onError(err: unknown) {
+      console.error('[sse] subscription error (non-retryable):', err);
+      window.dispatchEvent(new Event(SSE_DISCONNECTED));
+      // tRPC exhausted retries — schedule a single delayed re-subscribe
+      scheduleResubscribe();
+    },
+    onStopped() {
+      // Server closed the stream — schedule re-subscribe
+      window.dispatchEvent(new Event(SSE_DISCONNECTED));
+      scheduleResubscribe();
+    },
     onData(event) {
       if (event.type === 'reconnect') {
         if (!event.preserved) {
@@ -45,8 +75,9 @@ export function startEvents(config: EventsConfig) {
         const existing = cache.get(event.path);
         if (existing && event.patches) {
           try {
-            applyPatch(existing, event.patches as Operation[]);
-            cache.put(existing);
+            const patched = structuredClone(existing);
+            applyPatch(patched, event.patches as Operation[]);
+            cache.put(patched);
           } catch (e) {
             console.error('Failed to apply patches, fetching full node:', e);
             trpc.get.query({ path: event.path }).then((n) => {
@@ -73,9 +104,18 @@ export function startEvents(config: EventsConfig) {
   unsub = () => sub.unsubscribe();
 }
 
+const RESUBSCRIBE_DELAY = 5_000;
+
+function scheduleResubscribe() {
+  if (reconnectTimer || !lastConfig) return;
+  console.log(`[sse] will re-subscribe in ${RESUBSCRIBE_DELAY}ms`);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    if (lastConfig) startEvents(lastConfig);
+  }, RESUBSCRIBE_DELAY);
+}
+
 export function stopEvents() {
-  if (unsub) {
-    unsub();
-    unsub = null;
-  }
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  if (unsub) { unsub(); unsub = null; }
 }

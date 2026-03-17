@@ -6,6 +6,10 @@ import type { NodeData } from '@treenity/core';
 import * as idb from './idb';
 import { stampNode } from './symbols';
 
+/** Shallow-freeze in dev mode to catch accidental cache mutation at the source */
+const devFreeze: (node: NodeData) => void =
+  import.meta.env?.DEV ? (node) => Object.freeze(node) : () => {};
+
 type Sub = () => void;
 
 const nodes = new Map<string, NodeData>();
@@ -112,6 +116,7 @@ export function removeFromParent(path: string, parent: string) {
 export function put(node: NodeData, virtualParent?: string) {
   stampNode(node);
   nodes.set(node.$path, node);
+  devFreeze(node);
   const p = virtualParent ?? parentOf(node.$path);
   if (p !== null) {
     if (!parentIndex.has(p)) parentIndex.set(p, new Set());
@@ -139,6 +144,7 @@ export function putMany(items: NodeData[], virtualParent?: string) {
   for (const n of items) {
     stampNode(n);
     nodes.set(n.$path, n);
+    devFreeze(n);
     lastUpdated.set(n.$path, ts);
     fire(pathSubs, n.$path);
     const p = virtualParent ?? parentOf(n.$path);
@@ -230,6 +236,7 @@ export async function hydrate(): Promise<void> {
     for (const { data, lastUpdated: ts, virtualParent } of entries) {
       stampNode(data);
       nodes.set(data.$path, data);
+      devFreeze(data);
       lastUpdated.set(data.$path, ts);
       const p = virtualParent ?? parentOf(data.$path);
       if (p !== null) {
