@@ -1,6 +1,6 @@
 {
   "name": "@treenity/mods",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Official Treenity modules — board, sim, cafe, doc, mindmap, and more.",
   "type": "module",
   "publishConfig": {
@@ -53,18 +53,42 @@
     "three",
     "todo",
     "whisper",
+    "!**/*.test.ts",
+    "!**/*.test.tsx",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "prepack": "npm run build"
   },
+  "imports": {
+    "#*": {
+      "development": [
+        "./*.ts",
+        "./*.tsx"
+      ],
+      "default": [
+        "./dist/*.js"
+      ]
+    }
+  },
+  "dependencies": {
+    "@grammyjs/runner": "^2.0.3"
+  },
+  "optionalDependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "wavefile": "^11.0.0"
+  },
   "peerDependencies": {
     "@treenity/core": "^3.0.0",
-    "@treenity/react": "^3.0.0"
+    "@treenity/react": "^3.0.0",
+    "grammy": "^1.39.0"
   },
   "peerDependenciesMeta": {
     "@treenity/react": {
+      "optional": true
+    },
+    "grammy": {
       "optional": true
     }
   },

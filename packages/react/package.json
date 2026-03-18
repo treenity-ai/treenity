@@ -1,6 +1,6 @@
 {
   "name": "@treenity/react",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "React binding for Treenity — reactive hooks, admin UI, and context-based component rendering.",
   "type": "module",
   "publishConfig": {
@@ -73,6 +73,8 @@
   "files": [
     "dist",
     "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
     "LICENSE",
     "README.md"
   ],
