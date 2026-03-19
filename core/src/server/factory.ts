@@ -7,7 +7,7 @@ import '#schema/load';
 import './mount-adapters';
 
 import { type ServiceHandle, startServices } from '#contexts/service/index';
-import { A, createNode, type NodeData, R, S, W } from '#core';
+import { type NodeData } from '#core';
 import { addOnLog, makeLogPath } from '#log';
 import { loadAllMods } from '#mod';
 import { createMemoryTree, type Tree } from '#tree';
@@ -17,7 +17,7 @@ import { createEnsure, type Ensure } from './seed';
 import { createHttpServer, createPipeline, type Pipeline } from './server';
 
 export type TreenityConfig = {
-  rootNode?: NodeData;
+  rootNode: NodeData;
   dataDir?: string;
   modsDir?: string | false;
   seed?: (tree: Tree, ensure: Ensure) => Promise<void>;
@@ -38,34 +38,18 @@ export type TreenityServer = TreenityInstance & {
   listen(port?: number, opts?: ListenOpts): Promise<Server>;
 };
 
-export async function treenity(config?: TreenityConfig): Promise<TreenityServer> {
-  const dataDir = config?.dataDir ?? './data';
-  const autostart = config?.autostart ?? true;
+export async function treenity(config: TreenityConfig): Promise<TreenityServer> {
+  const { rootNode } = config;
+  const autostart = config.autostart ?? true;
 
   // 1. Load mods
-  if (config?.modsDir !== false) {
-    const extraDirs = config?.modsDir ? [config.modsDir] : [];
+  if (config.modsDir !== false) {
+    const extraDirs = config.modsDir ? [config.modsDir] : [];
     await loadAllMods('server', ...extraDirs);
   }
 
-  // 2. Bootstrap: root node
+  // 2. Bootstrap: root node from config (root.json)
   const bootstrap = createMemoryTree();
-  let rootNode: NodeData;
-  if (config?.rootNode) {
-    rootNode = config.rootNode;
-  } else {
-    rootNode = createNode('/', 'root', {}, {
-      mount: { $type: 't.mount.overlay', layers: ['base', 'work'] },
-      base: { $type: 't.mount.fs', root: dataDir + '/base' },
-      work: { $type: 't.mount.fs', root: dataDir + '/work' },
-    });
-    // FAIL CLOSED: no public access by default. Override via config.rootNode if needed.
-    // NEVER add 'public' group here — tests that need it must pass their own rootNode.
-    rootNode.$acl = [
-      { g: 'authenticated', p: R | S },
-      { g: 'admins', p: R | W | A | S },
-    ];
-  }
   await bootstrap.set(rootNode);
 
   // 3. Build pipeline
@@ -73,7 +57,7 @@ export async function treenity(config?: TreenityConfig): Promise<TreenityServer>
   const { tree, mountable } = pipeline;
 
   // 4. Seed — if rootNode declares seeds, only deploy those mods
-  if (config?.seed) {
+  if (config.seed) {
     await config.seed(mountable, createEnsure(mountable));
   } else {
     const seedFilter = (rootNode as Record<string, unknown>).seeds as string[] | undefined;

@@ -37,7 +37,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && fix-hash-imports",
     "prepack": "npm run build"
   },
   "peerDependencies": {

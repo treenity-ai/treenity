@@ -64,17 +64,22 @@ type Ctx = {
   sockets: Set<Socket>
 }
 
-function publicRootNode(dataDir: string) {
+function makeRootNode(dataDir: string, opts?: { publicAccess?: boolean }) {
   const node = createNode('/', 'root', {}, {
     mount: { $type: 't.mount.overlay', layers: ['base', 'work'] },
     base: { $type: 't.mount.fs', root: dataDir + '/base' },
     work: { $type: 't.mount.fs', root: dataDir + '/work' },
   })
-  node.$acl = [
-    { g: 'public', p: R | W | S },
-    { g: 'authenticated', p: R | W | S },
-    { g: 'admins', p: R | W | S },
-  ]
+  node.$acl = opts?.publicAccess
+    ? [
+        { g: 'public', p: R | W | S },
+        { g: 'authenticated', p: R | W | S },
+        { g: 'admins', p: R | W | S },
+      ]
+    : [
+        { g: 'authenticated', p: R | S },
+        { g: 'admins', p: R | W | S },
+      ]
   return node
 }
 
@@ -84,7 +89,7 @@ async function boot(
   opts?: { publicAccess?: boolean },
 ): Promise<Ctx> {
   const dir = tmpDir ?? mkdtempSync(join(tmpdir(), 'treerun-e2e-'))
-  const rootNode = opts?.publicAccess ? publicRootNode(dir) : undefined
+  const rootNode = makeRootNode(dir, opts)
   const app = await treenity({ dataDir: dir, modsDir: false, seed, autostart: false, rootNode })
   const server = await app.listen(0, { allowedOrigins: ['*'] })
   const sockets = new Set<Socket>()

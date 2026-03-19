@@ -1,6 +1,6 @@
 {
   "name": "@treenity/mods",
-  "version": "3.0.2",
+  "version": "3.0.6",
   "description": "Official Treenity modules — board, sim, cafe, doc, mindmap, and more.",
   "type": "module",
   "publishConfig": {
@@ -13,6 +13,9 @@
     "type": "git",
     "url": "https://github.com/treenity-ai/treenity.git",
     "directory": "mods"
+  },
+  "treenity": {
+    "clients": "./clients.ts"
   },
   "keywords": [
     "treenity",
@@ -38,12 +41,15 @@
   },
   "files": [
     "dist",
+    "agent",
     "board",
     "brahman",
     "cafe",
     "canary",
     "doc",
     "launcher",
+    "mcp",
+    "metatron",
     "mindmap",
     "sensor-demo",
     "sensor-generator",
@@ -58,7 +64,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && fix-hash-imports",
     "prepack": "npm run build"
   },
   "imports": {
@@ -73,18 +79,23 @@
     }
   },
   "dependencies": {
-    "@grammyjs/runner": "^2.0.3"
+    "@grammyjs/runner": "^2.0.3",
+    "@modelcontextprotocol/sdk": "^1.27.1"
   },
   "optionalDependencies": {
     "@huggingface/transformers": "^3.8.1",
     "wavefile": "^11.0.0"
   },
   "peerDependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.0",
     "@treenity/core": "^3.0.0",
     "@treenity/react": "^3.0.0",
     "grammy": "^1.39.0"
   },
   "peerDependenciesMeta": {
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
     "@treenity/react": {
       "optional": true
     },

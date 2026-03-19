@@ -1,6 +1,6 @@
 {
   "name": "@treenity/react",
-  "version": "3.0.4",
+  "version": "3.0.6",
   "description": "React binding for Treenity — reactive hooks, admin UI, and context-based component rendering.",
   "type": "module",
   "publishConfig": {
@@ -80,7 +80,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && cd src && find . -name '*.css' | while read f; do mkdir -p \"../dist/$(dirname \"$f\")\" && cp \"$f\" \"../dist/$f\"; done",
+    "build": "tsc -p tsconfig.build.json && fix-hash-imports --copy-assets",
     "prepack": "npm run build",
     "test": "tsx --conditions development --test src/**/*.test.ts",
     "dev": "vite"
