@@ -49,6 +49,7 @@
       "types": "./dist/components/ui/*.d.ts",
       "default": "./dist/components/ui/*.js"
     },
+    "./vite-plugin-treenity": "./vite-plugin-treenity.ts",
     "./*.css": "./src/*.css",
     "./*": {
       "development": [
