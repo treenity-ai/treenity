@@ -1,6 +1,6 @@
 {
   "name": "@treenity/mods",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "Official Treenity modules — board, sim, cafe, doc, mindmap, and more.",
   "type": "module",
   "publishConfig": {
@@ -31,16 +31,13 @@
         "./*.ts",
         "./*.tsx"
       ],
-      "types": [
-        "./dist/*.d.ts"
-      ],
-      "default": [
-        "./dist/*.js"
-      ]
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
     }
   },
   "files": [
     "dist",
+    "clients.ts",
     "agent",
     "board",
     "brahman",
@@ -64,7 +61,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && fix-hash-imports",
+    "build": "tsc -p tsconfig.build.json && fix-hash-imports --assets-dir=.",
     "prepack": "npm run build"
   },
   "imports": {
@@ -73,9 +70,7 @@
         "./*.ts",
         "./*.tsx"
       ],
-      "default": [
-        "./dist/*.js"
-      ]
+      "default": "./dist/*.js"
     }
   },
   "dependencies": {

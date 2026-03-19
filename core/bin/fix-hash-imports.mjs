@@ -83,15 +83,17 @@ function walk(dir) {
 walk(distDir);
 if (rewrites) console.log(`fix-hash-imports: ${rewrites} imports in ${files} files`);
 
-// --copy-assets: copy non-ts files (css, etc) from src/ to dist/
-if (process.argv.includes('--copy-assets')) {
-  const srcDir = resolve('src');
+// Copy non-ts assets (css, etc) to dist/. --assets-dir=DIR to override source (default: src/)
+{
+  const assetArg = process.argv.find(a => a.startsWith('--assets-dir='));
+  const srcDir = resolve(assetArg ? assetArg.split('=')[1] : 'src');
   let copied = 0;
+  const SKIP_DIRS = new Set(['dist', 'node_modules', '.git', 'temp']);
   function copyAssets(dir) {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       const full = join(dir, entry.name);
-      if (entry.isDirectory()) { copyAssets(full); continue; }
-      if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) continue;
+      if (entry.isDirectory()) { if (!SKIP_DIRS.has(entry.name)) copyAssets(full); continue; }
+      if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx') || entry.name.endsWith('.json')) continue;
       const rel = relative(srcDir, full);
       const dest = join(distDir, rel);
       mkdirSync(dirname(dest), { recursive: true });

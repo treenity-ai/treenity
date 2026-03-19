@@ -1,6 +1,6 @@
 {
   "name": "@treenity/react",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "React binding for Treenity — reactive hooks, admin UI, and context-based component rendering.",
   "type": "module",
   "publishConfig": {
@@ -32,10 +32,7 @@
         "./src/*.ts",
         "./src/*.tsx"
       ],
-      "default": [
-        "./dist/*.js",
-        "./dist/*.jsx"
-      ]
+      "default": "./dist/*.js"
     }
   },
   "exports": {
@@ -58,17 +55,13 @@
         "./src/*.ts",
         "./src/*.tsx"
       ],
-      "types": [
-        "./dist/*.d.ts"
-      ],
-      "default": [
-        "./dist/*.js"
-      ]
+      "types": "./dist/*.d.ts",
+      "default": "./dist/*.js"
     }
   },
   "treenity": {
-    "clients": "./src/mods/clients.ts",
-    "servers": "./src/mods/servers.ts"
+    "clients": "./mods/clients.ts",
+    "servers": "./mods/servers.ts"
   },
   "files": [
     "dist",

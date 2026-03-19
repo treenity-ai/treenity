@@ -1,6 +1,6 @@
 {
   "name": "@treenity/core",
-  "version": "3.0.7",
+  "version": "3.0.8",
   "description": "Composable typed tree engine — three primitives, everything else composes. Nodes, components, contexts.",
   "type": "module",
   "publishConfig": {
@@ -44,8 +44,8 @@
     }
   },
   "treenity": {
-    "clients": "./src/mods/clients.ts",
-    "servers": "./src/mods/servers.ts"
+    "clients": "./mods/clients.ts",
+    "servers": "./mods/servers.ts"
   },
   "bin": {
     "fix-hash-imports": "./bin/fix-hash-imports.mjs"

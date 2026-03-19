@@ -174,9 +174,16 @@ export default function treenityPlugin(opts?: { modsDirs?: string[] }): Plugin {
       if (id === VIRTUAL_ID) return RESOLVED_ID;
       if (!importer) return;
 
-      // Block server.ts from frontend
+      // Block server.ts from frontend + resolve relative imports in @treenity packages
       if (id.startsWith('.')) {
         const resolved = resolve(importer, '..', id).replace(/\\/g, '/');
+
+        // Relative imports within @treenity packages: resolve explicitly so module IDs
+        // match plugin-resolved @treenity/* paths (prevents ?v= hash mismatch → dual modules)
+        if (importer.includes('/node_modules/@treenity/')) {
+          return tryResolve([resolved]);
+        }
+
         if (SERVER_RE.test(resolved)) {
           this.error(
             `Server module imported in frontend build: "${id}"\n` +
@@ -230,7 +237,19 @@ export default function treenityPlugin(opts?: { modsDirs?: string[] }): Plugin {
         if (!seen.has(real)) { seen.add(real); imports.push(p); }
       }
 
-      return imports.map(p => `import '${p}';`).join('\n') + '\n';
+      // Dynamic imports — each mod loads independently, failures don't crash the app
+      const lines = imports.map(p => {
+        const name = p.match(/\/([^/]+)\/client\.ts$/)?.[1] ?? p.split('/').at(-2) ?? p;
+        return `  loadMod('${name}', () => import('${p}'))`;
+      });
+
+      return [
+        `import { loadMod } from '@treenity/react/mod-errors';`,
+        'await Promise.allSettled([',
+        lines.join(',\n'),
+        ']);',
+        '',
+      ].join('\n');
     },
   };
 }

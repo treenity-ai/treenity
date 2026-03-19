@@ -23,6 +23,7 @@ import { Inspector } from './Inspector';
 import { LoginModal, LoginScreen } from './Login';
 import { Tree } from './Tree';
 import { AUTH_EXPIRED_EVENT, clearToken, getToken, setToken, trpc } from './trpc';
+import { getModErrors } from './load-client';
 import { ViewPage } from './ViewPage';
 
 // Hydrate from IDB before first render — fires bump() when done → reactive re-render
@@ -73,6 +74,15 @@ export function App() {
   useEffect(() => {
     initAuth();
     return () => clearTimeout(retryTimer.current);
+  }, []);
+
+  // ── Notify about failed mods ──
+  useEffect(() => {
+    const errors = getModErrors();
+    if (!errors.size) return;
+    for (const [name, msg] of errors) {
+      toast.warning(`Mod "${name}" skipped`, { description: msg, duration: 10_000 });
+    }
   }, []);
 
   // ── Route detection ──
