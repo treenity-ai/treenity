@@ -1,6 +1,6 @@
 {
   "name": "@treenity/core",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Composable typed tree engine — three primitives, everything else composes. Nodes, components, contexts.",
   "type": "module",
   "publishConfig": {
@@ -11,7 +11,7 @@
   "homepage": "https://github.com/treenity-ai/treenity",
   "repository": {
     "type": "git",
-    "url": "https://github.com/treenity-ai/treenity.git"
+    "url": "git+https://github.com/treenity-ai/treenity.git"
   },
   "keywords": [
     "treenity",

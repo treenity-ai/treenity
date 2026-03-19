@@ -6,7 +6,6 @@ import { getComponent, isComponent, type NodeData, register, resolve } from '#co
 import { createMemoryTree, createOverlayTree, type Tree } from '#tree';
 import { createFsTree } from '#tree/fs';
 import { createRawFsStore } from '#tree/mimefs';
-import { createMongoTree } from '#tree/mongo';
 import { createQueryTree } from '#tree/query';
 import { createRepathTree } from '#tree/repath';
 import { createModsStore } from './mods-mount';
@@ -25,6 +24,7 @@ register('t.mount.mongo', 'mount', async (config: NodeData) => {
   if (!conn) throw new Error("t.mount.mongo requires 'connection' component");
   const uri = conn.uri ?? process.env.MONGO_URI;
   if (!uri) throw new Error('t.mount.mongo: no uri and MONGO_URI not set');
+  const { createMongoTree } = await import('#tree/mongo');
   return createMongoTree(uri, conn.db ?? 'treenity', conn.collection ?? 'nodes');
 });
 
