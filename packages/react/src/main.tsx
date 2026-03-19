@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { enablePatches } from 'immer';
-import { StrictMode, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './load-client';
@@ -14,19 +14,23 @@ const queryClient = new QueryClient();
 
 // StrictMode off: FlowGram inversify container breaks on double-mount
 // https://github.com/bytedance/flowgram.ai/issues/402
-// TODO: re-enable once FlowGram fixes React 19 StrictMode support
-// const Strict = import.meta.env.VITE_STRICT_MODE !== 'false'
-//   ? StrictMode
-//   : ({ children }: { children: ReactNode }) => children;
 const Strict = ({ children }: { children: ReactNode }) => children;
 
-const root = document.getElementById('root');
-if (!root) throw new Error('No #root element');
-createRoot(root).render(
-  <Strict>
-    <QueryClientProvider client={queryClient}>
-      <App />
-      <Toaster />
-    </QueryClientProvider>
-  </Strict>,
-);
+/** Mount Treenity UI into a DOM element */
+export function boot(el: HTMLElement | string = '#root') {
+  const root = typeof el === 'string' ? document.querySelector(el) : el;
+  if (!root) throw new Error(`Treenity boot: element "${el}" not found`);
+  createRoot(root as HTMLElement).render(
+    <Strict>
+      <QueryClientProvider client={queryClient}>
+        <App />
+        <Toaster />
+      </QueryClientProvider>
+    </Strict>,
+  );
+}
+
+// Auto-boot when loaded directly (not imported)
+if (typeof document !== 'undefined' && document.getElementById('root')) {
+  boot('#root');
+}

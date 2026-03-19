@@ -26,3 +26,4 @@ screenshot-*.png
 /*.png
 
 core/src/schema/generated/
+*.tgz

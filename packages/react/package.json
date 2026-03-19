@@ -1,6 +1,6 @@
 {
   "name": "@treenity/react",
-  "version": "3.0.2",
+  "version": "3.0.4",
   "description": "React binding for Treenity — reactive hooks, admin UI, and context-based component rendering.",
   "type": "module",
   "publishConfig": {
@@ -73,13 +73,14 @@
   "files": [
     "dist",
     "src",
+    "vite-plugin-treenity.ts",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
     "LICENSE",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && cd src && find . -name '*.css' | while read f; do mkdir -p \"../dist/$(dirname \"$f\")\" && cp \"$f\" \"../dist/$f\"; done",
     "prepack": "npm run build",
     "test": "tsx --conditions development --test src/**/*.test.ts",
     "dev": "vite"
@@ -106,6 +107,7 @@
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
     "@tiptap/suggestion": "^3.20.0",
+    "@treenity/react": "^3.0.3",
     "@trpc/client": "^11.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

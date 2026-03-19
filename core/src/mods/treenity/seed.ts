@@ -14,7 +14,6 @@ registerPrefab('core', 'seed', [
   },
   { $path: 'sys/mcp', $type: 'mcp.server', port: 0 },
   { $path: 'sys/autostart', $type: 'autostart' },
-  { $path: '/sys/autostart/mcp', $type: 'ref', $ref: '/sys/mcp' },
   { $path: 'proc', $type: 'mount-point',
     mount: { $type: 't.mount.memory' },
     $acl: [{ g: 'public', p: R }],
@@ -28,9 +27,6 @@ registerPrefab('core', 'seed', [
   { $path: 'demo/sensors', $type: 'examples.demo.sensor',
     mount: { $type: 't.mount.memory' },
   },
-  { $path: '/sys/autostart/sensors', $type: 'ref', $ref: '/demo/sensors' },
-  { $path: 'sys/claude-search', $type: 'claude-search' },
-  { $path: '/sys/autostart/claude-search', $type: 'ref', $ref: '/sys/claude-search' },
 ] as NodeData[], (nodes) => {
   const mcpPort = Number(process.env.MCP_PORT) || 3212;
   return nodes.map(n =>
