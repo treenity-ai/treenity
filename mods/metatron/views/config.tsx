@@ -407,3 +407,5 @@ const ConfigView: View<MetatronConfig> = ({ value, ctx }) => {
 
 register('metatron.config', 'react', ConfigView);
 register('metatron.config', 'react:layout', ConfigView);
+// Prevent react:edit fallback to ConfigView — NodeEditor handles editing via form fields
+register('metatron.config', 'react:edit', () => null);
