@@ -2,6 +2,7 @@
 // Role determines prompt + tool policy. Uses metatron's invokeClaude for LLM.
 // Agent = node, tree = protocol.
 
+import { resolvePermission } from '#metatron/permissions';
 import { registerType } from '@treenity/core/comp';
 
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'error' | 'offline';
@@ -128,6 +129,54 @@ export class AiPlan {
 }
 
 registerType('ai.plan', AiPlan);
+
+export class AiApproval {
+  agentPath = '';
+  agentRole = '';
+  tool = '';
+  /** @format textarea */
+  input = '';
+  status: 'pending' | 'approved' | 'denied' = 'pending';
+  reason = '';
+  createdAt = 0;
+  resolvedAt = 0;
+
+  /** @description Approve this tool usage */
+  approve(data?: {
+    /** Remember this decision for future calls */
+    remember?: 'agent' | 'global'
+  }) {
+    if (this.status !== 'pending') throw new Error('already resolved');
+    this.status = 'approved';
+    this.resolvedAt = Date.now();
+    const id = (this as any).$path?.split('/').pop();
+    if (id) resolvePermission(id, true, {
+      tool: this.tool,
+      input: this.input,
+      agentPath: this.agentPath,
+      scope: data?.remember,
+    });
+  }
+
+  /** @description Deny this tool usage */
+  deny(data?: {
+    /** Remember this decision for future calls */
+    remember?: 'agent' | 'global'
+  }) {
+    if (this.status !== 'pending') throw new Error('already resolved');
+    this.status = 'denied';
+    this.resolvedAt = Date.now();
+    const id = (this as any).$path?.split('/').pop();
+    if (id) resolvePermission(id, false, {
+      tool: this.tool,
+      input: this.input,
+      agentPath: this.agentPath,
+      scope: data?.remember,
+    });
+  }
+}
+
+registerType('ai.approval', AiApproval);
 
 /** Persistent tool policy — lives on agent (per-agent) or /agents/guardian (global) */
 export class AiPolicy {

@@ -12,7 +12,7 @@ import { type ServiceCtx } from '@treenity/core/contexts/service';
 import { type ActionCtx } from '@treenity/core/server/actions';
 import { buildClaims, withAcl } from '@treenity/core/server/auth';
 import { debouncedWrite } from '@treenity/core/util/debounced-write';
-import { closeSession, invokeClaude } from './claude';
+import { abortQuery, closeSession, invokeClaude } from './claude';
 import { uniqueMentionPaths } from './mentions';
 import { type PermissionRule } from './permissions';
 
@@ -194,6 +194,13 @@ register('metatron.config', 'service', async (node: NodeData, ctx: ServiceCtx) =
     const { items } = await ctx.tree.getChildren(tasksPath);
     const tasks = items.filter(t => t.$type === 'metatron.task');
     const pending = tasks.filter(t => t.status === 'pending');
+    // Handle user-aborted tasks
+    const aborted = tasks.filter(t => t.status === 'aborted');
+    for (const t of aborted) {
+      log(`  aborting task: ${t.$path}`);
+      abortQuery(node.$path);
+      await updateTask(t.$path, { status: 'done', result: t.result || 'Aborted by user' });
+    }
     // Recover tasks stuck in "running" from a previous crash
     const stuck = tasks.filter(t => t.status === 'running');
     for (const t of stuck) {

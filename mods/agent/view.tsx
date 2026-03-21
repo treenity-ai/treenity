@@ -7,8 +7,7 @@ import { execute, useChildren, useNavigate, usePath } from '@treenity/react/hook
 import { minimd } from '@treenity/react/lib/minimd';
 import { cn } from '@treenity/react/lib/utils';
 import { useMemo, useState } from 'react';
-import { AiApproval } from './guardian';
-import { type AgentStatus, AiAgent, AiApprovals, AiPlan, AiPool, AiThread } from './types';
+import { AiApproval, type AgentStatus, AiAgent, AiApprovals, AiPlan, AiPool, AiThread } from './types';
 
 // ── Status styling ──
 

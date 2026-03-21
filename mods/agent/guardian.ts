@@ -2,64 +2,14 @@
 // Cascade: agent ai.policy → global ai.policy (/agents/guardian) → hardcoded fallback.
 // Escalation: creates ai.approval node → Promise resolution via pendingPermissions.
 
-import { pendingPermissions, type PermissionMeta, type PermissionRule, resolvePermission } from '#metatron/permissions';
+import { pendingPermissions, type PermissionMeta, type PermissionRule } from '#metatron/permissions';
 import { MetatronConfig } from '#metatron/types';
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { createNode, getComponent } from '@treenity/core';
-import { registerType, setComponent } from '@treenity/core/comp';
+import { setComponent } from '@treenity/core/comp';
 import { matchesAny } from '@treenity/core/glob';
 import type { Tree } from '@treenity/core/tree';
-import { AiPolicy } from './types';
-
-// ── Approval type — lives in /agents/approvals/{id} ──
-
-export class AiApproval {
-  agentPath = '';
-  agentRole = '';
-  tool = '';
-  /** @format textarea */
-  input = '';
-  status: 'pending' | 'approved' | 'denied' = 'pending';
-  reason = '';
-  createdAt = 0;
-  resolvedAt = 0;
-
-  /** @description Approve this tool usage */
-  approve(data?: {
-    /** Remember this decision for future calls */
-    remember?: 'agent' | 'global'
-  }) {
-    if (this.status !== 'pending') throw new Error('already resolved');
-    this.status = 'approved';
-    this.resolvedAt = Date.now();
-    const id = (this as any).$path?.split('/').pop();
-    if (id) resolvePermission(id, true, {
-      tool: this.tool,
-      input: this.input,
-      agentPath: this.agentPath,
-      scope: data?.remember,
-    });
-  }
-
-  /** @description Deny this tool usage */
-  deny(data?: {
-    /** Remember this decision for future calls */
-    remember?: 'agent' | 'global'
-  }) {
-    if (this.status !== 'pending') throw new Error('already resolved');
-    this.status = 'denied';
-    this.resolvedAt = Date.now();
-    const id = (this as any).$path?.split('/').pop();
-    if (id) resolvePermission(id, false, {
-      tool: this.tool,
-      input: this.input,
-      agentPath: this.agentPath,
-      scope: data?.remember,
-    });
-  }
-}
-
-registerType('ai.approval', AiApproval);
+import { AiApproval, AiPolicy } from './types';
 
 // ── ToolPolicy shape (runtime, with RegExp) ──
 

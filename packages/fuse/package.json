@@ -13,7 +13,7 @@
   "bin": {
     "treenity-mount": "./src/cli.ts"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "fuse-native": "^2.2.6",
     "koffi": "^2.15.1"
   },

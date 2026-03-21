@@ -13,7 +13,7 @@ export class MetatronConfig {
 export class MetatronTask {
   /** @format textarea */
   prompt = '';
-  status: 'pending' | 'running' | 'done' | 'error' = 'pending';
+  status: 'pending' | 'running' | 'done' | 'error' | 'aborted' = 'pending';
   /** @format textarea */
   result = '';
   /** @format textarea */
@@ -27,12 +27,9 @@ export class MetatronTask {
   forkIndex = 0;
 
   /** @description Stop the running task */
-  async stop() {
+  stop() {
     if (this.status !== 'running') throw new Error('task is not running');
-    const { node } = getCtx();
-    const configPath = node.$path.replace(/\/tasks\/[^/]+$/, '');
-    const { abortQuery } = await import('./claude');
-    abortQuery(configPath);
+    this.status = 'aborted';
   }
 
   /** @description Queue a follow-up message for the running task */

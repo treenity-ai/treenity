@@ -174,6 +174,7 @@ export default function treenityPlugin(opts?: { modsDirs?: string[] }): Plugin {
       if (id === VIRTUAL_ID) return RESOLVED_ID;
       if (!importer) return;
 
+
       // Block server.ts from frontend + resolve relative imports in @treenity packages
       if (id.startsWith('.')) {
         const resolved = resolve(importer, '..', id).replace(/\\/g, '/');
