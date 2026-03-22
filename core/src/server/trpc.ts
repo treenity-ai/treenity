@@ -62,7 +62,10 @@ function filterPatches(
 /** Zod schema that validates tree paths — rejects traversal, null bytes, double slashes */
 const safePath = z.string().superRefine((p, ctx) => {
   try { assertSafePath(p); }
-  catch (e) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: (e as Error).message }); }
+  catch (e) {
+    console.error(`[trpc] bad path rejected: ${JSON.stringify(p)}`);
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: (e as Error).message });
+  }
 });
 
 // ── Rate limiter (in-memory, per key) ──
@@ -228,10 +231,16 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
         const userPath = `/auth/users/${input.userId}`;
         const existing = await baseStore.get(userPath);
         if (existing) throw new TRPCError({ code: 'CONFLICT', message: 'User already exists' });
+        // First user → admin + active, rest → pending activation by admin
+        const { items } = await baseStore.getChildren('/auth/users', { limit: 1 });
+        const isFirstUser = items.length === 0;
+
         const hash = await hashPassword(input.password);
-        const node = createNode(userPath, 'user', {}, {
+        const node = createNode(userPath, 'user', {
+          status: isFirstUser ? 'active' : 'pending',
+        }, {
           credentials: { $type: 'credentials', hash },
-          groups: { $type: 'groups', list: [] },
+          groups: { $type: 'groups', list: isFirstUser ? ['admins'] : [] },
         });
         node.$owner = input.userId;
         node.$acl = [
@@ -239,8 +248,11 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
           { g: 'authenticated', p: 0 },
         ];
         await baseStore.set(node);
+        if (!isFirstUser) {
+          return { token: null, userId: input.userId, pending: true };
+        }
         const token = await createSession(baseStore, input.userId);
-        return { token, userId: input.userId };
+        return { token, userId: input.userId, pending: false };
       }),
 
     login: t.procedure
@@ -256,6 +268,7 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
         const hash = typeof creds?.['hash'] === 'string' ? creds['hash'] : undefined;
         const ok = await verifyPassword(input.password, hash ?? DUMMY_HASH);
         if (!user || !hash || !ok) throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Invalid credentials' });
+        if (user.status !== 'active') throw new TRPCError({ code: 'FORBIDDEN', message: 'Account not activated' });
         const token = await createSession(baseStore, input.userId);
         return { token, userId: input.userId };
       }),
