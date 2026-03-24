@@ -2,8 +2,8 @@
 // HTTP batch for queries/mutations, SSE for subscriptions.
 
 import type { NodeData } from '#core';
+import type { PatchOp } from '#tree';
 import type { TreeRouter } from '#server/trpc';
-import { defaultPatch } from '#tree/patch';
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from '@trpc/client';
 import type { TreenityClient, WatchSub } from './index';
 
@@ -60,12 +60,7 @@ export function createTrpcTransport(opts: TrpcTransportOpts): TreenityClient & {
       getChildren: (path, opts) => trpc.getChildren.query({ path, ...opts }),
       set: (node) => trpc.set.mutate({ node: node as Record<string, unknown> }),
       remove: (path) => trpc.remove.mutate({ path }).then(() => true),
-      // TODO: add tRPC patch endpoint for single-RPC atomic patch
-      patch: (path, ops) => defaultPatch(
-        (p) => trpc.get.query({ path: p }) as Promise<NodeData | undefined>,
-        (n) => trpc.set.mutate({ node: n as Record<string, unknown> }).then(() => {}),
-        path, ops,
-      ),
+      patch: (path, ops) => trpc.patch.mutate({ path, ops: ops as PatchOp[] }),
     },
     execute: (path, action, data, o) =>
       trpc.execute.mutate({ path, action, data, type: o?.type, key: o?.key }),
