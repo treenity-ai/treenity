@@ -136,6 +136,57 @@ describe('tRPC API integration', () => {
     });
   });
 
+  // ── patch ──
+
+  describe('patch', () => {
+    it('replaces a field', async () => {
+      await caller.set({ node: { $path: '/p', $type: 'doc', title: 'old' } });
+      await caller.patch({ path: '/p', ops: [['r', 'title', 'new']] });
+      const node = await caller.get({ path: '/p' });
+      assert.equal((node as any).title, 'new');
+    });
+
+    it('deletes a field', async () => {
+      await caller.set({ node: { $path: '/p2', $type: 'doc', extra: 'bye' } });
+      await caller.patch({ path: '/p2', ops: [['d', 'extra']] });
+      const node = await caller.get({ path: '/p2' });
+      assert.equal((node as any).extra, undefined);
+    });
+
+    it('applies multiple ops atomically', async () => {
+      await caller.set({ node: { $path: '/p3', $type: 'doc', a: 1, b: 2, c: 3 } });
+      await caller.patch({ path: '/p3', ops: [['r', 'a', 10], ['d', 'b'], ['r', 'c', 30]] });
+      const node = await caller.get({ path: '/p3' });
+      assert.equal((node as any).a, 10);
+      assert.equal((node as any).b, undefined);
+      assert.equal((node as any).c, 30);
+    });
+
+    it('deep field via dot-notation', async () => {
+      await caller.set({ node: { $path: '/p4', $type: 'doc', meta: { title: 'old', count: 0 } } });
+      await caller.patch({ path: '/p4', ops: [['r', 'meta.title', 'new']] });
+      const node = await caller.get({ path: '/p4' });
+      assert.equal((node as any).meta.title, 'new');
+      assert.equal((node as any).meta.count, 0);
+    });
+
+    it('emits patch event', async () => {
+      await caller.set({ node: { $path: '/p5', $type: 'doc', x: 1 } });
+      events.length = 0;
+      await caller.patch({ path: '/p5', ops: [['r', 'x', 2]] });
+      const patchEvent = events.find(e => e.type === 'patch' && e.path === '/p5');
+      assert.ok(patchEvent, 'patch event emitted');
+    });
+
+    it('idempotent: same replace twice = same result', async () => {
+      await caller.set({ node: { $path: '/p6', $type: 'doc', val: 'a' } });
+      await caller.patch({ path: '/p6', ops: [['r', 'val', 'b']] });
+      await caller.patch({ path: '/p6', ops: [['r', 'val', 'b']] });
+      const node = await caller.get({ path: '/p6' });
+      assert.equal((node as any).val, 'b');
+    });
+  });
+
   // ── executeAction ──
 
   describe('executeAction', () => {
@@ -357,13 +408,11 @@ describe('tRPC API integration', () => {
       await caller.set({ node: { $path: '/orders/data/1', $type: 'page', status: { $type: 'order.status', status: 'new' } } });
       await caller.set({ node: {
         $path: '/orders/new', $type: 'folder',
-        mount: { $type: 't.mount.query' },
-        query: { $type: 'query', source: '/orders/data', match: { 'status.status': 'new' } },
+        mount: { $type: 't.mount.query', source: '/orders/data', match: { 'status.status': 'new' } },
       } });
       await caller.set({ node: {
         $path: '/orders/kitchen', $type: 'folder',
-        mount: { $type: 't.mount.query' },
-        query: { $type: 'query', source: '/orders/data', match: { 'status.status': 'kitchen' } },
+        mount: { $type: 't.mount.query', source: '/orders/data', match: { 'status.status': 'kitchen' } },
       } });
     });
 

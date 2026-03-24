@@ -4,6 +4,7 @@
 
 import { createNode, getComponentField, isComponent, isRef, type NodeData, R, resolve, S, W } from '#core';
 import { assertSafePath } from '#core/path';
+import { type PatchOp } from '#tree';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { observable } from '@trpc/server/observable';
 import type { Operation } from 'fast-json-patch';
@@ -67,6 +68,12 @@ const safePath = z.string().superRefine((p, ctx) => {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: (e as Error).message });
   }
 });
+
+/** Zod schema for idempotent patch ops: replace and delete only */
+const patchOps = z.array(z.union([
+  z.tuple([z.literal('r'), z.string(), z.unknown()]),
+  z.tuple([z.literal('d'), z.string()]),
+]));
 
 // ── Rate limiter (in-memory, per key) ──
 
@@ -193,6 +200,10 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
         const { $patches, ...clean } = input.node;
         return ctx.tree.set(clean as NodeData);
       }),
+
+    patch: authed
+      .input(z.object({ path: safePath, ops: patchOps }))
+      .mutation(({ input, ctx }) => ctx.tree.patch(input.path, input.ops as PatchOp[])),
 
     setComponent: authed
       .input(
