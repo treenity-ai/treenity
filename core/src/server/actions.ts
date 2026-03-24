@@ -7,10 +7,17 @@ import { Class, type TypeProxy } from '#comp';
 import { type ExecuteFn, makeTypedProxy, type StreamFn } from '#comp/handle';
 import { collectDeps as _collectDeps, type ResolvedDeps } from '#comp/needs';
 import { type ComponentData, getComponentField, isComponent, type NodeData, register, resolve } from '#core';
-import { type Tree } from '#tree';
+import { type PatchOp, type Tree } from '#tree';
 import { createDraft, enablePatches, finishDraft, type Patch } from 'immer';
 import { OpError } from './errors';
-import { attachPatches } from './sub';
+
+function immerToPatchOps(patches: Patch[]): PatchOp[] {
+  return patches.map(p => {
+    const path = p.path.join('.');
+    if (p.op === 'remove') return ['d', path] as const;
+    return [p.op === 'replace' ? 'r' : 'a', path, p.value] as const;
+  });
+}
 
 export type NodeHandle = ReturnType<typeof serverNodeHandle>;
 
@@ -300,9 +307,8 @@ export async function executeAction(
   }
 
   if (patches.length > 0) {
-    const toSave = { ...nextNode, $rev: node.$rev };
-    attachPatches(toSave, patches);
-    await tree.set(toSave as NodeData);
+    const ops = immerToPatchOps(patches);
+    await tree.patch(node.$path, ops);
   }
   return result;
 }

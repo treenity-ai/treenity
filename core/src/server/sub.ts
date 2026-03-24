@@ -8,22 +8,8 @@ import { type PatchOp, toRfc6902, type Tree } from '#tree';
 import { createSiftTest, mapNodeForSift } from '#tree/query';
 import type { Operation } from 'fast-json-patch';
 import fjp from 'fast-json-patch';
-import { type Patch } from 'immer';
 
 const { compare } = fjp;
-
-/** Symbol key for trusted Immer patches — only accessible from server code, never from client JSON */
-const PATCHES = Symbol('patches');
-
-/** Attach Immer patches to a node for efficient CDC broadcasting. Server-internal only. */
-export function attachPatches(node: NodeData, patches: Patch[]) {
-  (node as any)[PATCHES] = patches;
-}
-
-// Immer Patch {path: ['a','b']} → RFC 6902 Operation {path: '/a/b'}
-function immerToRfc(patches: Patch[]): Operation[] {
-  return patches.map(p => ({ ...p, path: '/' + p.path.join('/') }) as Operation);
-}
 
 // ── Event types ──
 
@@ -117,7 +103,6 @@ export function withSubscriptions(
     getChildren: tree.getChildren.bind(tree),
 
     async set(node) {
-      const patches = (node as any)[PATCHES] as Patch[] | undefined;
       // Defense in depth: strip string $patches if injected (should never reach here after tRPC strip)
       if ('$patches' in node) {
         node = { ...node };
@@ -134,7 +119,6 @@ export function withSubscriptions(
       const oldNodeSift = oldNode ? mapNodeForSift(oldNode) : null;
 
       for (const q of activeQueries) {
-        // Only evaluate if node is a direct child of the query's source
         const prefix = q.source === '/' ? '/' : q.source + '/';
         if (node.$path.startsWith(prefix) && node.$path.slice(prefix.length).indexOf('/') === -1) {
           const wasIn = oldNodeSift ? q.test(oldNodeSift) : false;
@@ -142,7 +126,6 @@ export function withSubscriptions(
 
           if (!wasIn && isIn) addVps.push(q.vp);
           if (wasIn && !isIn) rmVps.push(q.vp);
-          // If wasIn && isIn, it's an update, which is handled by exact path watch
         }
       }
 
@@ -150,17 +133,12 @@ export function withSubscriptions(
 
       const { $path, ...body } = node;
 
-      if (patches && patches.length > 0) {
-        // Immer patches from actions → convert to RFC 6902
-        emit({ type: 'patch', path: $path, patches: immerToRfc(patches), addVps, rmVps });
-      } else if (oldNode) {
-        // Compute minimal RFC 6902 patches via deep comparison
+      if (oldNode) {
         const computed = compare(oldNode, node);
         emit(computed.length > 0
           ? { type: 'patch', path: $path, patches: computed, addVps, rmVps }
           : { type: 'set', path: $path, node: body, addVps, rmVps });
       } else {
-        // New node — no old state to diff against
         emit({ type: 'set', path: $path, node: body, addVps, rmVps });
       }
     },

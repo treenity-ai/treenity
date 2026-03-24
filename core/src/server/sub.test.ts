@@ -2,7 +2,7 @@ import { createNode } from '#core';
 import { createMemoryTree } from '#tree';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { attachPatches, type NodeEvent, withSubscriptions } from './sub';
+import { type NodeEvent, withSubscriptions } from './sub';
 
 describe('Subscriptions', () => {
   it('emits on set (children)', async () => {
@@ -53,27 +53,7 @@ describe('Subscriptions', () => {
     assert.equal(events.length, 1);
   });
 
-  it('attachPatches provides trusted patches that are broadcast', async () => {
-    const tree = withSubscriptions(createMemoryTree());
-    const events: NodeEvent[] = [];
-    await tree.set({ ...createNode('/x', 'test'), foo: 'old' });
-    tree.subscribe('/x', (e) => events.push(e));
-
-    // Simulate action: node with Symbol-attached patches (server-internal path)
-    const node = { ...createNode('/x', 'test'), foo: 'bar' };
-    attachPatches(node, [{ op: 'replace', path: ['foo'], value: 'bar' }] as any);
-    await tree.set(node);
-
-    assert.equal(events.length, 1);
-    assert.equal(events[0].type, 'patch');
-    // Patches came from Symbol side channel (Immer format converted to RFC 6902)
-    assert.ok('patches' in events[0] && events[0].patches.length === 1);
-    if (events[0].type === 'patch') {
-      assert.equal(events[0].patches[0].path, '/foo');
-    }
-  });
-
-  it('node without patches gets computed diff (client path)', async () => {
+  it('set with changed field emits computed patch', async () => {
     const tree = withSubscriptions(createMemoryTree());
     const events: NodeEvent[] = [];
     await tree.set({ ...createNode('/x', 'test'), foo: 'old' });
