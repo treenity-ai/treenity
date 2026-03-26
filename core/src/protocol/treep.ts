@@ -14,7 +14,7 @@ export type ActionExecutor = (
 ) => Promise<unknown>
 
 export interface TreeP {
-  get(uri: string, opts?: { children?: boolean; limit?: number; offset?: number }): Promise<unknown>
+  get(uri: string, opts?: { children?: boolean; limit?: number; offset?: number; depth?: number }): Promise<unknown>
   set(uri: string, data?: unknown): Promise<unknown>
   remove(uri: string): Promise<void>
 }
@@ -91,6 +91,7 @@ export function createTreeP(tree: Tree, execute?: ActionExecutor): TreeP {
         const childOpts: ChildrenOpts = {}
         if (opts?.limit) childOpts.limit = opts.limit
         if (opts?.offset) childOpts.offset = opts.offset
+        if (opts?.depth) childOpts.depth = opts.depth
         return tree.getChildren(parentPath, childOpts)
       }
 
