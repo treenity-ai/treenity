@@ -73,7 +73,7 @@ describe('extract-schemas: JSDoc on method data-argument properties', () => {
   });
 
   it('generated autostart schema has description on start.path argument', () => {
-    const schema = require('./generated/autostart.json');
+    const schema = require('../mods/autostart/schemas/autostart.json');
     const pathProp = schema.methods?.start?.arguments?.[0]?.properties?.path;
     assert.ok(pathProp, 'path property missing from start method data argument');
     assert.ok(

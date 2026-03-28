@@ -13,9 +13,9 @@ import { extname, join, resolve } from 'node:path';
 import { resolveToken } from './auth';
 import { withMounts } from './mount';
 import { withRefIndex } from './refs';
-import type { ReactiveTree } from './sub';
-import { unwatchAllQueries, withSubscriptions } from './sub';
+import { type CdcRegistry, withSubscriptions } from './sub';
 import { createTreeRouter, type TreeRouter, type TrpcContext } from './trpc';
+import { withMigration } from './migrate';
 import { withValidation } from './validate';
 import { withVolatile } from './volatile';
 import { createWatchManager, type WatchManager } from './watch';
@@ -28,7 +28,8 @@ export type RouteHandler = (req: import('node:http').IncomingMessage, res: impor
 export const routeRegistry = new Map<string, RouteHandler>();
 
 export type Pipeline = {
-  tree: ReactiveTree;
+  tree: Tree;
+  cdc: CdcRegistry;
   mountable: Tree;
   watcher: WatchManager;
   router: TreeRouter;
@@ -37,23 +38,26 @@ export type Pipeline = {
 
 /** Pure tree composition — no HTTP, no side effects */
 export function createPipeline(bootstrap: Tree): Pipeline {
-  const mountable = withMounts(bootstrap);
+  const migrated = withMigration(bootstrap);
+  const mountable = withMounts(migrated);
   const volatile = withVolatile(mountable);
   const validated = withValidation(volatile);
   const refsIndexed = withRefIndex(validated);
   const cached = withCache(refsIndexed);
+  let cdcRef: CdcRegistry;
   const watcher = createWatchManager({
-    onUserRemoved: (userId) => unwatchAllQueries(userId),
+    onUserRemoved: (userId) => cdcRef.unwatchAllQueries(userId),
   });
-  const tree = withSubscriptions(cached, (e) => watcher.notify(e));
-  const router = createTreeRouter(tree, watcher);
+  const { tree, cdc } = withSubscriptions(cached, (e) => watcher.notify(e));
+  cdcRef = cdc;
+  const router = createTreeRouter(tree, watcher, undefined, cdc);
 
   const createContext = async (token: string | null): Promise<TrpcContext> => {
     const session = token ? await resolveToken(mountable, token) : null;
     return { session, token };
   };
 
-  return { tree, mountable, watcher, router, createContext };
+  return { tree, cdc, mountable, watcher, router, createContext };
 }
 
 type HttpServerOpts = {

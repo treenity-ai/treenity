@@ -23,11 +23,12 @@ export function createRepathTree(inner: Tree, localBase: string, remoteBase: str
   }
 
   function remapNode(node: NodeData): NodeData {
+    if (!node.$path) throw new Error(`repath: node missing $path (type=${node.$type})`);
     return { ...node, $path: toLocal(node.$path) };
   }
 
   function remapPage(page: Page<NodeData>): Page<NodeData> {
-    return { ...page, items: page.items.map(remapNode) };
+    return { ...page, items: page.items.filter(n => n.$path).map(remapNode) };
   }
 
   return {

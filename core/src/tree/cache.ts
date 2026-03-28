@@ -33,7 +33,7 @@ export function withCache(tree: Tree): Tree {
       await tree.set(node, ctx);
       // Write-populate: re-read to capture $rev bump, warm cache for subscribers
       const fresh = await tree.get(node.$path, ctx);
-      treeEnsure(root, node.$path).data = fresh;
+      if (fresh) treeEnsure(root, node.$path).data = fresh;
     },
 
     async remove(path, ctx) {

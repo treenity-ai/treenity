@@ -4,7 +4,7 @@
 // Auto-promotes leaf→dir when children appear, demotes dir→leaf when last child removed.
 
 import type { NodeData } from '#core';
-import { dirname as treeDirname } from '#core/path';
+import { dirname as treeDirname, isInsideRoot } from '#core/path';
 import { mkdir, readdir, readFile, realpath, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import sift from 'sift';
@@ -14,17 +14,17 @@ import { defaultPatch } from './patch';
 import { mapNodeForSift } from './query';
 
 async function securityCheck(root: string, file: string) {
-  if (!file.startsWith(resolve(root))) throw new Error('Path traversal blocked');
+  if (!isInsideRoot(root, resolve(file))) throw new Error('Path traversal blocked');
   // Follow symlinks and verify real path is still inside root
   try {
     const real = await realpath(file);
-    if (!real.startsWith(root)) throw new Error('Path escaped root via symlink');
+    if (!isInsideRoot(root, real)) throw new Error('Path escaped root via symlink');
   } catch (e: any) {
     if (e.code !== 'ENOENT') throw e;
     // File doesn't exist yet — check parent directory for symlink escapes
     try {
       const parentReal = await realpath(dirname(file));
-      if (!parentReal.startsWith(root)) throw new Error('Path escaped root via symlink');
+      if (!isInsideRoot(root, parentReal)) throw new Error('Path escaped root via symlink');
     } catch (e2: any) {
       if (e2.code !== 'ENOENT') throw e2;
     }

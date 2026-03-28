@@ -58,13 +58,13 @@ describe('tRPC API integration', () => {
     const validated = withValidation(volatile);
     watcher = createWatchManager();
     events = [];
-    const tree = withSubscriptions(validated, (e) => {
+    const { tree, cdc } = withSubscriptions(validated, (e) => {
       events.push(e as DataEvent);
       watcher.notify(e);
     });
     rawStore = tree;
 
-    const router = createTreeRouter(tree as any, watcher);
+    const router = createTreeRouter(tree, watcher, undefined, cdc);
     caller = router.createCaller({ session: null, token: null });
     authedCaller = router.createCaller({ session: { userId: 'alice' } as Session, token: null });
   });

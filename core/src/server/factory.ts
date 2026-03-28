@@ -17,7 +17,6 @@ import { createHttpServer, createPipeline, type Pipeline } from './server';
 
 export type TreenityConfig = {
   rootNode: NodeData;
-  dataDir?: string;
   modsDir?: string | false;
   seed?: (tree: Tree, ensure: Ensure) => Promise<void>;
   autostart?: boolean;
@@ -53,7 +52,7 @@ export async function treenity(config: TreenityConfig): Promise<TreenityServer> 
 
   // 3. Build pipeline
   const pipeline = createPipeline(bootstrap);
-  const { tree, mountable } = pipeline;
+  const { tree, cdc, mountable } = pipeline;
 
   // 4. Seed — only on first run (skip if already initialized)
   const initialized = !!(await mountable.get('/sys'));
@@ -77,7 +76,7 @@ export async function treenity(config: TreenityConfig): Promise<TreenityServer> 
   // 6. Autostart services
   let serviceHandle: ServiceHandle | null = null;
   if (autostart) {
-    serviceHandle = await startServices(tree, tree.subscribe.bind(tree) as import('#contexts/service/index').ServiceCtx['subscribe']);
+    serviceHandle = await startServices(tree, cdc.subscribe.bind(cdc) as import('#contexts/service/index').ServiceCtx['subscribe']);
   }
 
   const stop = async () => {
@@ -86,6 +85,7 @@ export async function treenity(config: TreenityConfig): Promise<TreenityServer> 
 
   return {
     tree: pipeline.tree,
+    cdc: pipeline.cdc,
     mountable: pipeline.mountable,
     watcher: pipeline.watcher,
     router: pipeline.router,
@@ -100,7 +100,20 @@ export async function treenity(config: TreenityConfig): Promise<TreenityServer> 
       });
       return new Promise<Server>((resolve) => {
         server.listen(port, host, () => {
-          console.log(`treenity ${host}:${port}`);
+          const root = rootNode as Record<string, unknown>;
+          const mount = root.mount as Record<string, unknown> | undefined;
+          const storage = mount?.$type ?? 'memory';
+          const layers = mount?.layers as string[] | undefined;
+          if (layers) {
+            const layerInfo = layers.map(k => {
+              const comp = root[k] as Record<string, unknown> | undefined;
+              return `  ${k}: ${comp?.$type ?? '?'}  ${comp?.root ?? comp?.uri ?? ''}`;
+            }).join('\n');
+            console.log(`treenity ${host}:${port}  ${storage}\n${layerInfo}`);
+          } else {
+            const detail = mount?.root ?? mount?.uri ?? '';
+            console.log(`treenity ${host}:${port}  ${storage}${detail ? `  ${detail}` : ''}`);
+          }
           resolve(server);
         });
       });

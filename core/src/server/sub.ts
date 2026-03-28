@@ -15,7 +15,7 @@ const { compare } = fjp;
 
 export type NodeEvent =
   | { type: 'set'; path: string; node: Omit<NodeData, '$path'>; addVps?: string[]; rmVps?: string[] }
-  | { type: 'patch'; path: string; patches: Operation[]; addVps?: string[]; rmVps?: string[] }
+  | { type: 'patch'; path: string; patches: Operation[]; rev?: number; addVps?: string[]; rmVps?: string[] }
   | { type: 'remove'; path: string; rmVps?: string[] }
   | { type: 'reconnect'; preserved: boolean };
 
@@ -29,57 +29,30 @@ function cleanEvent<T extends NodeEvent>(event: T): T {
 
 export type Listener = (event: NodeEvent) => void;
 
-// ── Query Registry ──
-// Stores active queries (mounts) for CDC evaluation
+// ── CDC Registry (instance-scoped) ──
+
 type QueryEntry = {
-  vp: string; // Virtual parent path (e.g. /orders/incoming)
-  source: string; // Source collection path (e.g. /orders/data)
-  test: (node: Record<string, unknown>) => boolean; // Sift compiled query
-  users: Set<string>; // Who is watching this vp
+  vp: string;
+  source: string;
+  test: (node: Record<string, unknown>) => boolean;
+  users: Set<string>;
 };
 
-const activeQueries: QueryEntry[] = [];
-
-export function watchQuery(vp: string, source: string, match: Record<string, unknown>, userId: string) {
-  let entry = activeQueries.find(q => q.vp === vp);
-  if (!entry) {
-    entry = { vp, source, test: createSiftTest(match), users: new Set() };
-    activeQueries.push(entry);
-  }
-  entry.users.add(userId);
-}
-
-export function unwatchQuery(vp: string, userId: string) {
-  const idx = activeQueries.findIndex(q => q.vp === vp);
-  if (idx === -1) return;
-  const entry = activeQueries[idx];
-  entry.users.delete(userId);
-  if (entry.users.size === 0) activeQueries.splice(idx, 1);
-}
-
-export function unwatchAllQueries(userId: string) {
-  for (let i = activeQueries.length - 1; i >= 0; i--) {
-    activeQueries[i].users.delete(userId);
-    if (activeQueries[i].users.size === 0) activeQueries.splice(i, 1);
-  }
-}
-
-export function getActiveQueryCount(): number {
-  return activeQueries.length;
-}
-
-// ── Reactive tree wrapper ──
-
-export interface ReactiveTree extends Tree {
+export type CdcRegistry = {
   subscribe(path: string, listener: Listener, opts?: SubscribeOpts): () => void;
-}
+  watchQuery(vp: string, source: string, match: Record<string, unknown>, userId: string): void;
+  unwatchQuery(vp: string, userId: string): void;
+  unwatchAllQueries(userId: string): void;
+  getActiveQueryCount(): number;
+};
 
 export function withSubscriptions(
   tree: Tree,
   onEvent?: (event: NodeEvent) => void,
-): ReactiveTree {
+): { tree: Tree; cdc: CdcRegistry } {
   const exactListeners = new Map<string, Set<Listener>>();
   const prefixListeners = new Map<string, Set<Listener>>();
+  const activeQueries: QueryEntry[] = [];
 
   type DataEvent = Exclude<NodeEvent, { type: 'reconnect' }>;
 
@@ -98,103 +71,83 @@ export function withSubscriptions(
     onEvent?.(event);
   }
 
-  return {
+  /** Evaluate CDC matrix for a direct child of a query source */
+  function cdcEval(path: string, oldNode: NodeData | null, newNode: NodeData | null) {
+    const addVps: string[] = [];
+    const rmVps: string[] = [];
+    const oldSift = oldNode ? mapNodeForSift(oldNode) : null;
+    const newSift = newNode ? mapNodeForSift(newNode) : null;
+
+    for (const q of activeQueries) {
+      const prefix = q.source === '/' ? '/' : q.source + '/';
+      if (!path.startsWith(prefix) || path.slice(prefix.length).includes('/')) continue;
+
+      const wasIn = oldSift ? q.test(oldSift) : false;
+      const isIn = newSift ? q.test(newSift) : false;
+
+      if (!wasIn && isIn) addVps.push(q.vp);
+      if (wasIn && !isIn) rmVps.push(q.vp);
+    }
+
+    return { addVps, rmVps };
+  }
+
+  const wrappedTree: Tree = {
     get: tree.get.bind(tree),
     getChildren: tree.getChildren.bind(tree),
 
-    async set(node) {
-      // Defense in depth: strip string $patches if injected (should never reach here after tRPC strip)
+    async set(node, ctx) {
+      // Defense in depth: strip string $patches if injected
       if ('$patches' in node) {
         node = { ...node };
         delete node['$patches'];
       }
 
-      const oldNode = await tree.get(node.$path);
+      const oldNode = await tree.get(node.$path, ctx);
+      const { addVps, rmVps } = cdcEval(node.$path, oldNode ?? null, node);
 
-      // CDC Matrix Evaluation
-      const addVps: string[] = [];
-      const rmVps: string[] = [];
-
-      const newNodeSift = mapNodeForSift(node);
-      const oldNodeSift = oldNode ? mapNodeForSift(oldNode) : null;
-
-      for (const q of activeQueries) {
-        const prefix = q.source === '/' ? '/' : q.source + '/';
-        if (node.$path.startsWith(prefix) && node.$path.slice(prefix.length).indexOf('/') === -1) {
-          const wasIn = oldNodeSift ? q.test(oldNodeSift) : false;
-          const isIn = q.test(newNodeSift);
-
-          if (!wasIn && isIn) addVps.push(q.vp);
-          if (wasIn && !isIn) rmVps.push(q.vp);
-        }
-      }
-
-      await tree.set(node);
+      await tree.set(node, ctx);
 
       const { $path, ...body } = node;
 
       if (oldNode) {
         const computed = compare(oldNode, node);
         emit(computed.length > 0
-          ? { type: 'patch', path: $path, patches: computed, addVps, rmVps }
+          ? { type: 'patch', path: $path, patches: computed, rev: node.$rev, addVps, rmVps }
           : { type: 'set', path: $path, node: body, addVps, rmVps });
       } else {
         emit({ type: 'set', path: $path, node: body, addVps, rmVps });
       }
     },
 
-    async remove(path) {
-      const oldNode = await tree.get(path);
-      const result = await tree.remove(path);
+    async remove(path, ctx) {
+      const oldNode = await tree.get(path, ctx);
+      const result = await tree.remove(path, ctx);
 
       if (result && oldNode) {
-        const rmVps: string[] = [];
-        const oldNodeSift = mapNodeForSift(oldNode);
-
-        for (const q of activeQueries) {
-          const prefix = q.source === '/' ? '/' : q.source + '/';
-          if (path.startsWith(prefix) && path.slice(prefix.length).indexOf('/') === -1) {
-             if (q.test(oldNodeSift)) {
-               rmVps.push(q.vp);
-             }
-          }
-        }
+        const { rmVps } = cdcEval(path, oldNode, null);
         emit({ type: 'remove', path, ...(rmVps.length > 0 ? { rmVps } : {}) });
       }
       return result;
     },
 
     async patch(path, ops, ctx) {
-      const oldNode = await tree.get(path);
+      const oldNode = await tree.get(path, ctx);
 
       await tree.patch(path, ops, ctx);
 
-      // CDC Matrix — read new state to check virtual path changes
-      const newNode = await tree.get(path);
-      const addVps: string[] = [];
-      const rmVps: string[] = [];
-
-      if (oldNode && newNode) {
-        const oldSift = mapNodeForSift(oldNode);
-        const newSift = mapNodeForSift(newNode);
-        for (const q of activeQueries) {
-          const prefix = q.source === '/' ? '/' : q.source + '/';
-          if (path.startsWith(prefix) && path.slice(prefix.length).indexOf('/') === -1) {
-            const wasIn = q.test(oldSift);
-            const isIn = q.test(newSift);
-            if (!wasIn && isIn) addVps.push(q.vp);
-            if (wasIn && !isIn) rmVps.push(q.vp);
-          }
-        }
-      }
+      const newNode = await tree.get(path, ctx);
+      const { addVps, rmVps } = cdcEval(path, oldNode ?? null, newNode ?? null);
 
       // Emit only mutation ops (filter out test ops)
       const mutations = ops.filter((o): o is Exclude<PatchOp, readonly ['t', ...any]> => o[0] !== 't');
       if (mutations.length > 0) {
-        emit({ type: 'patch', path, patches: toRfc6902(mutations) as Operation[], addVps, rmVps });
+        emit({ type: 'patch', path, patches: toRfc6902(mutations) as Operation[], rev: newNode?.$rev, addVps, rmVps });
       }
     },
+  };
 
+  const cdc: CdcRegistry = {
     subscribe(path, listener, opts) {
       const map = opts?.children ? prefixListeners : exactListeners;
       if (!map.has(path)) map.set(path, new Set());
@@ -207,5 +160,39 @@ export function withSubscriptions(
         }
       };
     },
+
+    watchQuery(vp, source, match, userId) {
+      let entry = activeQueries.find(q => q.vp === vp);
+      if (!entry) {
+        entry = { vp, source, test: createSiftTest(match), users: new Set() };
+        activeQueries.push(entry);
+      } else if (entry.source !== source) {
+        // E03: vp reused with different source/match — update definition
+        entry.source = source;
+        entry.test = createSiftTest(match);
+      }
+      entry.users.add(userId);
+    },
+
+    unwatchQuery(vp, userId) {
+      const idx = activeQueries.findIndex(q => q.vp === vp);
+      if (idx === -1) return;
+      const entry = activeQueries[idx];
+      entry.users.delete(userId);
+      if (entry.users.size === 0) activeQueries.splice(idx, 1);
+    },
+
+    unwatchAllQueries(userId) {
+      for (let i = activeQueries.length - 1; i >= 0; i--) {
+        activeQueries[i].users.delete(userId);
+        if (activeQueries[i].users.size === 0) activeQueries.splice(i, 1);
+      }
+    },
+
+    getActiveQueryCount() {
+      return activeQueries.length;
+    },
   };
+
+  return { tree: wrappedTree, cdc };
 }

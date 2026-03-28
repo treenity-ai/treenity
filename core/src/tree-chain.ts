@@ -74,7 +74,8 @@ async function exec(tree: Tree, path: string, spec: Spec | null, ops: Op[]): Pro
       const [action, args] = op
       const handler = resolve(curType, `action:${action}`)
       if (!handler) throw new Error(`No action "${action}" for type "${curType}"`)
-      cur = await (handler as any)(null, args[0])
+      const ctx = { node, comp: cur, tree, signal: undefined, nc: undefined, deps: {} }
+      cur = await (handler as any)(ctx, args[0])
     }
   }
 

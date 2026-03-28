@@ -2,7 +2,7 @@
 // Mount = component on node. Adapter resolved via context system.
 // Core untouched. Tree interface preserved.
 
-import { isComponent, isRef, type NodeData, resolve } from '#core';
+import { isComponent, isRef, type NodeData, resolve, resolveExact } from '#core';
 import { type Tree } from '#tree';
 
 // ── Mountable Tree ──
@@ -12,6 +12,15 @@ type ResolveResult = { tree: Tree; mountPath: string | null; parentStore: Tree }
 export function withMounts(rootStore: Tree): Tree {
   const cache = new Map<string, Tree>();
   const MAX_MOUNT_CACHE = 1000;
+
+  /** Invalidate cache for path and all descendants (nested mounts under it) */
+  function invalidateMount(path: string): void {
+    for (const key of cache.keys()) {
+      // key may have ?uid= suffix — extract the path part
+      const keyPath = key.split('?')[0];
+      if (keyPath === path || keyPath.startsWith(path + '/')) cache.delete(key);
+    }
+  }
 
   const self: Tree = {
     async get(path, ctx) {
@@ -28,15 +37,16 @@ export function withMounts(rootStore: Tree): Tree {
 
     async set(node, ctx) {
       const { tree, mountPath, parentStore } = await resolveStore(node.$path, ctx);
-      if (mountPath === node.$path) await parentStore.set(node, ctx);
-      else await tree.set(node, ctx);
+      if (mountPath === node.$path) {
+        invalidateMount(node.$path);
+        await parentStore.set(node, ctx);
+      } else await tree.set(node, ctx);
     },
 
     async remove(path, ctx) {
       const { tree, mountPath, parentStore } = await resolveStore(path, ctx);
       if (mountPath === path) {
-        // Stop caching this mount
-        cache.delete(path);
+        invalidateMount(path);
         return parentStore.remove(path, ctx);
       }
       return tree.remove(path, ctx);
@@ -44,8 +54,10 @@ export function withMounts(rootStore: Tree): Tree {
 
     async patch(path, ops, ctx) {
       const { tree, mountPath, parentStore } = await resolveStore(path, ctx);
-      if (mountPath === path) await parentStore.patch(path, ops, ctx);
-      else await tree.patch(path, ops, ctx);
+      if (mountPath === path) {
+        invalidateMount(path);
+        await parentStore.patch(path, ops, ctx);
+      } else await tree.patch(path, ops, ctx);
     },
   };
 

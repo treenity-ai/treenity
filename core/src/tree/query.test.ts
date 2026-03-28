@@ -78,21 +78,16 @@ describe('QueryStore', () => {
     assert.equal(node?.$type, 't.item');
   });
 
-  it('set delegates to parent tree', async () => {
+  it('set throws — query mount is read-only', async () => {
     const parent = createMemoryTree();
     const qs = createQueryTree({ source: '/items', match: {} }, parent);
-    await qs.set(createNode('/items/new', 'item'));
-
-    assert.equal((await parent.get('/items/new'))?.$type, 't.item');
+    await assert.rejects(() => qs.set(createNode('/items/new', 'item')), /read-only/);
   });
 
-  it('remove delegates to parent tree', async () => {
+  it('remove throws — query mount is read-only', async () => {
     const parent = createMemoryTree();
-    await parent.set(createNode('/items/a', 'item'));
-
     const qs = createQueryTree({ source: '/items', match: {} }, parent);
-    assert.equal(await qs.remove('/items/a'), true);
-    assert.equal(await parent.get('/items/a'), undefined);
+    await assert.rejects(() => qs.remove('/items/a'), /read-only/);
   });
 
   it('excludes non-matching nodes like mount configs', async () => {

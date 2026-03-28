@@ -55,16 +55,16 @@ export function createQueryTree(config: QueryConfig, parentStore: Tree): Tree {
       return { ...res, queryMount: { source: config.source, match: config.match } };
     },
 
-    async set(node, ctx) {
-      return parentStore.set(node, ctx);
+    async set() {
+      throw new Error('Query mount is read-only: writes not supported');
     },
 
-    async remove(path, ctx) {
-      return parentStore.remove(path, ctx);
+    async remove() {
+      throw new Error('Query mount is read-only: removes not supported');
     },
 
-    async patch(path, ops, ctx) {
-      return parentStore.patch(path, ops, ctx);
+    async patch() {
+      throw new Error('Query mount is read-only: patches not supported');
     },
   };
 }

@@ -12,7 +12,6 @@ import type { TreeRouter } from './trpc';
 
 /** fetch via node:http — each call opens its own socket, no pool contention */
 function httpFetch(url: string | URL, init?: any): Promise<any> {
-  console.log('[httpFetch] SSE request:', String(url).slice(0, 120), new Error().stack?.split('\n')[2]?.trim());
   const parsed = new URL(String(url));
   return new Promise((resolve, reject) => {
     const req = http.request({
@@ -45,7 +44,7 @@ function createIsolatedEventSource() {
   };
 }
 
-export function createClient(url: string, token?: string) {
+export function createClient(url: string, token?: string | null) {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
   return createTRPCClient<TreeRouter>({
     links: [

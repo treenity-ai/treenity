@@ -23,7 +23,7 @@ import { applyTemplate, executeAction, executeStream, setComponent } from './act
 import { OpError } from './errors';
 import { withMounts } from './mount';
 import { MountMemory, MountOverlay, MountQuery, MountTypes } from './mount-adapters';
-import { getActiveQueryCount, unwatchAllQueries, unwatchQuery, watchQuery, withSubscriptions } from './sub';
+import { type CdcRegistry, withSubscriptions } from './sub';
 import { createTypesStore } from './types-mount';
 import { withValidation } from './validate';
 import { extractPaths, isVolatile, withVolatile } from './volatile';
@@ -36,8 +36,8 @@ function fullPipeline(rootStore?: Tree) {
   const volatile = withVolatile(mountable);
   const validated = withValidation(volatile);
   const events: any[] = [];
-  const tree = withSubscriptions(validated, (e) => events.push(e));
-  return { bootstrap, tree, events };
+  const { tree, cdc } = withSubscriptions(validated, (e) => events.push(e));
+  return { bootstrap, tree, cdc, events };
 }
 
 // ── mount-adapters (non-Mongo) ──
@@ -281,6 +281,8 @@ describe('query.ts mapping helpers', () => {
 // ── sub.ts: remove CDC path ──
 
 describe('sub.ts: remove + CDC', () => {
+  let cdc: CdcRegistry;
+
   beforeEach(() => {
     clearRegistry();
 
@@ -289,10 +291,12 @@ describe('sub.ts: remove + CDC', () => {
   it('remove emits rmVps when node was in query', async () => {
     const mem = createMemoryTree();
     const events: any[] = [];
-    const tree = withSubscriptions(mem, (e) => events.push(e));
+    const sub = withSubscriptions(mem, (e) => events.push(e));
+    const tree = sub.tree;
+    cdc = sub.cdc;
 
     // Register a query watch
-    watchQuery('/active', '/items', { 'status.value': 'active' }, 'user1');
+    cdc.watchQuery('/active', '/items', { 'status.value': 'active' }, 'user1');
 
     // Create a matching node
     await tree.set({ $path: '/items/a', $type: 'item', status: { $type: 'status', value: 'active' } } as NodeData);
@@ -305,15 +309,17 @@ describe('sub.ts: remove + CDC', () => {
     assert.equal(events[0].type, 'remove');
     assert.deepEqual(events[0].rmVps, ['/active']);
 
-    unwatchAllQueries('user1');
+    cdc.unwatchAllQueries('user1');
   });
 
   it('remove of non-matching node has empty rmVps', async () => {
     const mem = createMemoryTree();
     const events: any[] = [];
-    const tree = withSubscriptions(mem, (e) => events.push(e));
+    const sub = withSubscriptions(mem, (e) => events.push(e));
+    const tree = sub.tree;
+    cdc = sub.cdc;
 
-    watchQuery('/active', '/items', { 'status.value': 'active' }, 'user1');
+    cdc.watchQuery('/active', '/items', { 'status.value': 'active' }, 'user1');
 
     await tree.set({ $path: '/items/b', $type: 'item', status: { $type: 'status', value: 'done' } } as NodeData);
     events.length = 0;
@@ -323,45 +329,49 @@ describe('sub.ts: remove + CDC', () => {
     assert.equal(events[0].type, 'remove');
     assert.equal(events[0].rmVps, undefined);
 
-    unwatchAllQueries('user1');
+    cdc.unwatchAllQueries('user1');
   });
 
   it('remove of non-existent node emits nothing', async () => {
     const mem = createMemoryTree();
     const events: any[] = [];
-    const tree = withSubscriptions(mem, (e) => events.push(e));
+    const { tree } = withSubscriptions(mem, (e) => events.push(e));
 
     await tree.remove('/ghost');
     assert.equal(events.length, 0);
   });
 
   it('unwatchQuery removes single user', () => {
-    watchQuery('/vp1', '/src', { x: 1 }, 'userA');
-    watchQuery('/vp1', '/src', { x: 1 }, 'userB');
-    assert.equal(getActiveQueryCount(), 1);
+    const { cdc } = withSubscriptions(createMemoryTree());
 
-    unwatchQuery('/vp1', 'userA');
-    assert.equal(getActiveQueryCount(), 1, 'entry should remain (userB watching)');
+    cdc.watchQuery('/vp1', '/src', { x: 1 }, 'userA');
+    cdc.watchQuery('/vp1', '/src', { x: 1 }, 'userB');
+    assert.equal(cdc.getActiveQueryCount(), 1);
 
-    unwatchQuery('/vp1', 'userB');
-    assert.equal(getActiveQueryCount(), 0, 'entry fully cleaned');
+    cdc.unwatchQuery('/vp1', 'userA');
+    assert.equal(cdc.getActiveQueryCount(), 1, 'entry should remain (userB watching)');
+
+    cdc.unwatchQuery('/vp1', 'userB');
+    assert.equal(cdc.getActiveQueryCount(), 0, 'entry fully cleaned');
 
     // Idempotent
-    unwatchQuery('/vp1', 'userB');
-    assert.equal(getActiveQueryCount(), 0);
+    cdc.unwatchQuery('/vp1', 'userB');
+    assert.equal(cdc.getActiveQueryCount(), 0);
   });
 
   it('unwatchAllQueries cleans up all entries for user', () => {
-    watchQuery('/a', '/s', { x: 1 }, 'u1');
-    watchQuery('/b', '/s', { y: 2 }, 'u1');
-    watchQuery('/a', '/s', { x: 1 }, 'u2');
-    assert.equal(getActiveQueryCount(), 2);
+    const { cdc } = withSubscriptions(createMemoryTree());
 
-    unwatchAllQueries('u1');
-    assert.equal(getActiveQueryCount(), 1, '/a should remain (u2 watching)');
+    cdc.watchQuery('/a', '/s', { x: 1 }, 'u1');
+    cdc.watchQuery('/b', '/s', { y: 2 }, 'u1');
+    cdc.watchQuery('/a', '/s', { x: 1 }, 'u2');
+    assert.equal(cdc.getActiveQueryCount(), 2);
 
-    unwatchAllQueries('u2');
-    assert.equal(getActiveQueryCount(), 0);
+    cdc.unwatchAllQueries('u1');
+    assert.equal(cdc.getActiveQueryCount(), 1, '/a should remain (u2 watching)');
+
+    cdc.unwatchAllQueries('u2');
+    assert.equal(cdc.getActiveQueryCount(), 0);
   });
 });
 

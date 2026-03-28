@@ -4,6 +4,7 @@
 
 import { createNode, getComponentField, isComponent, isRef, type NodeData, R, resolve, S, W } from '#core';
 import { assertSafePath } from '#core/path';
+import type { Tree } from '#tree';
 import { createTreeP } from '#protocol/treep';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { observable } from '@trpc/server/observable';
@@ -33,7 +34,7 @@ import {
 } from './auth';
 import { OpError } from './errors';
 import { deployPrefab as deployPrefabOp } from './prefab';
-import { type NodeEvent, type ReactiveTree, unwatchQuery, watchQuery } from './sub';
+import { type CdcRegistry, type NodeEvent } from './sub';
 import { extractPaths } from './volatile';
 import { type WatchManager } from './watch';
 
@@ -98,7 +99,15 @@ setInterval(() => {
   for (const [k, v] of rateBuckets) if (now > v.resetAt) rateBuckets.delete(k);
 }, 5 * 60_000).unref();
 
-export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager) {
+export type TreeRouterOpts = {
+  /** TTL for cached claims in SSE connections (ms). Default 30s. 0 = no cache. */
+  claimsTtlMs?: number;
+};
+
+const DEFAULT_CLAIMS_TTL_MS = 30_000;
+
+export function createTreeRouter(baseStore: Tree, watcher: WatchManager, opts?: TreeRouterOpts, cdc?: CdcRegistry) {
+  const claimsTtlMs = opts?.claimsTtlMs ?? DEFAULT_CLAIMS_TTL_MS;
   const t = initTRPC.context<TrpcContext>().create();
 
   // Map domain errors → TRPCError by inspecting result.error.cause
@@ -188,7 +197,7 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
           if (input.watchNew) {
             if (result.queryMount) {
               const q = result.queryMount;
-              watchQuery(input.path, q.source, q.match, ctx.session.userId);
+              cdc?.watchQuery(input.path, q.source, q.match, ctx.session.userId);
             }
             watcher.watch(ctx.session.userId, [input.path], { children: true, autoWatch: input.watch });
           }
@@ -385,7 +394,7 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
       .mutation(({ input, ctx }) => {
         if (ctx.session) {
           watcher.unwatch(ctx.session.userId, input.paths, { children: true });
-          for (const p of input.paths) unwatchQuery(p, ctx.session.userId);
+          for (const p of input.paths) cdc?.unwatchQuery(p, ctx.session.userId);
         }
       }),
 
@@ -473,11 +482,18 @@ export function createTreeRouter(baseStore: ReactiveTree, watcher: WatchManager)
         const claims = ctx.session?.claims ?? [];
         const connId = `${userId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
 
-        // Resolve claims once per connection (avoid per-event buildClaims)
-        let resolvedClaims: string[] | null = claims.length ? claims : null;
+        // Session-provided claims (agents) are static — never refetch.
+        // Dynamic claims (users) use TTL cache for authorization freshness.
+        const sessionClaims = claims.length ? claims : null;
+        let dynamicClaims: string[] | null = null;
+        let dynamicAt = 0;
         const getClaims = async () => {
-          if (!resolvedClaims) resolvedClaims = await buildClaims(baseStore, userId);
-          return resolvedClaims;
+          if (sessionClaims) return sessionClaims;
+          if (!dynamicClaims || Date.now() - dynamicAt > claimsTtlMs) {
+            dynamicClaims = await buildClaims(baseStore, userId);
+            dynamicAt = Date.now();
+          }
+          return dynamicClaims;
         };
 
         const filteredPush = async (event: NodeEvent) => {

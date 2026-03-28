@@ -119,6 +119,17 @@ describe('MemoryStore', () => {
     assert.equal(stored.extra, undefined);
   });
 
+  it('getChildren accepts watch/watchNew opts without error', async () => {
+    const tree = createMemoryTree();
+    await tree.set(createNode('/w', 'dir'));
+    await tree.set(createNode('/w/a', 'item'));
+    await tree.set(createNode('/w/b', 'item'));
+
+    const result = await tree.getChildren('/w', { watch: true, watchNew: true });
+    assert.equal(result.items.length, 2);
+    assert.deepEqual(result.items.map(n => n.$path).sort(), ['/w/a', '/w/b']);
+  });
+
   it('set stores isolated copy — mutating original after set does not affect stored node', async () => {
     const tree = createMemoryTree();
     const node = createNode('/y', 'item', { value: 1 }) as any;

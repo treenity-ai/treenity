@@ -5,8 +5,9 @@
 
 import type { NodeData } from '#core';
 import { resolve as ctxResolve } from '#core/registry';
-import { mkdir, readdir, rmdir, stat, unlink } from 'node:fs/promises';
+import { mkdir, readdir, realpath, rmdir, stat, unlink } from 'node:fs/promises';
 import { dirname, extname, join, resolve } from 'node:path';
+import { isInsideRoot } from '#core/path';
 import type { Tree } from './index';
 import { paginate } from './index';
 import './json-codec'; // register JSON decode handler
@@ -43,11 +44,20 @@ declare module '#core/context' {
 }
 
 export async function createRawFsStore(rootDir: string): Promise<Tree> {
-  rootDir = resolve(rootDir);
+  rootDir = await realpath(resolve(rootDir));
 
-  function toFilePath(path: string): string {
+  async function safeFilePath(path: string): Promise<string> {
     const full = resolve(join(rootDir, path));
-    if (!full.startsWith(rootDir)) throw new Error(`Path traversal blocked`);
+    if (!isInsideRoot(rootDir, full)) throw new Error(`Path traversal blocked`);
+
+    // Symlink containment: verify real path stays inside root
+    try {
+      const real = await realpath(full);
+      if (!isInsideRoot(rootDir, real)) throw new Error('Path escaped root via symlink');
+    } catch (e: any) {
+      if (e.code !== 'ENOENT') throw e;
+    }
+
     return full;
   }
 
@@ -72,7 +82,7 @@ export async function createRawFsStore(rootDir: string): Promise<Tree> {
 
   const tree: Tree = {
     async get(path) {
-      const file = toFilePath(path);
+      const file = await safeFilePath(path);
       try {
         return await fileToNode(file, path);
       } catch (e: any) {
@@ -82,7 +92,7 @@ export async function createRawFsStore(rootDir: string): Promise<Tree> {
     },
 
     async getChildren(parent, opts) {
-      const dir = toFilePath(parent);
+      const dir = await safeFilePath(parent);
       const depth = opts?.depth ?? 1;
 
       const results: NodeData[] = [];
@@ -109,7 +119,7 @@ export async function createRawFsStore(rootDir: string): Promise<Tree> {
     },
 
     async set(node) {
-      const filePath = toFilePath(node.$path);
+      const filePath = await safeFilePath(node.$path);
       const encode = ctxResolve(node.$type, 'encode');
       if (!encode) throw new Error(`No encode registered for type "${node.$type}"`);
 
@@ -118,7 +128,7 @@ export async function createRawFsStore(rootDir: string): Promise<Tree> {
     },
 
     async remove(path) {
-      const filePath = toFilePath(path);
+      const filePath = await safeFilePath(path);
       try {
         const st = await stat(filePath);
         if (st.isDirectory()) {

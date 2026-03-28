@@ -11,7 +11,7 @@ import { beforeEach, describe, it } from 'node:test';
 import { executeAction } from './actions';
 import { withMounts } from './mount';
 import { MountQuery } from './mount-adapters';
-import { type NodeEvent, type ReactiveTree, unwatchAllQueries, watchQuery, withSubscriptions } from './sub';
+import { type CdcRegistry, type NodeEvent, withSubscriptions } from './sub';
 import { withValidation } from './validate';
 import { withVolatile } from './volatile';
 import { createWatchManager, type WatchManager } from './watch';
@@ -26,8 +26,8 @@ function fullPipeline() {
   const volatile = withVolatile(mountable);
   const validated = withValidation(volatile);
   const watcher = createWatchManager();
-  const tree = withSubscriptions(validated, (e) => watcher.notify(e));
-  return { bootstrap, mountable, tree, watcher };
+  const { tree, cdc } = withSubscriptions(validated, (e) => watcher.notify(e));
+  return { bootstrap, mountable, tree, cdc, watcher };
 }
 
 function timer() {
@@ -56,11 +56,12 @@ async function timeBatch(label: string, ops: number, fn: (i: number) => Promise<
 // ── 1. Raw Throughput ──
 
 describe('Stress: throughput', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
+  let cdc: CdcRegistry;
 
   beforeEach(() => {
     clearRegistry();
-    ({ tree } = fullPipeline());
+    ({ tree, cdc } = fullPipeline());
   });
 
   it('set throughput — 2k nodes', async () => {
@@ -115,7 +116,7 @@ describe('Stress: throughput', () => {
 // ── 2. Concurrent Writes + OCC ──
 
 describe('Stress: OCC race conditions', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
 
   beforeEach(() => {
     clearRegistry();
@@ -188,16 +189,17 @@ describe('Stress: OCC race conditions', () => {
 // ── 3. Subscription Flooding ──
 
 describe('Stress: subscriptions', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
+  let cdc: CdcRegistry;
 
   beforeEach(() => {
     clearRegistry();
-    ({ tree } = fullPipeline());
+    ({ tree, cdc } = fullPipeline());
   });
 
   it('500 rapid writes — all events delivered in order', async () => {
     const events: NodeEvent[] = [];
-    tree.subscribe('/flood', (e) => events.push(e), { children: true });
+    cdc.subscribe('/flood', (e) => events.push(e), { children: true });
 
     await timeBatch('sub flood', 500, (i) =>
       tree.set(createNode(`/flood/n${i}`, 'item', { seq: i })),
@@ -217,7 +219,7 @@ describe('Stress: subscriptions', () => {
     for (let s = 0; s < subs; s++) {
       const events: NodeEvent[] = [];
       buckets.push(events);
-      tree.subscribe('/multi', (e) => events.push(e), { children: true });
+      cdc.subscribe('/multi', (e) => events.push(e), { children: true });
     }
     console.log(`    ${subs} subscribers, ${N} writes...`);
 
@@ -234,8 +236,8 @@ describe('Stress: subscriptions', () => {
     const rootEvents: NodeEvent[] = [];
     const childEvents: NodeEvent[] = [];
 
-    tree.subscribe('/', (e) => rootEvents.push(e), { children: true });
-    tree.subscribe('/deep/path', (e) => childEvents.push(e), { children: true });
+    cdc.subscribe('/', (e) => rootEvents.push(e), { children: true });
+    cdc.subscribe('/deep/path', (e) => childEvents.push(e), { children: true });
 
     await tree.set(createNode('/deep/path/to/node', 'item'));
     await tree.set(createNode('/other/place', 'item'));
@@ -248,7 +250,7 @@ describe('Stress: subscriptions', () => {
 
   it('subscribe + unsubscribe — no leaks', async () => {
     const events: NodeEvent[] = [];
-    const unsub = tree.subscribe('/leak', (e) => events.push(e), { children: true });
+    const unsub = cdc.subscribe('/leak', (e) => events.push(e), { children: true });
 
     await tree.set(createNode('/leak/before', 'item'));
     assert.equal(events.length, 1);
@@ -263,7 +265,7 @@ describe('Stress: subscriptions', () => {
 // ── 4. WatchManager Fan-out ──
 
 describe('Stress: watch fan-out', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
   let watcher: WatchManager;
 
   beforeEach(() => {
@@ -420,8 +422,9 @@ describe('Stress: watch limits', () => {
 
 describe('Stress: query mounts + CDC', () => {
   let bootstrap: Tree;
-  let tree: ReactiveTree;
+  let tree: Tree;
   let watcher: WatchManager;
+  let cdc: CdcRegistry;
 
   beforeEach(() => {
     clearRegistry();
@@ -429,7 +432,7 @@ describe('Stress: query mounts + CDC', () => {
       if (!mount.source || !mount.match) throw new Error('t.mount.query: source and match required');
       return createQueryTree(mount, ctx.parentStore);
     });
-    ({ bootstrap, tree, watcher } = fullPipeline());
+    ({ bootstrap, tree, watcher, cdc } = fullPipeline());
   });
 
   it('query mount filters correctly under load', async () => {
@@ -465,7 +468,7 @@ describe('Stress: query mounts + CDC', () => {
       }),
     );
 
-    watchQuery('/views/urgent', '/entities/tickets', { priority: 'high' }, 'user1');
+    cdc.watchQuery('/views/urgent', '/entities/tickets', { priority: 'high' }, 'user1');
     const events: NodeEvent[] = [];
     watcher.connect('user1', 'user1', (e) => events.push(e));
     watcher.watch('user1', ['/views/urgent'], { children: true });
@@ -488,7 +491,7 @@ describe('Stress: query mounts + CDC', () => {
     assert.deepEqual((events[1] as any).rmVps, ['/views/urgent']);
     console.log('    downgrade → rmVps ✓');
 
-    unwatchAllQueries('user1');
+    cdc.unwatchAllQueries('user1');
   });
 
   it('CDC under load — 100 create + 50 transition', async () => {
@@ -498,7 +501,7 @@ describe('Stress: query mounts + CDC', () => {
       }),
     );
 
-    watchQuery('/views/new', '/entities/orders', { status: 'new' }, 'watcher');
+    cdc.watchQuery('/views/new', '/entities/orders', { status: 'new' }, 'watcher');
 
     const adds: string[] = [];
     const removes: string[] = [];
@@ -528,7 +531,7 @@ describe('Stress: query mounts + CDC', () => {
     assert.equal(result.items.length, 50);
     console.log(`  ✓ query mount shows ${result.items.length} remaining`);
 
-    unwatchAllQueries('watcher');
+    cdc.unwatchAllQueries('watcher');
   });
 
   it('multiple query mounts on same source — CDC dispatches to both', async () => {
@@ -543,8 +546,8 @@ describe('Stress: query mounts + CDC', () => {
       }),
     );
 
-    watchQuery('/views/new', '/entities/items', { status: 'new' }, 'u1');
-    watchQuery('/views/flagged', '/entities/items', { flagged: true }, 'u1');
+    cdc.watchQuery('/views/new', '/entities/items', { status: 'new' }, 'u1');
+    cdc.watchQuery('/views/flagged', '/entities/items', { flagged: true }, 'u1');
 
     const events: NodeEvent[] = [];
     watcher.connect('u1', 'u1', (e) => events.push(e));
@@ -555,14 +558,15 @@ describe('Stress: query mounts + CDC', () => {
     assert.deepEqual((events[0] as any).addVps?.sort(), ['/views/flagged', '/views/new']);
     console.log('  ✓ single event with both VPs');
 
-    unwatchAllQueries('u1');
+    cdc.unwatchAllQueries('u1');
   });
 });
 
 // ── 6. Action Execute + Patch Pipeline ──
 
 describe('Stress: actions + patches', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
+  let cdc: CdcRegistry;
 
   beforeEach(() => {
     clearRegistry();
@@ -577,14 +581,14 @@ describe('Stress: actions + patches', () => {
       return ctx.node.count;
     });
 
-    ({ tree } = fullPipeline());
+    ({ tree, cdc } = fullPipeline());
   });
 
   it('execute generates patches — 50 increments', async () => {
     await tree.set(createNode('/counters/c1', 'counter', { count: 0 }));
 
     const patchEvents: NodeEvent[] = [];
-    tree.subscribe('/counters', (e) => {
+    cdc.subscribe('/counters', (e) => {
       if (e.type === 'patch') patchEvents.push(e);
     }, { children: true });
 
@@ -630,7 +634,7 @@ describe('Stress: actions + patches', () => {
 // ── 7. Deep Tree ──
 
 describe('Stress: deep trees', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
 
   beforeEach(() => {
     clearRegistry();
@@ -679,18 +683,19 @@ describe('Stress: deep trees', () => {
 // ── 8. Remove + Subscription Correctness ──
 
 describe('Stress: remove operations', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
+  let cdc: CdcRegistry;
 
   beforeEach(() => {
     clearRegistry();
-    ({ tree } = fullPipeline());
+    ({ tree, cdc } = fullPipeline());
   });
 
   it('bulk create then remove — subscriptions fire for both', async () => {
     const sets: string[] = [];
     const removes: string[] = [];
 
-    tree.subscribe('/tmp', (e) => {
+    cdc.subscribe('/tmp', (e) => {
       if (e.type === 'set') sets.push(e.path);
       if (e.type === 'remove') removes.push(e.path);
     }, { children: true });
@@ -713,7 +718,7 @@ describe('Stress: remove operations', () => {
 
   it('remove non-existent node — no event', async () => {
     const events: NodeEvent[] = [];
-    tree.subscribe('/phantom', (e) => events.push(e));
+    cdc.subscribe('/phantom', (e) => events.push(e));
 
     const result = await tree.remove('/phantom/ghost');
     assert.equal(result, false);
@@ -725,7 +730,7 @@ describe('Stress: remove operations', () => {
 // ── 9. Volatile + Validation Pipeline ──
 
 describe('Stress: volatile + validation', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
 
   beforeEach(() => {
     clearRegistry();
@@ -781,7 +786,7 @@ describe('Stress: volatile + validation', () => {
 // ── 10. Random Access Pattern ──
 
 describe('Stress: random access', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
 
   beforeEach(() => {
     clearRegistry();
@@ -841,7 +846,7 @@ describe('Stress: full watch pipeline', () => {
       return createQueryTree(mount, ctx.parentStore);
     });
 
-    const { bootstrap: bs2, tree: store2, watcher: w2 } = fullPipeline();
+    const { bootstrap: bs2, tree: store2, watcher: w2, cdc: cdc2 } = fullPipeline();
 
     await bs2.set(
       createNode('/views/hot', 'folder', {}, {
@@ -849,7 +854,7 @@ describe('Stress: full watch pipeline', () => {
       }),
     );
 
-    watchQuery('/views/hot', '/data', { hot: true }, 'observer');
+    cdc2.watchQuery('/views/hot', '/data', { hot: true }, 'observer');
 
     const exactEvents: NodeEvent[] = [];
     const childEvents: NodeEvent[] = [];
@@ -877,7 +882,7 @@ describe('Stress: full watch pipeline', () => {
     assert.ok(cdcEvents.length >= 1);
     console.log('    CDC watch ✓');
 
-    unwatchAllQueries('observer');
+    cdc2.unwatchAllQueries('observer');
     console.log('  ✓ all 3 watch modes work together');
   });
 });
@@ -885,7 +890,7 @@ describe('Stress: full watch pipeline', () => {
 // ── 12. Memory Pressure (reduced) ──
 
 describe('Stress: memory', () => {
-  let tree: ReactiveTree;
+  let tree: Tree;
 
   beforeEach(() => {
     clearRegistry();

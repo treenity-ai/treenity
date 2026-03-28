@@ -201,7 +201,7 @@ export function createWatchManager(opts?: WatchManagerOpts): WatchManager {
           if (!user) continue;
           pushToUser(uid, event);
           // autoWatch: subscribe to exact path for future updates (respects limit)
-          if (user.prefixes.get(parent) && !user.paths.has(event.path) && userWatchCount(user) < maxPerUser) {
+          if (user.prefixes.get(parent) && !user.paths.has(event.path) && userWatchCount(user) < maxPerUser && totalWatches < maxTotal) {
             user.paths.add(event.path);
             addTo(pathToUsers, event.path, uid);
             totalWatches++;
@@ -219,7 +219,7 @@ export function createWatchManager(opts?: WatchManagerOpts): WatchManager {
             const user = users.get(uid);
             if (!user) continue;
             pushToUser(uid, event);
-            if (user.prefixes.get(vp) && !user.paths.has(event.path) && userWatchCount(user) < maxPerUser) {
+            if (user.prefixes.get(vp) && !user.paths.has(event.path) && userWatchCount(user) < maxPerUser && totalWatches < maxTotal) {
               user.paths.add(event.path);
               addTo(pathToUsers, event.path, uid);
               totalWatches++;

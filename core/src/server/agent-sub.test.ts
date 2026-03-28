@@ -30,7 +30,7 @@ describe('Agent task subscription', () => {
     // Build tree pipeline: memory → subscriptions → watcher
     const mem = createMemoryTree();
     const watcher = createWatchManager();
-    const tree = withSubscriptions(mem, (e) => watcher.notify(e));
+    const { tree } = withSubscriptions(mem, (e) => watcher.notify(e));
 
     // Seed the agent config node
     await tree.set(createNode('/agent', 'agent.config', { systemPrompt: 'test' }));
@@ -65,7 +65,7 @@ describe('Agent task subscription', () => {
 
     const mem = createMemoryTree();
     const watcher = createWatchManager();
-    const tree = withSubscriptions(mem, (e) => watcher.notify(e));
+    const { tree } = withSubscriptions(mem, (e) => watcher.notify(e));
 
     await tree.set(createNode('/agent', 'agent.config'));
     await tree.set(createNode('/agent/tasks', 'dir'));

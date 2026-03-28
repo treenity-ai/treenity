@@ -29,10 +29,20 @@ export function isChildPath(parent: string, candidate: string, directOnly = true
   return true;
 }
 
-/** Validate a tree path — rejects traversal, double-slash, null bytes */
+/** Check resolved filesystem path is inside root using segment boundary (not just startsWith) */
+export function isInsideRoot(root: string, target: string): boolean {
+  return target === root || target.startsWith(root + '/');
+}
+
+/** Validate a tree path — rejects traversal, dot segments, trailing slash, double-slash, null bytes */
 export function assertSafePath(path: string): void {
   if (!path.startsWith('/')) throw new Error(`Invalid path: must start with /: ${JSON.stringify(path)}`);
   if (path.includes('\0')) throw new Error(`Invalid path: null byte`);
   if (path.includes('//')) throw new Error(`Invalid path: double slash at ${JSON.stringify(path)}`);
-  if (path.split('/').some(s => s === '..')) throw new Error(`Invalid path: traversal`);
+  if (path !== '/' && path.endsWith('/')) throw new Error(`Invalid path: trailing slash at ${JSON.stringify(path)}`);
+  const segments = path.split('/');
+  for (const s of segments) {
+    if (s === '..') throw new Error(`Invalid path: traversal`);
+    if (s === '.') throw new Error(`Invalid path: dot segment at ${JSON.stringify(path)}`);
+  }
 }

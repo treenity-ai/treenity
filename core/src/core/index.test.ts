@@ -32,6 +32,22 @@ export function clearRegistry(): void {
   registerTestTypes();
 }
 
+/** Save current registry state — pairs with restoreRegistrySnapshot */
+export function saveRegistrySnapshot(): Map<string, unknown> {
+  const snap = new Map<string, unknown>();
+  mapRegistry((t, c) => { snap.set(`${t}@${c}`, resolve(t, c, false)); });
+  return snap;
+}
+
+/** Restore a saved snapshot — clears registry then re-registers all entries */
+export function restoreRegistrySnapshot(snap: Map<string, unknown>): void {
+  mapRegistry((t, c) => unregister(t, c));
+  for (const [key, handler] of snap) {
+    const i = key.lastIndexOf('@');
+    register(key.slice(0, i), key.slice(i + 1), handler as any);
+  }
+}
+
 describe('Node', () => {
   it('creates with type and path', () => {
     const node = createNode('/tasks/1', 'task');

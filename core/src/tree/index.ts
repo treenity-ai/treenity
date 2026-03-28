@@ -20,7 +20,7 @@ export function paginate<T>(items: T[], opts?: PageOpts): Page<T> {
 
 // ── Interface ──
 
-export type ChildrenOpts = { depth?: number; query?: Record<string, unknown> } & PageOpts;
+export type ChildrenOpts = { depth?: number; query?: Record<string, unknown>; watch?: boolean; watchNew?: boolean } & PageOpts;
 
 export interface Tree {
   get(path: string, ctx?: unknown): Promise<NodeData | undefined>;
@@ -56,7 +56,7 @@ export function createFilterTree(
       return (await upper.get(path, ctx)) ?? (await lower.get(path, ctx));
     },
     async getChildren(parent, opts, ctx) {
-      const passthrough = opts ? { depth: opts.depth, query: opts.query } : undefined;
+      const passthrough = opts ? { depth: opts.depth, query: opts.query, watch: opts.watch, watchNew: opts.watchNew } : undefined;
       const [u, l] = await Promise.all([
         upper.getChildren(parent, passthrough, ctx),
         lower.getChildren(parent, passthrough, ctx),
@@ -81,8 +81,22 @@ export function createFilterTree(
     async patch(path, ops, ctx) {
       const node = await upper.get(path, ctx) ?? await lower.get(path, ctx);
       if (!node) throw new Error(`Node not found: ${path}`);
-      if (toUpper(node)) await upper.patch(path, ops, ctx);
-      else await lower.patch(path, ops, ctx);
+      const wasUpper = toUpper(node);
+
+      // Apply ops to a copy to check if routing changes
+      const patched = structuredClone(node);
+      applyOps(patched, ops);
+      const nowUpper = toUpper(patched);
+
+      if (wasUpper === nowUpper) {
+        // Same layer — patch in place
+        if (wasUpper) await upper.patch(path, ops, ctx);
+        else await lower.patch(path, ops, ctx);
+      } else {
+        // Routing changed — relocate: remove from old layer, set in new
+        if (wasUpper) { await upper.remove(path, ctx); await lower.set(patched, ctx); }
+        else { await lower.remove(path, ctx); await upper.set(patched, ctx); }
+      }
     },
   };
 }
