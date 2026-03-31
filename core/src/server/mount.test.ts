@@ -1,4 +1,4 @@
-import { createNode, getComponent, ref, register } from '#core';
+import { createNode, ref, register } from '#core';
 import { clearRegistry } from '#core/index.test';
 import { createMemoryTree, type Tree } from '#tree';
 import { createFsTree } from '#tree/fs';
@@ -335,8 +335,7 @@ describe('Query mount (t.mount.query)', () => {
     register('test.mount.data', 'mount', () => dataStore);
     // Register query mount adapter (receives mount component + MountCtx)
     register('t.mount.query', 'mount', (_mount, ctx) => {
-      const query = getComponent(ctx.node, 'query') as any;
-      return createQueryTree({ source: query.source, match: query.match }, ctx.parentStore);
+      return createQueryTree({ source: _mount.source, match: _mount.match }, ctx.parentStore);
     });
   });
 
@@ -352,8 +351,7 @@ describe('Query mount (t.mount.query)', () => {
     // Query mount config lives in dataStore (like a nested mount)
     await dataStore.set(
       createNode('/orders/incoming', 'mount-point', {}, {
-        mount: { $type: 't.mount.query' },
-        query: { $type: 'query', source: '/orders', match: { 'status.value': 'incoming' } },
+        mount: { $type: 't.mount.query',  source: '/orders', match: { 'status.value': 'incoming' } },
       }),
     );
 
@@ -371,8 +369,7 @@ describe('Query mount (t.mount.query)', () => {
     await dataStore.set({ $path: '/orders/a', $type: 'order', status: { $type: 'status', value: 'done' } } as any);
     await dataStore.set(
       createNode('/orders/incoming', 'mount-point', {}, {
-        mount: { $type: 't.mount.query' },
-        query: { $type: 'query', source: '/orders', match: { 'status.value': 'incoming' } },
+        mount: { $type: 't.mount.query', source: '/orders', match: { 'status.value': 'incoming' } },
       }),
     );
 
@@ -388,8 +385,7 @@ describe('Query mount (t.mount.query)', () => {
     );
     await dataStore.set(
       createNode('/orders/incoming', 'mount-point', {}, {
-        mount: { $type: 't.mount.query' },
-        query: { $type: 'query', source: '/orders', match: { 'status.value': 'incoming' } },
+        mount: { $type: 't.mount.query', source: '/orders', match: { 'status.value': 'incoming' } },
       }),
     );
 
