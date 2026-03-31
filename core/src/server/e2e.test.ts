@@ -103,6 +103,25 @@ function subscribeEvents<T = DataEvent>(
   return { events, ready };
 }
 
+/** Activate a pending user and return a login token (for 2nd+ registrations in tests) */
+async function activateAndLogin(
+  tree: TreenityServer['tree'],
+  pub: ReturnType<typeof createClient>,
+  userId: string,
+  password: string,
+): Promise<string> {
+  const userPath = `/auth/users/${userId}`;
+  const node = await tree.get(userPath);
+  if (!node) throw new Error(`User ${userId} not found`);
+  if (node.status !== 'active') {
+    node.status = 'active';
+    await tree.set(node);
+  }
+  const login = await pub.login.mutate({ userId, password });
+  if (!login.token) throw new Error(`Login failed for ${userId}`);
+  return login.token;
+}
+
 describe('e2e: tRPC over HTTP', () => {
   let ts: TreenityServer;
   let url: string;
@@ -408,7 +427,8 @@ describe('e2e: tRPC over HTTP', () => {
     it('events do not leak to unauthorized subscribers', async () => {
       const pub = createClient(url);
       await pub.register.mutate({ userId: 'alice-sec', password: 'pass' });
-      const bob = await pub.register.mutate({ userId: 'bob-sec', password: 'pass' });
+      await pub.register.mutate({ userId: 'bob-sec', password: 'pass' });
+      const bobToken = await activateAndLogin(ts.tree, pub, 'bob-sec', 'pass');
 
       // Make alice an admin
       await ts.tree.set({
@@ -422,7 +442,7 @@ describe('e2e: tRPC over HTTP', () => {
         $acl: [{ g: 'admins', p: R | W | S }, { g: 'public', p: 0 }],
       });
 
-      const bobClient = createClient(url, bob.token);
+      const bobClient = createClient(url, bobToken);
 
       // Bob subscribes first
       const bobEvents = collectEvents<DataEvent>(
@@ -872,9 +892,10 @@ describe('e2e: tRPC over HTTP', () => {
     it('two users watching same VP both receive events', async () => {
       const pub = createClient(url);
       const reg1 = await pub.register.mutate({ userId: 'multi-u1', password: 'pass' });
-      const reg2 = await pub.register.mutate({ userId: 'multi-u2', password: 'pass' });
+      await pub.register.mutate({ userId: 'multi-u2', password: 'pass' });
+      const token2 = await activateAndLogin(ts.tree, pub, 'multi-u2', 'pass');
       const c1 = createClient(url, reg1.token);
-      const c2 = createClient(url, reg2.token);
+      const c2 = createClient(url, token2);
 
       await pub.set.mutate({ node: { $path: '/mu', $type: 'folder' } });
       await pub.set.mutate({ node: { $path: '/qmu', $type: 'folder' } });

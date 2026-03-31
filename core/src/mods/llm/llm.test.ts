@@ -1,10 +1,12 @@
 import { createNode, type NodeData, register } from '#core';
-import { clearRegistry } from '#core/index.test';
+import { restoreRegistrySnapshot, saveRegistrySnapshot } from '#core/index.test';
 import { type ActionCtx, serverNodeHandle } from '#server/actions';
 import { createMemoryTree } from '#tree';
 import assert from 'node:assert/strict';
-import { beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 import { describeTree, exportSchemaForLLM } from '.';
+
+const snap = saveRegistrySnapshot();
 
 function makeCtx(tree: ReturnType<typeof createMemoryTree>, node: NodeData): ActionCtx {
   const nc = serverNodeHandle(tree);
@@ -12,7 +14,8 @@ function makeCtx(tree: ReturnType<typeof createMemoryTree>, node: NodeData): Act
 }
 
 describe('exportSchemaForLLM', () => {
-  beforeEach(() => clearRegistry());
+  beforeEach(() => restoreRegistrySnapshot(new Map()));
+  afterEach(() => restoreRegistrySnapshot(snap));
 
   it('returns types with schemas', () => {
     register('task', 'schema', () => ({
@@ -54,7 +57,8 @@ describe('exportSchemaForLLM', () => {
 });
 
 describe('describeTree', () => {
-  beforeEach(() => clearRegistry());
+  beforeEach(() => restoreRegistrySnapshot(new Map()));
+  afterEach(() => restoreRegistrySnapshot(snap));
 
   it('renders tree structure', async () => {
     const tree = createMemoryTree();

@@ -90,7 +90,7 @@ async function boot(
 ): Promise<Ctx> {
   const dir = tmpDir ?? mkdtempSync(join(tmpdir(), 'treerun-e2e-'))
   const rootNode = makeRootNode(dir, opts)
-  const app = await treenity({ dataDir: dir, modsDir: false, seed, autostart: false, rootNode })
+  const app = await treenity({ modsDir: false, seed, autostart: false, rootNode })
   const server = await app.listen(0, { allowedOrigins: ['*'] })
   const sockets = new Set<Socket>()
   server.on('connection', (s: Socket) => {
