@@ -153,7 +153,7 @@ export function NodeEditor({ node, open, onClose, currentUserId, toast, onAddCom
         return;
       }
     } else {
-      toSave = { $path: node.$path, $type: s.nodeType, ...s.plainData } as NodeData;
+      toSave = { ...s.plainData, $path: node.$path, $type: s.nodeType, $rev: node.$rev } as NodeData;
       if (s.aclOwner) toSave.$owner = s.aclOwner;
       if (s.aclRules.length > 0) toSave.$acl = [...s.aclRules] as GroupPerm[];
       for (const [name, comp] of components) {

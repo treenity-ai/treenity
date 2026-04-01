@@ -90,7 +90,7 @@ export async function createMongoTree(
          try {
            await col.insertOne(doc);
          } catch(e: any) {
-           if (e.code === 11000) throw new Error(`OptimisticConcurrencyError: node ${node.$path} already exists`);
+           if (e.code === 11000) throw new Error(`OptimisticConcurrencyError: node ${node.$path} already exists ($rev not set — did you mean to update?)`);
            throw e;
          }
       } else {
