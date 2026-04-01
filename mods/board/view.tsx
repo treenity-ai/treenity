@@ -518,7 +518,6 @@ const KanbanView: View<BoardKanban> = ({ value, ctx }) => {
           color: 'border-zinc-400',
           order: maxOrder + 1,
           mount: { $type: 't.mount.query', source: `${basePath}/data`, match: { status: slug } },
-          query: { $type: 'query',  },
         } as NodeData,
       });
     }, `Column "${label.trim()}" created`);
@@ -603,7 +602,8 @@ const KanbanView: View<BoardKanban> = ({ value, ctx }) => {
                 size="sm"
                 className="text-xs text-destructive hover:text-destructive"
                 onClick={async () => {
-                  if (!confirm('Delete this task?')) return;
+                  const hasEdits = selectedNode.title || selectedNode.description;
+                  if (hasEdits && !confirm('Delete this task?')) return;
                   await withToast(() => trpc.remove.mutate({ path: selectedTask }), 'Task deleted');
                   setSelectedTask(null);
                 }}

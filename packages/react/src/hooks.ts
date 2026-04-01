@@ -310,7 +310,8 @@ function makeProxy<T extends object>(
     : undefined;
 
   return new Proxy(comp ?? {}, {
-    get: (_target, prop: string) => {
+    get: (_target, prop) => {
+      if (typeof prop === 'symbol') return (comp as Record<symbol, unknown>)?.[prop];
       const meta = getMeta(type, `action:${prop}`);
       if (!meta) return (comp as any)?.[prop];
 
