@@ -471,6 +471,47 @@ describe('defineComponent', () => {
     const r2 = await executeAction(tree, '/mut1', undefined, undefined, 'calc', {});
     assert.equal(r2, 2, 'updated source should take effect immediately');
   });
+
+  it('rejects action with invalid args', async () => {
+    setup();
+    const tree = createMemoryTree();
+    await tree.set(createNode('/v', 'page', {}, {
+      metadata: { $type: 'metadata', title: 'ok', description: '' },
+      status: { $type: 'status', value: 'draft' },
+    }));
+
+    await assert.rejects(
+      () => executeAction(tree, '/v', 'metadata', 'metadata', 'rename', { title: 123 }),
+      (err: any) => err.code === 'BAD_REQUEST',
+    );
+  });
+
+  it('rejects action with missing required arg', async () => {
+    setup();
+    const tree = createMemoryTree();
+    await tree.set(createNode('/v2', 'page', {}, {
+      metadata: { $type: 'metadata', title: 'ok', description: '' },
+      status: { $type: 'status', value: 'draft' },
+    }));
+
+    await assert.rejects(
+      () => executeAction(tree, '/v2', 'metadata', 'metadata', 'rename', {}),
+      (err: any) => err.code === 'BAD_REQUEST',
+    );
+  });
+
+  it('accepts action with valid args', async () => {
+    setup();
+    const tree = createMemoryTree();
+    await tree.set(createNode('/v3', 'page', {}, {
+      metadata: { $type: 'metadata', title: 'old', description: '' },
+      status: { $type: 'status', value: 'draft' },
+    }));
+
+    await executeAction(tree, '/v3', 'metadata', 'metadata', 'rename', { title: 'new' });
+    const result = (await tree.get('/v3'))!;
+    assert.equal((result['metadata'] as any).title, 'new');
+  });
 });
 
 describe('applyTemplate', () => {
