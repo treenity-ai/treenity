@@ -14,8 +14,8 @@
     "status": {
       "type": "string",
       "enum": [
-        "approved",
         "new",
+        "approved",
         "rejected"
       ],
       "default": "new"

@@ -141,7 +141,7 @@ function extractHandlerArgs(checker: ts.TypeChecker, handlerNode: ts.Node): any[
   const args: any[] = [];
   for (const param of params) {
     const paramType = checker.getTypeAtLocation(param);
-    const schema = typeToJsonSchema(checker, paramType);
+    const schema = typeToJsonSchema(checker, paramType, undefined, param.type);
     args.push({ name: (param.name as ts.Identifier).text, ...schema });
   }
   return args;
@@ -167,7 +167,19 @@ function isOpaqueParam(checker: ts.TypeChecker, param: ts.ParameterDeclaration):
   return ts.getJSDocTags(typeDecl).some((tag) => tag.tagName.text === 'opaque');
 }
 
-function typeToJsonSchema(checker: ts.TypeChecker, type: ts.Type, seen = new Set<ts.Type>()): any {
+// Extract source-ordered string literals from a UnionTypeNode AST
+function sourceOrderedEnumFromNode(typeNode?: ts.TypeNode): string[] | undefined {
+  if (!typeNode || !ts.isUnionTypeNode(typeNode)) return;
+  const values: string[] = [];
+  for (const member of typeNode.types) {
+    if (ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal))
+      values.push(member.literal.text);
+    else return; // not all string literals
+  }
+  return values.length ? values : undefined;
+}
+
+function typeToJsonSchema(checker: ts.TypeChecker, type: ts.Type, seen = new Set<ts.Type>(), typeNode?: ts.TypeNode): any {
   if (seen.has(type)) return {};
   if (isOpaqueType(checker, type)) return {};
   if (type.flags & ts.TypeFlags.String) return { type: 'string' };
@@ -176,8 +188,11 @@ function typeToJsonSchema(checker: ts.TypeChecker, type: ts.Type, seen = new Set
   if (type.flags & ts.TypeFlags.BigInt) return { type: 'integer' };
   if (type.isUnion()) {
     const literals = type.types.filter((t) => t.isStringLiteral());
-    if (literals.length === type.types.length)
-      return { type: 'string', enum: literals.map((t) => (t as ts.StringLiteralType).value) };
+    if (literals.length === type.types.length) {
+      // Prefer source order from AST, fall back to alphabetical sort for determinism
+      const ordered = sourceOrderedEnumFromNode(typeNode);
+      return { type: 'string', enum: ordered ?? literals.map((t) => (t as ts.StringLiteralType).value).sort() };
+    }
     if (type.types.every((t) => t.flags & ts.TypeFlags.BooleanLiteral)) return { type: 'boolean' };
     return { anyOf: type.types.map((t) => typeToJsonSchema(checker, t, seen)) };
   }
@@ -193,8 +208,9 @@ function typeToJsonSchema(checker: ts.TypeChecker, type: ts.Type, seen = new Set
       const required: string[] = [];
       for (const prop of props) {
         const propType = checker.getTypeOfSymbol(prop);
-        properties[prop.name] = typeToJsonSchema(checker, propType, seen);
         const decl = prop.valueDeclaration;
+        const propTypeNode = decl && (ts.isPropertySignature(decl) || ts.isPropertyDeclaration(decl)) ? decl.type : undefined;
+        properties[prop.name] = typeToJsonSchema(checker, propType, seen, propTypeNode);
         if (decl) Object.assign(properties[prop.name], collectJSDoc(decl));
         if (decl && ts.isPropertySignature(decl) && !decl.questionToken) required.push(prop.name);
         if (decl && ts.isPropertyDeclaration(decl) && !decl.questionToken) required.push(prop.name);
@@ -302,7 +318,7 @@ function generateClassSchema(program: ts.Program, entry: ComponentEntry, classTo
       if (refTypeName) {
         properties[name] = { type: 'string', format: 'path', refType: refTypeName };
       } else {
-        properties[name] = typeToJsonSchema(checker, type);
+        properties[name] = typeToJsonSchema(checker, type, undefined, member.type);
       }
       Object.assign(properties[name], collectJSDoc(member));
       // Default value
@@ -330,7 +346,7 @@ function generateClassSchema(program: ts.Program, entry: ComponentEntry, classTo
         const astParam = member.parameters[i];
         if (astParam && isOpaqueParam(checker, astParam)) continue;
         const paramType = checker.getTypeOfSymbol(sig.parameters[i]);
-        args.push({ name: sig.parameters[i].name, ...typeToJsonSchema(checker, paramType) });
+        args.push({ name: sig.parameters[i].name, ...typeToJsonSchema(checker, paramType, undefined, astParam?.type) });
       }
 
       const isGenerator = !!member.asteriskToken;

@@ -37,9 +37,9 @@
     "shape": {
       "type": "string",
       "enum": [
-        "box",
         "sphere",
         "cone",
+        "box",
         "point"
       ],
       "title": "Shape",
@@ -58,8 +58,8 @@
       "type": "string",
       "enum": [
         "sphere",
-        "plane",
-        "triangle"
+        "triangle",
+        "plane"
       ],
       "title": "Particle Shape",
       "default": "sphere"

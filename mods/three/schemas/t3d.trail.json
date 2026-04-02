@@ -27,9 +27,9 @@
     "attenuation": {
       "type": "string",
       "enum": [
-        "none",
         "linear",
-        "squared"
+        "squared",
+        "none"
       ],
       "title": "Attenuation",
       "default": "linear"

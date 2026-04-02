@@ -13,10 +13,10 @@
       "type": "string",
       "enum": [
         "blocked",
-        "idle",
         "error",
-        "working",
-        "offline"
+        "idle",
+        "offline",
+        "working"
       ],
       "default": "offline"
     },

@@ -16,13 +16,13 @@
     "menuType": {
       "type": "string",
       "enum": [
-        "none",
+        "force_reply",
         "inline",
-        "inline_new",
         "inline_close",
+        "inline_new",
         "keyboard",
-        "remove",
-        "force_reply"
+        "none",
+        "remove"
       ],
       "title": "Menu type",
       "default": "none"

@@ -34,9 +34,9 @@
                     "type": "string",
                     "enum": [
                       "debug",
+                      "error",
                       "info",
-                      "warn",
-                      "error"
+                      "warn"
                     ]
                   }
                 }
@@ -76,9 +76,9 @@
               "type": "string",
               "enum": [
                 "debug",
+                "error",
                 "info",
-                "warn",
-                "error"
+                "warn"
               ]
             },
             "msg": {

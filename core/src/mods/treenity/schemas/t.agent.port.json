@@ -11,8 +11,8 @@
     "status": {
       "type": "string",
       "enum": [
-        "pending",
         "idle",
+        "pending",
         "approved",
         "revoked"
       ],

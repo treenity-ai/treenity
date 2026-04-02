@@ -9,8 +9,8 @@
       "enum": [
         "box",
         "sphere",
-        "cylinder",
         "capsule",
+        "cylinder",
         "mesh",
         "convex"
       ],
