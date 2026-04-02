@@ -18,12 +18,35 @@ import { createServer, type Server } from 'node:http';
 import { z } from 'zod/v3';
 
 
-// Guardian policy check for MCP write operations
-// Reads global policy from /agents/guardian, checks deny → escalate → allow
+// Guardian policy check for MCP operations
+// Full structured context: tool + all args. Glob matching on compound subjects.
+// Evaluation: deny (any level) → allow/escalate (most specific wins) → deny-by-default
 export type McpGuardianResult = { allowed: true } | { allowed: false; reason: string };
 
+// Guardian receives the complete MCP call — tool name + all arguments
+export type GuardianRequest = {
+  tool: string;                    // MCP tool: 'execute', 'set_node', 'remove_node', etc.
+  args: Record<string, unknown>;   // full args as passed to the MCP tool handler
+};
 
-export async function checkMcpGuardian(store: Tree, toolName: string, input?: string): Promise<McpGuardianResult> {
+// Build glob subjects from request: most specific → least specific
+// Format: base, base:action, base:path, base:action:path
+function buildSubjects(req: GuardianRequest): string[] {
+  const base = `mcp__treenity__${req.tool}`;
+  const subjects: string[] = [];
+
+  const action = typeof req.args.action === 'string' ? req.args.action : null;
+  const path = typeof req.args.path === 'string' ? req.args.path : null;
+
+  if (action && path) subjects.push(`${base}:${action}:${path}`);
+  if (action) subjects.push(`${base}:${action}`);
+  if (!action && path) subjects.push(`${base}:${path}`);
+  subjects.push(base);
+
+  return subjects;
+}
+
+export async function checkMcpGuardian(store: Tree, req: GuardianRequest): Promise<McpGuardianResult> {
   try {
     const guardianNode = await store.get('/agents/guardian');
     if (!guardianNode) return { allowed: false, reason: 'no Guardian configured at /agents/guardian — all writes denied' };
@@ -34,29 +57,33 @@ export async function checkMcpGuardian(store: Tree, toolName: string, input?: st
     const allow = (policy.allow as string[]) ?? [];
     const deny = (policy.deny as string[]) ?? [];
     const escalate = (policy.escalate as string[]) ?? [];
+    const subjects = buildSubjects(req);
 
-    // Check both specific subject and coarse fallback: deny wins if either matches
-    if (matchesAny(deny, toolName)) return { allowed: false, reason: `denied by Guardian: ${toolName}` };
-
-    if (matchesAny(escalate, toolName)) {
-      const approved = await requestApproval(store, {
-        agentPath: '/agents/mcp',
-        role: 'mcp',
-        tool: toolName,
-        input: input?.slice(0, 500) ?? '',
-        reason: 'MCP tool requires approval',
-      });
-      return approved
-        ? { allowed: true }
-        : { allowed: false, reason: `🔐 "${toolName}" was denied or timed out. Use guardian_approve to pre-approve this pattern.` };
+    // Deny always wins — check ALL specificity levels
+    for (const s of subjects) {
+      if (matchesAny(deny, s)) return { allowed: false, reason: `denied by Guardian: ${s}` };
     }
 
-    if (matchesAny(allow, toolName)) return { allowed: true };
+    // Allow/escalate: most specific match wins
+    for (const s of subjects) {
+      if (matchesAny(allow, s)) return { allowed: true };
+      if (matchesAny(escalate, s)) {
+        const approved = await requestApproval(store, {
+          agentPath: '/agents/mcp',
+          role: 'mcp',
+          tool: s,
+          input: JSON.stringify(req.args).slice(0, 1000),
+          reason: `MCP requires approval: ${s}`,
+        });
+        return approved
+          ? { allowed: true }
+          : { allowed: false, reason: `🔐 "${s}" denied or timed out` };
+      }
+    }
 
-    // Unknown tool via MCP → deny by default (safer than escalate for external callers)
-    return { allowed: false, reason: `not in Guardian allow list: ${toolName}. Use Treenity Agent Office for write operations.` };
+    return { allowed: false, reason: `not in Guardian allow list: ${subjects[0]}` };
   } catch (err) {
-    console.error('[mcp-guardian] failed to check policy:', err);
+    console.error('[mcp-guardian] policy check failed:', err);
     return { allowed: false, reason: 'Guardian check failed — writes denied for safety' };
   }
 }
