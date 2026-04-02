@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import * as cache from './cache';
 import { tree } from './client';
 import { SSE_CONNECTED, SSE_DISCONNECTED, startEvents, stopEvents } from './events';
-import { NavigateProvider } from './hooks';
+import { addComponent, checkBeforeNavigate, NavigateProvider } from './hooks';
 import { Inspector } from './Inspector';
 import { LoginModal, LoginScreen } from './Login';
 import { Tree } from './Tree';
@@ -172,6 +172,10 @@ export function App() {
   // Handle browser back/forward
   useEffect(() => {
     const onPop = () => {
+      if (!checkBeforeNavigate()) {
+        history.pushState(null, '', location.href);
+        return;
+      }
       const p = location.pathname;
       navFromPopstate.current = true;
       if (p.startsWith('/t')) {
@@ -282,6 +286,7 @@ export function App() {
 
   const handleSelect = useCallback(
     async (path: string) => {
+      if (!checkBeforeNavigate()) return;
       setSelected(path);
       if (!cache.has(path)) {
         const node = (await trpc.get.query({ path, watch: true })) as NodeData | undefined;
@@ -334,7 +339,7 @@ export function App() {
       const parentPath = creatingAt!;
       setCreatingAt(null);
       const childPath = parentPath === '/' ? `/${name}` : `${parentPath}/${name}`;
-      await tree.set({ $path: childPath, $type: type } as NodeData);
+      await tree.set({ $path: childPath, $type: type, ...getDefaults(type) } as NodeData);
       await loadChildren(parentPath);
       if (!expanded.has(parentPath)) {
         setExpanded((prev) => new Set(prev).add(parentPath));
@@ -355,11 +360,7 @@ export function App() {
     async (name: string, type: string) => {
       const path = addingComponentAt!;
       setAddingComponentAt(null);
-      const node = cache.get(path);
-      if (!node) return;
-      const updated = { ...node, [name]: { $type: type } };
-      cache.put(updated);
-      await tree.set(updated);
+      await addComponent(path, name, type);
       showToast(`Added ${name}`);
     },
     [addingComponentAt, showToast],
@@ -441,6 +442,7 @@ export function App() {
   };
 
   const navigate = useCallback((path: string) => {
+    if (!checkBeforeNavigate()) return;
     if (mode === 'editor') {
       handleSelect(path);
     } else {

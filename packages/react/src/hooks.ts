@@ -6,7 +6,7 @@
 // watch:       universal async generator
 
 import { getComponent, getMeta, type NodeData, normalizeType, resolve } from '@treenity/core';
-import { type Class, type TypeProxy } from '@treenity/core/comp';
+import { type Class, getDefaults, type TypeProxy } from '@treenity/core/comp';
 import { deriveURI, parseURI } from '@treenity/core/uri';
 import {
   createContext,
@@ -32,6 +32,29 @@ export function useNavigate(): NavigateFn {
   const nav = useContext(NavigateCtx);
   if (!nav) throw new Error('useNavigate: no NavigateProvider');
   return nav;
+}
+
+// ── beforeNavigate guard — one view at a time can block SPA navigation ──
+// Uses window to share state across Vite module instances
+
+export function checkBeforeNavigate(): boolean {
+  const msg = (window as Record<string, unknown>).__beforeNavigateMsg as string | null;
+  if (!msg) return true;
+  return confirm(msg);
+}
+
+export function useBeforeNavigate(message: string) {
+  useEffect(() => {
+    const w = window as Record<string, unknown>;
+    const prev = w.__beforeNavigateMsg as string | null | undefined;
+    if (prev && prev !== message) {
+      console.warn('[useBeforeNavigate] overwriting existing guard:', prev, '→', message);
+    }
+    w.__beforeNavigateMsg = message;
+    return () => {
+      if (w.__beforeNavigateMsg === message) w.__beforeNavigateMsg = null;
+    };
+  }, [message]);
 }
 
 // ── usePath: universal reactive hook ──
@@ -137,6 +160,15 @@ export async function set(next: NodeData) {
     if (prev) cache.put(prev); else cache.remove(next.$path);
     throw err;
   }
+}
+
+// ── addComponent: attach a typed component to a node (optimistic + patch) ──
+
+export async function addComponent(path: string, name: string, type: string) {
+  const comp = { $type: type, ...getDefaults(type) };
+  const node = cache.get(path);
+  if (node) cache.put({ ...node, [name]: comp });
+  await trpc.patch.mutate({ path, ops: [['r', name, comp]] });
 }
 
 // ── execute: action caller ──
