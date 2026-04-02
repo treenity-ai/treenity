@@ -20,11 +20,18 @@
   transition: transform 0.25s ease;
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 10;
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
 }
 .edit-panel.open {
   transform: translateX(0);
+}
+
+/* Radix portals render in body with z-index:auto — lift above edit-panel */
+body > div:has([data-radix-select-viewport]),
+body > div:has([data-radix-popover-content-wrapper]),
+[data-radix-popper-content-wrapper] {
+  z-index: 20 !important;
 }
 
 .edit-panel-header {
