@@ -58,6 +58,9 @@ export function usePath<T extends object>(
   );
   const path = isTyped ? pathOrUri : (parsed?.path ?? null);
 
+  // Re-fetch + re-register server watch on SSE reconnect (preserved=false)
+  const gen = useSyncExternalStore(cache.subscribeSSEGen, cache.getSSEGen);
+
   const node = useSyncExternalStore(
     useCallback((cb: () => void) => (path ? cache.subscribePath(path, cb) : () => { }), [path]),
     useCallback(() => (path ? cache.get(path) : undefined), [path]),
@@ -69,7 +72,7 @@ export function usePath<T extends object>(
     trpc.get.query({ path, watch: !opts?.once }).then((n: unknown) => {
       if (n) cache.put(n as NodeData);
     });
-  }, [path, opts?.once]);
+  }, [path, opts?.once, gen]);
 
   return useMemo(() => {
     if (cls && path) return makeProxy(path, cls, node, key);
