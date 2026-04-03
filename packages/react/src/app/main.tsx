@@ -4,9 +4,9 @@ import { enablePatches } from 'immer';
 import { type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import './load-client';
-import { Toaster } from './components/ui/sonner';
-import './root.css';
+import '#tree/load-client';
+import { Toaster } from '#components/ui/sonner';
+import '../root.css';
 
 enablePatches();
 

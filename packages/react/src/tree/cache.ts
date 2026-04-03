@@ -4,7 +4,7 @@
 
 import type { NodeData } from '@treenity/core';
 import * as idb from './idb';
-import { stampNode } from './symbols';
+import { stampNode } from '#symbols';
 
 /** Shallow-freeze in dev mode to catch accidental cache mutation at the source */
 const devFreeze: (node: NodeData) => void =

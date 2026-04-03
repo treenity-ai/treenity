@@ -7,7 +7,7 @@ import { NodeProvider, Render, RenderContext } from '#context';
 import type { ComponentData, NodeData } from '@treenity/core';
 import { Trash2 } from 'lucide-react';
 import { ActionCardList } from './ActionCards';
-import { ErrorBoundary } from './ErrorBoundary';
+import { ErrorBoundary } from '#app/ErrorBoundary';
 
 function EditPanel({ node, value, onChange }: {
   node: NodeData;

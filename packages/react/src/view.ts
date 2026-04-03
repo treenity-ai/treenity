@@ -11,7 +11,7 @@ import type { OnChange, ViewCtx } from '#context';
 type ViewProps<T> = {
   value: T & { $type: string; $path?: string };
   onChange?: (partial: OnChange<T>) => void;
-  ctx?: ViewCtx | null;
+  ctx: ViewCtx;
 };
 
 type ViewFn = {

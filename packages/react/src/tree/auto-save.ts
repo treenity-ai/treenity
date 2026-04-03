@@ -2,11 +2,11 @@
 // Phase 2 of mutation pipeline.
 
 import { useCallback, useEffect, useRef } from 'react';
-import { mergeToOps, type OnChange } from '#on-change';
+import { mergeToOps, type OnChange } from '#tree/on-change';
 import { trpc } from './trpc';
 
-export { type OnChange, mergeToOps, mergeIntoNode, scopeOnChange } from '#on-change';
-export type { MutationOp } from '#on-change';
+export { type OnChange, mergeToOps, mergeIntoNode, scopeOnChange } from '#tree/on-change';
+export type { MutationOp } from '#tree/on-change';
 
 // ── useAutoSave hook ──
 

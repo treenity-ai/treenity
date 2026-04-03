@@ -2,7 +2,7 @@ import './editor-ui.css';
 import { Button } from '#components/ui/button';
 import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
-import { trpc } from '#trpc';
+import { trpc } from '#tree/trpc';
 import { type ComponentData, type NodeData, register } from '@treenity/core';
 import { useCallback, useState } from 'react';
 import { EmptyNodePlaceholder } from './empty-placeholder';

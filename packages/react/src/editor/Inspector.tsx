@@ -10,8 +10,8 @@ import { ScrollArea } from '#components/ui/scroll-area';
 import { Render, RenderContext } from '#context';
 import { getViewContexts, pickDefaultContext } from '#mods/editor-ui/node-utils';
 import { useState } from 'react';
-import { ErrorBoundary } from './ErrorBoundary';
-import { usePath } from './hooks';
+import { ErrorBoundary } from '#app/ErrorBoundary';
+import { usePath } from '#hooks';
 import { NodeEditor } from './NodeEditor';
 
 type Props = {

@@ -5,7 +5,7 @@ import { resolve } from '@treenity/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import * as cache from './cache';
-import { predictOptimistic } from './hooks';
+import { predictOptimistic } from '#hooks';
 
 class Counter {
   count = 0;

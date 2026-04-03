@@ -1,7 +1,7 @@
 // ViewPage — standalone read-only node view at /{path}
 
 import { Render, RenderContext } from '#context';
-import { usePath } from './hooks';
+import { usePath } from '#hooks';
 
 export function ViewPage({ path, editorLink }: { path: string; editorLink?: boolean }) {
   const node = usePath(path);

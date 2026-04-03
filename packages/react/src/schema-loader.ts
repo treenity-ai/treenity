@@ -2,7 +2,7 @@
 import { type ContextHandlers, register, resolve } from '@treenity/core';
 import type { TypeSchema } from '@treenity/core/schema/types';
 import { useEffect, useState } from 'react';
-import { trpc } from './trpc';
+import { trpc } from '#tree/trpc';
 
 // ── Fetcher ──────────────────────────────────────────────────────────────────
 

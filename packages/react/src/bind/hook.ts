@@ -1,6 +1,6 @@
 // React hooks for computed bindings
 
-import * as cache from '#cache';
+import * as cache from '#tree/cache';
 import { set, usePath } from '#hooks';
 import { isRef, type NodeData } from '@treenity/core';
 import { useCallback, useMemo, useSyncExternalStore } from 'react';

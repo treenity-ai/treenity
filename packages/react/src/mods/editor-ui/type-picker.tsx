@@ -3,7 +3,7 @@ import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '#
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '#components/ui/dialog';
 import { Input } from '#components/ui/input';
 import { typeFilter } from '#mods/editor-ui/string-utils';
-import { trpc } from '#trpc';
+import { trpc } from '#tree/trpc';
 import { isOfType, type NodeData } from '@treenity/core';
 import { useEffect, useMemo, useRef, useState } from 'react';
 

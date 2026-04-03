@@ -3,7 +3,7 @@
 // Depends on: core (resolve), React
 
 import { execute } from '#hooks';
-import { type OnChange, scopeOnChange } from '#on-change';
+import { type OnChange, scopeOnChange } from '#tree/on-change';
 import { $key, $node } from '#symbols';
 import {
   type ComponentData,
@@ -95,6 +95,15 @@ export function useActions<T>(value: T): Actions<T> {
   return useMemo(() => new Proxy({} as Actions<T>, {
     get: (_target, prop: string) => (data?: unknown) => execute(path, prop, data),
   }), [path]);
+}
+
+// ── useViewCtx — non-nullable ctx for node-level views ──
+
+export function useViewCtx(): ViewCtx {
+  const node = useContext(NodeCtx);
+  if (!node) throw new Error('useViewCtx: not inside a node render');
+  const path = node.$path;
+  return useMemo(() => ({ node, path, execute: (action: string, data?: unknown) => execute(path, action, data) }), [node, path]);
 }
 
 declare module '@treenity/core/core/context' {

@@ -7,9 +7,9 @@ import { Render } from '#context';
 import { getActions, getActionSchema } from '#mods/editor-ui/node-utils';
 import type { ComponentData, NodeData } from '@treenity/core';
 import { useState } from 'react';
-import * as cache from './cache';
-import { useSchema } from './schema-loader';
-import { trpc } from './trpc';
+import * as cache from '#tree/cache';
+import { useSchema } from '#schema-loader';
+import { trpc } from '#tree/trpc';
 
 function ResultView({ value }: { value: unknown }) {
   if (value === undefined || value === null) return null;

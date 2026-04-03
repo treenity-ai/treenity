@@ -4,7 +4,7 @@ import { Input } from '#components/ui/input';
 import { A, type GroupPerm, R, S, W } from '@treenity/core';
 import { ChevronRight, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import * as cache from './cache';
+import * as cache from '#tree/cache';
 
 const BITS = [
   { bit: R, label: 'R' },

@@ -1,6 +1,6 @@
 // react:form handlers — editable fields for inspector panel
-import * as cache from '#cache';
-import { tree as clientStore } from '#client';
+import * as cache from '#tree/cache';
+import { tree as clientStore } from '#tree/client';
 // react view handlers — readOnly display for same types
 // Covers: string, text, textarea, number, integer, boolean, array, object, image, uri, url, select, timestamp, path
 import { Button } from '#components/ui/button';

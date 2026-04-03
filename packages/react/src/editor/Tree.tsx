@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '#components/ui/dropdown-menu';
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
-import * as cache from './cache';
+import * as cache from '#tree/cache';
 
 type TreeProps = {
   roots: string[];

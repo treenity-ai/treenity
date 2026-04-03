@@ -4,9 +4,9 @@
 import { isRef, type NodeData } from '@treenity/core';
 import { Render, RenderContext } from '#context';
 import { useEffect, useState } from 'react';
-import * as cache from './cache';
-import { usePath } from './hooks';
-import { trpc } from './trpc';
+import * as cache from '#tree/cache';
+import { usePath } from '#hooks';
+import { trpc } from '#tree/trpc';
 
 export function RoutedPage({ path }: { path: string }) {
   const routePath = path === '/' ? '/sys/routes/_index' : `/sys/routes${path}`;

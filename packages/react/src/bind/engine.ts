@@ -2,8 +2,8 @@
 // evaluates on change, writes to computed store.
 // Supports $ref: "." (self) and @/path.field ref args in $map expressions.
 
-import * as cache from '#cache';
-import { trpc } from '#trpc';
+import * as cache from '#tree/cache';
+import { trpc } from '#tree/trpc';
 import { isRef, type NodeData, type Ref } from '@treenity/core';
 import { clearComputed, getComputed, setComputed } from './computed';
 import { evaluateRef, extractArgPaths, hasOnce, isCollectionRef } from './eval';

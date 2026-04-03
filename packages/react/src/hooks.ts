@@ -8,7 +8,7 @@
 import { getComponent, getMeta, type NodeData, normalizeType, resolve } from '@treenity/core';
 import { type Class, getDefaults, type TypeProxy } from '@treenity/core/comp';
 import { deriveURI, parseURI } from '@treenity/core/uri';
-import { pushOptimistic, rollback } from './rebase';
+import { pushOptimistic, rollback } from '#tree/rebase';
 import {
   useCallback,
   useEffect,
@@ -17,10 +17,10 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
-import * as cache from './cache';
-import { tree } from './client';
-import { trpc } from './trpc';
-export { useNavigate, useBeforeNavigate } from './navigate';
+import * as cache from '#tree/cache';
+import { tree } from '#tree/client';
+import { trpc } from '#tree/trpc';
+export { useNavigate, useBeforeNavigate } from '#navigate';
 
 // ── usePath: universal reactive hook ──
 // URI mode:   usePath('/path#comp.field')      → derived value
