@@ -15,7 +15,8 @@ import { buildClaims, createSession, withAcl } from '@treenity/core/server/auth'
 import assert from 'node:assert/strict';
 import { afterEach, before, beforeEach, describe, it } from 'node:test';
 
-import { buildMcpServer, checkMcpGuardian, extractToken } from './mcp-server';
+import { pendingPermissions } from '#metatron/permissions';
+import { buildMcpServer, buildSubjects, checkMcpGuardian, extractToken, type GuardianRequest } from './mcp-server';
 
 // ── Helpers ──
 
@@ -64,77 +65,133 @@ describe('extractToken', () => {
   });
 });
 
-// ── 2. Guardian Allow/Deny/Escalate ──
+// ── 2. buildSubjects — subject construction from GuardianRequest ──
+
+describe('buildSubjects', () => {
+  it('tool-only: no action, no path', () => {
+    const subjects = buildSubjects({ tool: 'catalog', args: {} });
+    assert.deepEqual(subjects, ['mcp__treenity__catalog']);
+  });
+
+  it('tool + path', () => {
+    const subjects = buildSubjects({ tool: 'set_node', args: { path: '/foo/bar', type: 'dir' } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__set_node:/foo/bar',
+      'mcp__treenity__set_node',
+    ]);
+  });
+
+  it('tool + action (execute without path)', () => {
+    const subjects = buildSubjects({ tool: 'execute', args: { action: '$schema' } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__execute:$schema',
+      'mcp__treenity__execute',
+    ]);
+  });
+
+  it('tool + action + path (most specific)', () => {
+    const subjects = buildSubjects({ tool: 'execute', args: { path: '/agents/qa', action: 'run', data: { x: 1 } } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__execute:run:/agents/qa',
+      'mcp__treenity__execute:run',
+      'mcp__treenity__execute',
+    ]);
+  });
+
+  it('deploy_prefab uses target instead of path', () => {
+    const subjects = buildSubjects({ tool: 'deploy_prefab', args: { source: '/sys/mods/x', target: '/my/dir' } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__deploy_prefab:/my/dir',
+      'mcp__treenity__deploy_prefab',
+    ]);
+  });
+
+  it('path takes priority over target when both present', () => {
+    const subjects = buildSubjects({ tool: 'set_node', args: { path: '/a', target: '/b' } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__set_node:/a',
+      'mcp__treenity__set_node',
+    ]);
+  });
+
+  it('empty string args are ignored', () => {
+    const subjects = buildSubjects({ tool: 'execute', args: { action: '', path: '' } });
+    assert.deepEqual(subjects, ['mcp__treenity__execute']);
+  });
+
+  it('undefined args are safe', () => {
+    const subjects = buildSubjects({ tool: 'get_node', args: { path: undefined } as Record<string, unknown> });
+    assert.deepEqual(subjects, ['mcp__treenity__get_node']);
+  });
+
+  it('non-string args are ignored for subject building', () => {
+    const subjects = buildSubjects({ tool: 'execute', args: { action: 42, path: true } as Record<string, unknown> });
+    assert.deepEqual(subjects, ['mcp__treenity__execute']);
+  });
+
+  it('remove_node: tool + path', () => {
+    const subjects = buildSubjects({ tool: 'remove_node', args: { path: '/dangerous' } });
+    assert.deepEqual(subjects, [
+      'mcp__treenity__remove_node:/dangerous',
+      'mcp__treenity__remove_node',
+    ]);
+  });
+});
+
+// ── 3. Guardian Allow/Deny/Escalate ──
 
 describe('checkMcpGuardian', () => {
   let store: Tree;
+
+  // Helper: set guardian with given policy
+  async function setGuardian(policy: { allow: string[]; deny: string[]; escalate: string[] }) {
+    await store.set(createNode('/agents/guardian', 'ai.policy', {
+      ...policy,
+    }));
+  }
+
+  function req(tool: string, args: Record<string, unknown> = {}): GuardianRequest {
+    return { tool, args };
+  }
 
   beforeEach(() => {
     store = createMemoryTree();
   });
 
+  // ── Basic policy ──
+
   it('denies when no guardian node exists', async () => {
-    const result = await checkMcpGuardian(store, 'mcp__treenity__set_node');
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/x' }));
     assert.equal(result.allowed, false);
     assert.ok(!result.allowed && result.reason.includes('no Guardian'));
   });
 
   it('denies tool on deny list', async () => {
-    await store.set(createNode('/agents/guardian', 'ai.agent', {
-      role: 'guardian', status: 'idle', currentTask: '', taskRef: '',
-      lastRunAt: 0, totalTokens: 0,
-    }, {
-      policy: Object.assign(new AiPolicy(), {
-        $type: 'ai.policy',
-        allow: [],
-        deny: ['mcp__treenity__set_node'],
-        escalate: [],
-      }),
-    }));
-    const result = await checkMcpGuardian(store, 'mcp__treenity__set_node');
+    await setGuardian({ allow: [], deny: ['mcp__treenity__set_node'], escalate: [] });
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/x', type: 'dir' }));
     assert.equal(result.allowed, false);
     assert.ok(!result.allowed && result.reason.includes('denied'));
   });
 
   it('allows tool on allow list', async () => {
-    await store.set(createNode('/agents/guardian', 'ai.agent', {
-      role: 'guardian', status: 'idle', currentTask: '', taskRef: '',
-      lastRunAt: 0, totalTokens: 0,
-    }, {
-      policy: Object.assign(new AiPolicy(), {
-        $type: 'ai.policy',
-        allow: ['mcp__treenity__set_node'],
-        deny: [],
-        escalate: [],
-      }),
-    }));
-    const result = await checkMcpGuardian(store, 'mcp__treenity__set_node');
+    await setGuardian({ allow: ['mcp__treenity__get_node'], deny: [], escalate: [] });
+    const result = await checkMcpGuardian(store, req('get_node', { path: '/x' }));
     assert.equal(result.allowed, true);
   });
 
   it('denies unknown tool not in any list', async () => {
-    await store.set(createNode('/agents/guardian', 'ai.agent', {
-      role: 'guardian', status: 'idle', currentTask: '', taskRef: '',
-      lastRunAt: 0, totalTokens: 0,
-    }, {
-      policy: Object.assign(new AiPolicy(), {
-        $type: 'ai.policy',
-        allow: ['mcp__treenity__get_node'],
-        deny: [],
-        escalate: [],
-      }),
-    }));
-    const result = await checkMcpGuardian(store, 'mcp__treenity__unknown_tool');
+    await setGuardian({ allow: ['mcp__treenity__get_node'], deny: [], escalate: [] });
+    const result = await checkMcpGuardian(store, req('unknown_tool'));
     assert.equal(result.allowed, false);
     assert.ok(!result.allowed && result.reason.includes('not in Guardian allow list'));
   });
 
-  it('denies when guardian node exists but has no policy component (F01)', async () => {
+  it('denies when guardian node has no policy component (F01)', async () => {
     await store.set(createNode('/agents/guardian', 'ai.agent', {
       role: 'guardian', status: 'idle', currentTask: '', taskRef: '',
       lastRunAt: 0, totalTokens: 0,
     }));
-    const result = await checkMcpGuardian(store, 'mcp__treenity__set_node');
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/x' }));
     assert.equal(result.allowed, false);
     assert.ok(!result.allowed && result.reason.includes('invalid Guardian policy type'));
   });
@@ -143,15 +200,213 @@ describe('checkMcpGuardian', () => {
     await store.set(createNode('/agents/guardian', 'ai.agent', {
       role: 'guardian', status: 'idle', currentTask: '', taskRef: '',
       lastRunAt: 0, totalTokens: 0,
-    }, {
-      policy: { $type: 'dir' },
-    }));
-    const result = await checkMcpGuardian(store, 'mcp__treenity__set_node');
+    }, { policy: { $type: 'dir' } }));
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/x' }));
     assert.equal(result.allowed, false);
     assert.ok(!result.allowed && result.reason.includes('invalid Guardian policy type'));
   });
 
-  // escalation tested manually — ESM mock too fragile
+  // ── Action-level specificity ──
+
+  it('specific action allow overrides coarse escalate', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__execute:$schema'],
+      deny: [],
+      escalate: ['mcp__treenity__execute:*'],
+    });
+    const result = await checkMcpGuardian(store, req('execute', { path: '/any', action: '$schema' }));
+    assert.equal(result.allowed, true);
+  });
+
+  it('non-allowed action hits coarse escalate (denied by auto-resolve)', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__execute:$schema'],
+      deny: [],
+      escalate: ['mcp__treenity__execute:*'],
+    });
+    await store.set(createNode('/agents/approvals', 'ai.approvals'));
+    // Auto-deny any pending permission as soon as it appears
+    const interval = setInterval(() => {
+      for (const [id, resolve] of pendingPermissions) {
+        resolve(false);
+        pendingPermissions.delete(id);
+      }
+    }, 5);
+    const result = await checkMcpGuardian(store, req('execute', { path: '/agents/qa', action: 'run' }));
+    clearInterval(interval);
+    assert.equal(result.allowed, false);
+  });
+
+  it('action-specific deny blocks even if coarse tool is allowed', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__execute:*'],
+      deny: ['mcp__treenity__execute:dangerous'],
+      escalate: [],
+    });
+    const result = await checkMcpGuardian(store, req('execute', { path: '/x', action: 'dangerous' }));
+    assert.equal(result.allowed, false);
+    assert.ok(!result.allowed && result.reason.includes('denied'));
+  });
+
+  it('action+path deny blocks specific combination', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__execute:*'],
+      deny: ['mcp__treenity__execute:delete:/production/*'],
+      escalate: [],
+    });
+    const denied = await checkMcpGuardian(store, req('execute', { path: '/production/data', action: 'delete' }));
+    assert.equal(denied.allowed, false);
+
+    const allowed = await checkMcpGuardian(store, req('execute', { path: '/staging/data', action: 'delete' }));
+    assert.equal(allowed.allowed, true);
+  });
+
+  // ── Path-level specificity ──
+
+  it('path-specific allow overrides coarse escalate for set_node', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__set_node:/safe/*'],
+      deny: [],
+      escalate: ['mcp__treenity__set_node'],
+    });
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/safe/new', type: 'dir' }));
+    assert.equal(result.allowed, true);
+  });
+
+  it('path-specific deny blocks even if coarse tool is allowed', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__set_node'],
+      deny: ['mcp__treenity__set_node:/protected/*'],
+      escalate: [],
+    });
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/protected/secret', type: 'dir' }));
+    assert.equal(result.allowed, false);
+  });
+
+  it('deploy_prefab uses target for path-level matching', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__deploy_prefab:/sandbox/*'],
+      deny: [],
+      escalate: ['mcp__treenity__deploy_prefab'],
+    });
+    const result = await checkMcpGuardian(store, req('deploy_prefab', { source: '/sys/mods/x', target: '/sandbox/test' }));
+    assert.equal(result.allowed, true);
+  });
+
+  it('remove_node deny matches path-specific subject', async () => {
+    await setGuardian({
+      allow: [],
+      deny: ['mcp__treenity__remove_node:/production/*'],
+      escalate: [],
+    });
+    const result = await checkMcpGuardian(store, req('remove_node', { path: '/production/important' }));
+    assert.equal(result.allowed, false);
+  });
+
+  // ── Deny always wins ──
+
+  it('deny wins over allow at same specificity', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__set_node'],
+      deny: ['mcp__treenity__set_node'],
+      escalate: [],
+    });
+    const result = await checkMcpGuardian(store, req('set_node', { path: '/x', type: 'dir' }));
+    assert.equal(result.allowed, false);
+  });
+
+  it('coarse deny blocks even with specific allow', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__execute:$schema'],
+      deny: ['mcp__treenity__execute'],
+      escalate: [],
+    });
+    // Deny on coarse subject blocks everything, specific allow can't override
+    const result = await checkMcpGuardian(store, req('execute', { action: '$schema' }));
+    assert.equal(result.allowed, false);
+  });
+
+  // ── Glob patterns ──
+
+  it('glob in allow matches multiple tools', async () => {
+    await setGuardian({
+      allow: ['mcp__treenity__get_*', 'mcp__treenity__list_*'],
+      deny: [],
+      escalate: [],
+    });
+    assert.equal((await checkMcpGuardian(store, req('get_node', { path: '/' }))).allowed, true);
+    assert.equal((await checkMcpGuardian(store, req('list_children', { path: '/' }))).allowed, true);
+    assert.equal((await checkMcpGuardian(store, req('set_node', { path: '/' }))).allowed, false);
+  });
+
+  // ── Real seed policy: $schema allowed, other execute escalated ──
+
+  it('real seed policy: $schema is allowed, arbitrary execute is not', async () => {
+    await setGuardian({
+      allow: [
+        'mcp__treenity__get_node', 'mcp__treenity__list_children',
+        'mcp__treenity__catalog', 'mcp__treenity__describe_type',
+        'mcp__treenity__search_types', 'mcp__treenity__compile_view',
+        'mcp__treenity__execute:$schema',
+      ],
+      deny: ['mcp__treenity__remove_node'],
+      escalate: [
+        'mcp__treenity__set_node', 'mcp__treenity__execute:*', 'mcp__treenity__deploy_prefab',
+      ],
+    });
+
+    // Read-only tools: allowed
+    assert.equal((await checkMcpGuardian(store, req('get_node', { path: '/' }))).allowed, true);
+    assert.equal((await checkMcpGuardian(store, req('list_children', { path: '/' }))).allowed, true);
+    assert.equal((await checkMcpGuardian(store, req('catalog'))).allowed, true);
+
+    // $schema: allowed (specific allow overrides execute:* escalate)
+    assert.equal((await checkMcpGuardian(store, req('execute', { path: '/any', action: '$schema' }))).allowed, true);
+
+    // remove_node: denied
+    assert.equal((await checkMcpGuardian(store, req('remove_node', { path: '/x' }))).allowed, false);
+
+    // set_node: escalated → auto-denied
+    const interval = setInterval(() => {
+      for (const [id, resolve] of pendingPermissions) { resolve(false); pendingPermissions.delete(id); }
+    }, 5);
+    await store.set(createNode('/agents/approvals', 'ai.approvals'));
+    assert.equal((await checkMcpGuardian(store, req('set_node', { path: '/x', type: 'dir' }))).allowed, false);
+    clearInterval(interval);
+  });
+
+  // ── Edge cases ──
+
+  it('empty args produce tool-only subject', async () => {
+    await setGuardian({ allow: ['mcp__treenity__catalog'], deny: [], escalate: [] });
+    const result = await checkMcpGuardian(store, req('catalog', {}));
+    assert.equal(result.allowed, true);
+  });
+
+  it('full args preserved in escalation context', async () => {
+    // Verify Guardian receives and passes full args — escalation creates approval node
+    await setGuardian({ allow: [], deny: [], escalate: ['mcp__treenity__set_node'] });
+    await store.set(createNode('/agents/mcp', 'ai.agent', {
+      role: 'mcp', status: 'idle', currentTask: '', taskRef: '',
+      lastRunAt: 0, totalTokens: 0,
+    }));
+    await store.set(createNode('/agents/approvals', 'ai.approvals'));
+
+    const bigData = { path: '/test', type: 'dir', components: { x: { $type: 'foo', data: 'bar' } } };
+    // Auto-deny so the test doesn't hang
+    const interval = setInterval(() => {
+      for (const [id, resolve] of pendingPermissions) { resolve(false); pendingPermissions.delete(id); }
+    }, 5);
+    await checkMcpGuardian(store, req('set_node', bigData));
+    clearInterval(interval);
+
+    // Approval node should have been created with full context
+    const { items } = await store.getChildren('/agents/approvals');
+    assert.ok(items.length > 0, 'approval node should be created');
+    const approval = items[0];
+    assert.ok(typeof approval.input === 'string', 'input should be string');
+    assert.ok((approval.input as string).includes('components'), 'input should contain full args including components');
+  });
 });
 
 // ── 3. Prototype Pollution Prevention ──

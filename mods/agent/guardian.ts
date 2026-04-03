@@ -26,9 +26,10 @@ const FALLBACK_POLICY: ToolPolicy = {
     'mcp__treenity__get_node', 'mcp__treenity__list_children',
     'mcp__treenity__catalog', 'mcp__treenity__describe_type',
     'mcp__treenity__search_types',
+    'mcp__treenity__execute:$schema',
   ],
   deny: [],
-  escalate: ['mcp__treenity__set_node', 'mcp__treenity__execute', 'mcp__treenity__remove_node'],
+  escalate: ['mcp__treenity__set_node', 'mcp__treenity__execute:*', 'mcp__treenity__remove_node'],
 };
 
 // ── Convert ai.policy node data → runtime ToolPolicy ──

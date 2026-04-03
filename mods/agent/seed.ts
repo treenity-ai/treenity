@@ -16,6 +16,7 @@ registerPrefab('agent', 'seed', [
       'mcp__treenity__get_node', 'mcp__treenity__list_children',
       'mcp__treenity__catalog', 'mcp__treenity__describe_type',
       'mcp__treenity__search_types', 'mcp__treenity__compile_view',
+      'mcp__treenity__execute:$schema',
     ],
     deny: [
       'mcp__treenity__remove_node',
@@ -24,10 +25,20 @@ registerPrefab('agent', 'seed', [
       'Bash:rm -rf *', 'Bash:rm -r *', 'Bash:cat *.env*',
     ],
     escalate: [
-      'mcp__treenity__set_node', 'mcp__treenity__execute', 'mcp__treenity__deploy_prefab',
+      'mcp__treenity__set_node', 'mcp__treenity__execute:*', 'mcp__treenity__deploy_prefab',
       'Bash:git add *', 'Bash:git commit *', 'Bash:git push *',
       'Bash:sed *', 'Bash:mv *', 'Bash:cp *',
     ],
+  },
+
+  // MCP agent identity — escalation approvals reference this path
+  { $path: 'agents/mcp', $type: 'ai.agent',
+    role: 'mcp', status: 'idle', currentTask: '', taskRef: '',
+    lastRunAt: 0, totalTokens: 0,
+    policy: {
+      $type: 'ai.policy',
+      allow: [], deny: [], escalate: [],
+    },
   },
 
   // Approvals queue
