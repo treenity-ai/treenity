@@ -9,9 +9,7 @@ import { getComponent, getMeta, type NodeData, normalizeType, resolve } from '@t
 import { type Class, getDefaults, type TypeProxy } from '@treenity/core/comp';
 import { deriveURI, parseURI } from '@treenity/core/uri';
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -21,41 +19,6 @@ import {
 import * as cache from './cache';
 import { tree } from './client';
 import { trpc } from './trpc';
-
-// ── Navigation context — shell provides, views consume ──
-
-export type NavigateFn = (path: string) => void;
-const NavigateCtx = createContext<NavigateFn | null>(null);
-export const NavigateProvider = NavigateCtx.Provider;
-
-export function useNavigate(): NavigateFn {
-  const nav = useContext(NavigateCtx);
-  if (!nav) throw new Error('useNavigate: no NavigateProvider');
-  return nav;
-}
-
-// ── beforeNavigate guard — one view at a time can block SPA navigation ──
-// Uses window to share state across Vite module instances
-
-export function checkBeforeNavigate(): boolean {
-  const msg = (window as Record<string, unknown>).__beforeNavigateMsg as string | null;
-  if (!msg) return true;
-  return confirm(msg);
-}
-
-export function useBeforeNavigate(message: string) {
-  useEffect(() => {
-    const w = window as Record<string, unknown>;
-    const prev = w.__beforeNavigateMsg as string | null | undefined;
-    if (prev && prev !== message) {
-      console.warn('[useBeforeNavigate] overwriting existing guard:', prev, '→', message);
-    }
-    w.__beforeNavigateMsg = message;
-    return () => {
-      if (w.__beforeNavigateMsg === message) w.__beforeNavigateMsg = null;
-    };
-  }, [message]);
-}
 
 // ── usePath: universal reactive hook ──
 // URI mode:   usePath('/path#comp.field')      → derived value
@@ -160,6 +123,12 @@ export async function set(next: NodeData) {
     if (prev) cache.put(prev); else cache.remove(next.$path);
     throw err;
   }
+}
+
+// ── createNode: create a new node with defaults ──
+
+export async function createNode(path: string, type: string, defaults: Record<string, unknown> = {}) {
+  await tree.set({ $path: path, $type: type, ...defaults } as NodeData);
 }
 
 // ── addComponent: attach a typed component to a node (optimistic + patch) ──

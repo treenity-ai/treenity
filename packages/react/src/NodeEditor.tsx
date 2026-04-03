@@ -162,7 +162,9 @@ export function NodeEditor({ node, open, onClose, currentUserId, toast, onAddCom
     await trpc.patch.mutate({ path: node.$path, ops: [['d', name]] });
   }
 
-  // Display values: node data + user edits overlay
+  // Build the main component value for ComponentSection: node's own fields ($type + plain data)
+  // merged with any pending user edits. This is needed because the main component = node-level fields
+  // (per getComponent convention), so we construct it explicitly rather than reading a named key.
   const mainValue = withEdits({ $type: node.$type, ...plainFields } as ComponentData, snap.plainEdits as Record<string, unknown>);
   const displayPlainFields = { ...plainFields, ...(snap.plainEdits as Record<string, unknown>) };
   const hasPlainFields = Object.keys(displayPlainFields).length > 0;

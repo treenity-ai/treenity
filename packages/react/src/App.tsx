@@ -13,12 +13,14 @@ import { Input } from '#components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#components/ui/resizable';
 import { TypePicker } from '#mods/editor-ui/type-picker';
 import type { NodeData } from '@treenity/core';
+import { getDefaults } from '@treenity/core/comp';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import * as cache from './cache';
 import { tree } from './client';
 import { SSE_CONNECTED, SSE_DISCONNECTED, startEvents, stopEvents } from './events';
-import { addComponent, checkBeforeNavigate, NavigateProvider } from './hooks';
+import { addComponent, createNode } from './hooks';
+import { checkBeforeNavigate, NavigateProvider, pushHistory } from './navigate';
 import { Inspector } from './Inspector';
 import { LoginModal, LoginScreen } from './Login';
 import { Tree } from './Tree';
@@ -165,7 +167,7 @@ export function App() {
     const url = base + search;
     if (location.pathname + location.search !== url) {
       if (navFromPopstate.current) navFromPopstate.current = false;
-      else history.pushState(null, '', url);
+      else pushHistory(url);
     }
   }, [selected, root, mode]);
 
@@ -173,7 +175,7 @@ export function App() {
   useEffect(() => {
     const onPop = () => {
       if (!checkBeforeNavigate()) {
-        history.pushState(null, '', location.href);
+        pushHistory(location.href);
         return;
       }
       const p = location.pathname;
@@ -339,7 +341,7 @@ export function App() {
       const parentPath = creatingAt!;
       setCreatingAt(null);
       const childPath = parentPath === '/' ? `/${name}` : `${parentPath}/${name}`;
-      await tree.set({ $path: childPath, $type: type, ...getDefaults(type) } as NodeData);
+      await createNode(childPath, type, getDefaults(type));
       await loadChildren(parentPath);
       if (!expanded.has(parentPath)) {
         setExpanded((prev) => new Set(prev).add(parentPath));
@@ -448,7 +450,7 @@ export function App() {
     } else {
       setViewPath(path);
       const prefix = mode === 'view' ? '/v' : '';
-      history.pushState(null, '', prefix + path);
+      pushHistory(prefix + path);
     }
   }, [mode, handleSelect]);
 
