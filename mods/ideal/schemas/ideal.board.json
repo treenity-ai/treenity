@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "autoApproveThreshold": {
+      "type": "number",
+      "default": 5
+    }
+  },
+  "required": [
+    "autoApproveThreshold"
+  ],
+  "$id": "ideal.board",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

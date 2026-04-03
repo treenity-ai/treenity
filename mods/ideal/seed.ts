@@ -1,8 +1,8 @@
-import type { NodeData } from '@treenity/core';
 import { registerPrefab } from '@treenity/core/mod';
 
 registerPrefab('ideal', 'seed', [
-  { $path: 'ideal', $type: 'dir' },
-  { $path: 'ideal/first', $type: 'ideal.idea', title: 'Simplify view registration', votes: 3, status: 'approved' },
-  { $path: 'ideal/second', $type: 'ideal.idea', title: 'Auto-generate type names', votes: 1, status: 'new' },
-] as NodeData[]);
+  { $path: 'ideal', $type: 'ideal.board', autoApproveThreshold: 5 },
+  { $path: 'ideal/simplify-views', $type: 'ideal.idea', title: 'Simplify view registration', votes: 3, status: 'approved' },
+  { $path: 'ideal/auto-typenames', $type: 'ideal.idea', title: 'Auto-generate type names', votes: 1, status: 'new' },
+  { $path: 'ideal/dark-mode', $type: 'ideal.idea', title: 'Dark mode support', votes: 7, status: 'new' },
+]);

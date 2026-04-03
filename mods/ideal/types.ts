@@ -1,5 +1,12 @@
 import { registerType } from '@treenity/core/comp';
 
+/** Board of ideas — container that auto-approves popular ones */
+export class IdeasBoard {
+  autoApproveThreshold = 5;
+}
+registerType('ideal.board', IdeasBoard);
+
+/** A single idea with voting */
 export class Idea {
   title = '';
   votes = 0;
@@ -11,5 +18,4 @@ export class Idea {
 
   reject() { this.status = 'rejected'; }
 }
-
 registerType('ideal.idea', Idea);
