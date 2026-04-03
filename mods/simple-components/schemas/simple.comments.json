@@ -1,0 +1,62 @@
+{
+  "$id": "simple.comments",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "author": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "author",
+          "text",
+          "createdAt"
+        ]
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "methods": {
+    "add": {
+      "description": "Add a comment",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "title": "Comment text"
+            },
+            "author": {
+              "anyOf": [
+                {},
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Author name"
+            }
+          },
+          "required": [
+            "text"
+          ]
+        }
+      ]
+    }
+  }
+}

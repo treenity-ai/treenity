@@ -1,0 +1,89 @@
+{
+  "$id": "simple.checklist",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "text": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "done"
+        ]
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "methods": {
+    "add": {
+      "description": "Add a checklist item",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "title": "Item text"
+            }
+          },
+          "required": [
+            "text"
+          ]
+        }
+      ]
+    },
+    "toggle": {
+      "description": "Toggle checklist item",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number",
+              "title": "Item id"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "remove": {
+      "description": "Remove checklist item",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number",
+              "title": "Item id"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$id": "simple.tags",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "methods": {
+    "add": {
+      "description": "Add a tag",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "tag": {
+              "type": "string",
+              "title": "Tag name"
+            }
+          },
+          "required": [
+            "tag"
+          ]
+        }
+      ]
+    },
+    "remove": {
+      "description": "Remove a tag",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "tag": {
+              "type": "string",
+              "title": "Tag name"
+            }
+          },
+          "required": [
+            "tag"
+          ]
+        }
+      ]
+    }
+  }
+}

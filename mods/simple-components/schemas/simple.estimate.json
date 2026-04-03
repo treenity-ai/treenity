@@ -1,0 +1,53 @@
+{
+  "$id": "simple.estimate",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "value": {
+      "type": "number",
+      "default": 0
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "hours",
+        "points",
+        "days"
+      ],
+      "default": "hours"
+    }
+  },
+  "required": [
+    "value",
+    "unit"
+  ],
+  "methods": {
+    "update": {
+      "description": "Set estimate value and unit",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "title": "Numeric value"
+            },
+            "unit": {
+              "anyOf": [
+                {},
+                {},
+                {},
+                {}
+              ],
+              "title": "Unit"
+            }
+          },
+          "required": [
+            "value"
+          ]
+        }
+      ]
+    }
+  }
+}

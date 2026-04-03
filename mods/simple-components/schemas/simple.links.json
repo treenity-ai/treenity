@@ -1,0 +1,80 @@
+{
+  "$id": "simple.links",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "url": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "label"
+        ]
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "items"
+  ],
+  "methods": {
+    "add": {
+      "description": "Add a link",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "title": "URL"
+            },
+            "label": {
+              "anyOf": [
+                {},
+                {
+                  "type": "string"
+                }
+              ],
+              "title": "Display label"
+            }
+          },
+          "required": [
+            "url"
+          ]
+        }
+      ]
+    },
+    "remove": {
+      "description": "Remove a link by id",
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "number",
+              "title": "Item id"
+            }
+          },
+          "required": [
+            "id"
+          ]
+        }
+      ]
+    }
+  }
+}
