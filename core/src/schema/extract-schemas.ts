@@ -420,13 +420,12 @@ export async function exec(tsconfigPath = 'tsconfig.json', extraDirs: string[] =
   const program = createProgram(tsconfigPath, extraFiles);
   const entries = findDefineComponents(program);
   const externalActions = findExternalActions(program);
-  console.log(`Found ${entries.length} component(s), ${externalActions.size} type(s) with external actions`);
-
   // Build className → typeName map for refType detection
   const classToType = new Map<string, string>();
   for (const e of entries) classToType.set(e.className, e.typeName);
 
   const generated = new Set<string>();
+  let updated = 0;
 
   for (const entry of entries) {
     if (generated.has(entry.typeName)) continue; // override registration — schema already extracted from base class
@@ -452,12 +451,16 @@ export async function exec(tsconfigPath = 'tsconfig.json', extraDirs: string[] =
       externalActions.delete(entry.typeName);
     }
 
-    // Write schema next to source file in schemas/ subdir
+    // Write schema next to source file in schemas/ subdir (skip if unchanged)
     const schemasDir = path.join(path.dirname(entry.fileName), 'schemas');
-    await fs.mkdir(schemasDir, { recursive: true });
     const outFile = path.join(schemasDir, `${entry.typeName}.json`);
-    await fs.writeFile(outFile, JSON.stringify(schema, null, 2) + '\n');
+    const newContent = JSON.stringify(schema, null, 2) + '\n';
+    const existing = await fs.readFile(outFile, 'utf-8').catch(() => '');
+    if (existing === newContent) continue;
+    await fs.mkdir(schemasDir, { recursive: true });
+    await fs.writeFile(outFile, newContent);
     console.log(`  ${entry.typeName} → ${path.relative(process.cwd(), outFile)}`);
+    updated++;
   }
 
   // Types with external actions but no registerType class — generate action-only schemas
@@ -474,13 +477,20 @@ export async function exec(tsconfigPath = 'tsconfig.json', extraDirs: string[] =
       properties: {},
       methods,
     };
-    // Write next to source of first action
+    // Write next to source of first action (skip if unchanged)
     const schemasDir = path.join(path.dirname(actions[0].fileName), 'schemas');
-    await fs.mkdir(schemasDir, { recursive: true });
     const outFile = path.join(schemasDir, `${typeName}.json`);
-    await fs.writeFile(outFile, JSON.stringify(schema, null, 2) + '\n');
+    const newContent = JSON.stringify(schema, null, 2) + '\n';
+    const existing = await fs.readFile(outFile, 'utf-8').catch(() => '');
+    if (existing === newContent) continue;
+    await fs.mkdir(schemasDir, { recursive: true });
+    await fs.writeFile(outFile, newContent);
     console.log(`  ${typeName} (actions only) → ${path.relative(process.cwd(), outFile)}`);
+    updated++;
   }
+
+  if (updated) console.log(`[schema] ${updated} updated`);
+  else console.log(`[schema] all up to date`);
 }
 
 async function globSourceFiles(dirs: string[]): Promise<string[]> {
@@ -500,5 +510,7 @@ async function globSourceFiles(dirs: string[]): Promise<string[]> {
 }
 
 // CLI: tsx extract-schemas.ts [extraDir...]
-const extraDirs = process.argv.slice(2);
-exec(undefined, extraDirs).catch(console.error);
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
+  const extraDirs = process.argv.slice(2);
+  exec(undefined, extraDirs).catch(console.error);
+}
