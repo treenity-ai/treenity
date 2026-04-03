@@ -1,11 +1,30 @@
 import 'dotenv/config';
 import { type NodeData } from '#core';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { treenity } from './factory';
 
 // Lock CWD — no library may change it
 process.chdir = () => { throw new Error('process.chdir is forbidden'); };
+
+// Auto-generate schemas (typescript is a devDependency — available in dev via tsx)
+try {
+  const { exec } = await import('#schema/extract-schemas');
+  const coreDir = new URL('../..', import.meta.url).pathname;
+  const engineDir = new URL('../../..', import.meta.url).pathname;
+  await exec(join(coreDir, 'tsconfig.json'), [
+    join(engineDir, 'mods'),
+    join(engineDir, 'packages'),
+    resolve('mods'),
+  ]);
+} catch (err) {
+  const code = (err as Record<string, unknown>).code;
+  if (code === 'ERR_MODULE_NOT_FOUND') {
+    console.log('[schema] skipped (production mode)');
+  } else {
+    throw err;
+  }
+}
 
 const rootPath = resolve(process.argv[2] || 'root.json');
 console.log(`[boot] root: ${rootPath}`);
