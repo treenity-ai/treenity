@@ -20,6 +20,7 @@ import {
 import * as cache from './cache';
 import { tree } from './client';
 import { trpc } from './trpc';
+export { useNavigate, useBeforeNavigate } from './navigate';
 
 // ── usePath: universal reactive hook ──
 // URI mode:   usePath('/path#comp.field')      → derived value
@@ -329,9 +330,12 @@ function makeProxy<T extends object>(
       return (data?: unknown) => {
         if (!meta.noOptimistic) {
           const actionFn = resolve(type, `action:${prop}`, false);
-          if (actionFn) predictOptimistic(path, cls, key, actionFn, data);
+          if (actionFn) pushOptimistic(path, cls, key, actionFn, data);
         }
-        return trpc.execute.mutate({ path, type, key, action: prop, data });
+        return trpc.execute.mutate({ path, type, key, action: prop, data }).catch(err => {
+          rollback(path);
+          throw err;
+        });
       };
     },
   }) as TypeProxy<T>;

@@ -11,6 +11,7 @@ import { validateValue, type ValidationError } from '#comp/validate';
 import { type TypeSchema } from '#schema/types';
 import { type PatchOp, type Tree } from '#tree';
 import { createDraft, enablePatches, finishDraft, type Patch } from 'immer';
+import { createPathLock } from '#util/path-lock';
 import { OpError } from './errors';
 
 function validateActionArgs(type: string, action: string, data: unknown): void {
@@ -289,6 +290,8 @@ async function resolveActionHandler(
 // ── executeAction: mutating action with Immer draft + patch collection ──
 // Patches attached as $patches for subscription layer (CDC Matrix in sub.ts).
 // Pure actions (no state changes) skip persist — patches.length === 0.
+// Per-path lock prevents lost updates from concurrent mutations on the same node.
+const lockAction = createPathLock();
 
 export async function executeAction(
   tree: Tree,
@@ -299,6 +302,7 @@ export async function executeAction(
   data?: unknown,
   opts?: { userId?: string | null },
 ): Promise<unknown> {
+  return lockAction(path, async () => {
   const { node, handler, type, deps, fieldKey } = await resolveActionHandler(
     tree, path, componentType, componentKey, action,
   );
@@ -352,6 +356,7 @@ export async function executeAction(
     await tree.patch(node.$path, ops);
   }
   return result;
+  }); // lockAction
 }
 
 // ── executeStream: generator action — yields multiple values, no Immer draft ──
