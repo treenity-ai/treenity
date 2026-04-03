@@ -171,7 +171,7 @@ function discoverPackageClients(): string[] {
 // ── Plugin ──
 
 export default function treenityPlugin(opts?: { modsDirs?: string[] }): Plugin {
-  const engineRoot = resolve(import.meta.dirname, '../..');
+  const engineRoot = resolve(import.meta.dirname, '../../..');
   let conditions: string[] = [];
 
   return {

@@ -98,8 +98,10 @@ export async function deploySeedPrefabs(tree: Tree, filter?: string[]): Promise<
   const seeds = getSeedPrefabs();
 
   for (const [mod, prefab] of seeds) {
-    if (filter && !filter.includes(mod)) continue;
-    if (isTenant && prefab.meta?.tier !== 'core') continue;
+    const explicit = filter?.includes(mod);
+    if (filter && !explicit) continue;
+    // Tenant mode: only deploy core-tier seeds, unless explicitly listed in config
+    if (isTenant && !explicit && prefab.meta?.tier !== 'core') continue;
     const result = await deployNodes(tree, prefab, '/', { allowAbsolute: true, params: { tree } });
     if (result.deployed > 0) console.log(`[seed] ${mod}: deployed ${result.deployed}`);
   }

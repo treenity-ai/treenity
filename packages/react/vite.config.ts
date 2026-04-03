@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
-import treenityPlugin from './vite-plugin-treenity';
+import treenityPlugin from './src/vite-plugin-treenity';
 
 const projectRoot = process.env.INIT_CWD || process.cwd();
 const apiPort = process.env.VITE_API_PORT || '3211';
