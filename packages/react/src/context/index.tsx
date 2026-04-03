@@ -3,6 +3,7 @@
 // Depends on: core (resolve), React
 
 import { execute } from '#hooks';
+import { type OnChange, scopeOnChange } from '#on-change';
 import { $key, $node } from '#symbols';
 import {
   type ComponentData,
@@ -59,8 +60,6 @@ export function viewCtx(value: ComponentData): ViewCtx | null {
 
 // ── Handler type for React context ──
 // value is ComponentData (base type). NodeData IS ComponentData.
-
-import { type OnChange, scopeOnChange } from '#on-change';
 
 export type { OnChange };
 export { scopeOnChange };
@@ -137,14 +136,14 @@ export function Render({ value, onChange }: RenderProps) {
   let Handler = sync ?? async_;
 
   if (!Handler) {
-    if (hasMissResolver(ctx_)) {
-      resolve(type, ctx_);
-      return null;
-    }
+    if (hasMissResolver(ctx_)) resolve(type, ctx_);
     Handler = resolve(type, ctx_, false);
   }
 
-  if (!Handler) return null;
+  if (!Handler) {
+    console.warn(`[Render] no handler for ${type}@${ctx_}`);
+    return null;
+  }
 
   const ctx = viewCtx(value);
   const el = createElement(Handler, { value, onChange, ctx });

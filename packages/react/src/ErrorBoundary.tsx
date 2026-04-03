@@ -29,6 +29,10 @@ export class ErrorBoundary extends Component<Props, State> {
     return { error: e.message };
   }
 
+  componentDidCatch(error: Error, info: { componentStack?: string | null }) {
+    console.error('[ErrorBoundary]', error, info.componentStack);
+  }
+
   reset = () => this.setState({ error: null });
 
   render() {

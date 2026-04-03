@@ -2,9 +2,27 @@ import { intro, log, outro, spinner } from '@clack/prompts';
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { modCreate } from './mod-create';
 import { parseArgs, promptUser } from './prompts';
 import { scaffold } from './scaffold';
 
+// Route subcommands: `create-treenity mod create <name>`
+const sub = process.argv[2];
+if (sub === 'mod') {
+  const action = process.argv[3];
+  if (action !== 'create') {
+    log.error(`Unknown mod action "${action}". Usage: create-treenity mod create <name>`);
+    process.exit(1);
+  }
+  const yes = process.argv.includes('-y') || process.argv.includes('--yes');
+  const rest = process.argv.slice(4).filter(a => !a.startsWith('-'));
+  intro('create-treenity mod');
+  await modCreate(rest, yes);
+  outro('Done!');
+  process.exit(0);
+}
+
+// Default: project scaffolding
 const { name: rawName, yes, template } = parseArgs(process.argv)
 const name = rawName ? basename(rawName) : undefined
 

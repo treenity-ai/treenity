@@ -1,10 +1,8 @@
-import { getContextsForType, isComponent, type NodeData, resolve } from '@treenity/core';
+import { getComponents as getComps, getContextsForType, type NodeData, resolve } from '@treenity/core';
 import type { PropertySchema, TypeSchema } from '@treenity/core/schema/types';
 
 export function getComponents(node: NodeData): [string, Record<string, unknown>][] {
-  return Object.entries(node).filter(
-    ([k, v]) => !k.startsWith('$') && isComponent(v),
-  ) as [string, Record<string, unknown>][];
+  return getComps(node).slice(1);
 }
 
 export function getPlainFields(node: NodeData): Record<string, unknown> {

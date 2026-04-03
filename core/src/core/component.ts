@@ -116,7 +116,7 @@ export function getComponent<T = unknown>(
 
 export function getComponents<T = unknown>(
   node: NodeData,
-  type: TypeId<T>,
+  type: TypeId<T> = AnyType,
 ): [string, ComponentData<T>][] {
   const result: [string, ComponentData<T>][] = [];
   if (isOfType<T>(node, type)) result.push(['', node]);

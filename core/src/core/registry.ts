@@ -73,6 +73,7 @@ export function unregister(type: string, context: string): boolean {
   return deleted;
 }
 
+// TODO: fix, this is so slow. also rewrite usages, reorganize registry fully
 export function mapRegistry<T>(fn: (type: string, context: string) => T | undefined): T[] {
   const result: T[] = [];
   for (const k of registry.keys()) {

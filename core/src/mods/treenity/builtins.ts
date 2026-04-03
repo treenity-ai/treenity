@@ -4,7 +4,7 @@
 import { normalizeType, register } from '#core';
 
 const builtins = [
-  'dir', 'root', 'ref', 'user', 'type', 'mount-point', 'session',
+  'dir', 'root', 'ref', 'type', 'mount-point', 'session',
 ];
 
 export function registerBuiltins() {

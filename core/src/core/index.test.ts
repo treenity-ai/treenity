@@ -1,4 +1,5 @@
 import { assertSafePath, basename, dirname, isChildPath, join } from '#core/path';
+import { registerBuiltins } from '#mods/treenity/builtins';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
@@ -15,7 +16,6 @@ import {
   resolve,
   unregister,
 } from './index';
-import { registerBuiltins } from '#mods/treenity/builtins';
 
 const testTypes = ['test.doc', 'test.item', 'test.session', 'test.task'];
 
@@ -235,6 +235,38 @@ describe('Context', () => {
   it('render throws on missing handler', () => {
     clearRegistry();
     assert.throws(() => render({ $type: 'nope' }, 'react'));
+  });
+});
+
+describe('Context + missResolver fallback', () => {
+  it('resolve returns default handler when miss resolver exists but no exact match', () => {
+    clearRegistry();
+    const missed: string[] = [];
+    const { onResolveMiss } = require('#core');
+    onResolveMiss('test-miss', (type: string) => missed.push(type));
+    register('default', 'test-miss', () => 'fallback');
+
+    const handler = resolve('unknown.type', 'test-miss');
+    assert.equal(handler?.({} as any), 'fallback', 'should return default handler');
+    assert.deepEqual(missed, ['unknown.type'], 'should have triggered miss resolver');
+
+    unregister('default', 'test-miss');
+    onResolveMiss('test-miss', () => {});
+  });
+
+  it('resolve prefers exact match over default even with miss resolver', () => {
+    clearRegistry();
+    const { onResolveMiss } = require('#core');
+    onResolveMiss('test-miss2', () => {});
+    register('default', 'test-miss2', () => 'fallback');
+    register('exact.type', 'test-miss2', () => 'exact');
+
+    const handler = resolve('exact.type', 'test-miss2');
+    assert.equal(handler?.({} as any), 'exact', 'exact match wins');
+
+    unregister('default', 'test-miss2');
+    unregister('exact.type', 'test-miss2');
+    onResolveMiss('test-miss2', () => {});
   });
 });
 
