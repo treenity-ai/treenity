@@ -173,9 +173,18 @@ export async function loadMods(
 
 // ── Local mod loader (side-effect imports from src/mods/) ──
 
+// Convention files for auto-discovery when server.ts/client.ts is absent
+const SERVER_CONVENTION = ['types.ts', 'seed.ts', 'service.ts'];
+const CLIENT_CONVENTION = ['types.ts', 'view.tsx'];
+
+async function exists(path: string): Promise<boolean> {
+  try { await stat(path); return true; } catch { return false; }
+}
+
 export async function loadLocalMods(modsDir: string, target: LoadTarget): Promise<LoadResult> {
   const result: LoadResult = { loaded: [], failed: [] };
   const entryFile = target === 'server' ? 'server.ts' : 'client.ts';
+  const convention = target === 'server' ? SERVER_CONVENTION : CLIENT_CONVENTION;
   let entries: import('node:fs').Dirent[];
 
   try {
@@ -187,20 +196,34 @@ export async function loadLocalMods(modsDir: string, target: LoadTarget): Promis
   for (const entry of entries) {
     if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
 
-    const filePath = join(modsDir, entry.name, entryFile);
-    try { await stat(filePath); } catch { continue; }
+    const modDir = join(modsDir, entry.name);
+    const entryPath = join(modDir, entryFile);
+    const hasEntry = await exists(entryPath);
+
+    // Discover convention files if no explicit entry
+    const filesToImport: string[] = [];
+    if (hasEntry) {
+      filesToImport.push(entryPath);
+    } else {
+      for (const f of convention) {
+        const p = join(modDir, f);
+        if (await exists(p)) filesToImport.push(p);
+      }
+    }
+
+    if (filesToImport.length === 0) continue;
 
     const modEntry: LoadedMod = { name: entry.name, state: 'loading' };
     loaded.set(entry.name, modEntry);
 
     try {
       setCurrentMod(entry.name);
-      await import(filePath);
+      for (const f of filesToImport) await import(f);
       setCurrentMod(null);
       modEntry.state = 'loaded';
       modEntry.loadedAt = Date.now();
       result.loaded.push(entry.name);
-      loadSchemasFromDir(join(modsDir, entry.name, 'schemas'));
+      loadSchemasFromDir(join(modDir, 'schemas'));
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       modEntry.state = 'failed';

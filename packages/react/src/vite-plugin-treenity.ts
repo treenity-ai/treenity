@@ -118,15 +118,27 @@ const VIRTUAL_ID = 'virtual:mod-clients';
 const RESOLVED_ID = '\0' + VIRTUAL_ID;
 const SERVER_RE = /\/mods\/[^/]+\/server(\.ts)?$/;
 
-function scanClients(dir: string): string[] {
+const CLIENT_CONVENTION = ['types.ts', 'view.tsx'];
+
+type ModEntry = { name: string; files: string[] };
+
+function scanClients(dir: string): ModEntry[] {
   if (!existsSync(dir)) return [];
-  const clients: string[] = [];
+  const mods: ModEntry[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const client = resolve(dir, entry.name, 'client.ts');
-    if (existsSync(client)) clients.push(client);
+    const modDir = resolve(dir, entry.name);
+    const client = resolve(modDir, 'client.ts');
+    if (existsSync(client)) {
+      mods.push({ name: entry.name, files: [client] });
+    } else {
+      const files = CLIENT_CONVENTION
+        .map(f => resolve(modDir, f))
+        .filter(f => existsSync(f));
+      if (files.length) mods.push({ name: entry.name, files });
+    }
   }
-  return clients;
+  return mods;
 }
 
 // Scan node_modules for @treenity/* packages with treenity.clients field
@@ -230,18 +242,29 @@ export default function treenityPlugin(opts?: { modsDirs?: string[] }): Plugin {
       // 3. Extra mods dirs (passed explicitly from project vite config)
       const extraMods = (opts?.modsDirs ?? []).flatMap(d => scanClients(resolve(d)));
 
-      // Dedupe by realpath
+      // Dedupe by mod name (realpath of first file)
       const seen = new Set<string>();
-      const imports: string[] = [];
-      for (const p of [...pkgClients, ...engineMods, ...extraMods]) {
+      const allMods: ModEntry[] = [];
+
+      // pkgClients are plain paths (from npm packages) — wrap as ModEntry
+      for (const p of pkgClients) {
         const real = realpathSync(p);
-        if (!seen.has(real)) { seen.add(real); imports.push(p); }
+        if (!seen.has(real)) {
+          seen.add(real);
+          const name = p.match(/\/([^/]+)\/client\.ts$/)?.[1] ?? p.split('/').at(-2) ?? p;
+          allMods.push({ name, files: [p] });
+        }
+      }
+
+      for (const mod of [...engineMods, ...extraMods]) {
+        const real = realpathSync(mod.files[0]);
+        if (!seen.has(real)) { seen.add(real); allMods.push(mod); }
       }
 
       // Dynamic imports — each mod loads independently, failures don't crash the app
-      const lines = imports.map(p => {
-        const name = p.match(/\/([^/]+)\/client\.ts$/)?.[1] ?? p.split('/').at(-2) ?? p;
-        return `  loadMod('${name}', () => import('${p}'))`;
+      const lines = allMods.map(mod => {
+        const imports = mod.files.map(f => `import('${f}')`).join(', ');
+        return `  loadMod('${mod.name}', async () => { await Promise.all([${imports}]); })`;
       });
 
       return [
