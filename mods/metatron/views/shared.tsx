@@ -1,4 +1,4 @@
-import { cn } from '@treenity/react/lib/utils';
+import { cn } from '@treenity/react';
 import dayjs from 'dayjs';
 
 // ── Design tokens ──

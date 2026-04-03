@@ -2,10 +2,10 @@
 
 import { MetatronConfig } from '#metatron/types';
 import { getComponent, register } from '@treenity/core';
-import { Render, RenderContext, type View } from '@treenity/react/context';
-import { execute, useChildren, useNavigate, usePath } from '@treenity/react/hooks';
-import { minimd } from '@treenity/react/lib/minimd';
-import { cn } from '@treenity/react/lib/utils';
+import { Render, RenderContext, type View } from '@treenity/react';
+import { execute, useChildren, useNavigate, usePath } from '@treenity/react';
+import { minimd } from '@treenity/react';
+import { cn } from '@treenity/react';
 import { useMemo, useState } from 'react';
 import { AiApproval, type AgentStatus, AiAgent, AiApprovals, AiPlan, AiPool, AiThread } from './types';
 

@@ -2,8 +2,8 @@
 // Turns raw JSX/TSX code string into a React component
 
 import { register } from '#core';
-import { Render, RenderContext, RenderField, viewCtx } from '@treenity/react/context';
-import { execute, useChildren, usePath } from '@treenity/react/hooks';
+import { Render, RenderContext, RenderField, viewCtx } from '@treenity/react';
+import { execute, useChildren, usePath } from '@treenity/react';
 import React from 'react';
 import { compileJSX } from './jsx-parser';
 

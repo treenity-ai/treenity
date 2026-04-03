@@ -107,7 +107,7 @@ registerPrefab('${name}', 'seed', [
 `);
 
   writeFileSync(join(modDir, 'view.tsx'),
-`import { view } from '@treenity/react/view';
+`import { view } from '@treenity/react';
 import { ${cls} } from './types';
 
 view(${cls}, ({ value }) => (

@@ -1,6 +1,6 @@
 import { register } from '#core';
-import { useCurrentNode } from '@treenity/react/context';
-import { useChildren } from '@treenity/react/hooks';
+import { useCurrentNode } from '@treenity/react';
+import { useChildren } from '@treenity/react';
 
 register('ticker', 'react', () => {
   const node = useCurrentNode();

@@ -4,9 +4,9 @@
 // ItemView: description card
 
 import { getComponent, type NodeData, register } from '@treenity/core';
-import { useCurrentNode } from '@treenity/react/context';
-import { useChildren } from '@treenity/react/hooks';
-import { trpc } from '@treenity/react/trpc';
+import { useCurrentNode } from '@treenity/react';
+import { useChildren } from '@treenity/react';
+import { trpc } from '@treenity/react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   type EventEntry,

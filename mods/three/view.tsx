@@ -5,9 +5,9 @@ import { Billboard, OrbitControls, Text, Trail } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { getComponent, type NodeData, register } from '@treenity/core';
 import { useResolvedNode } from '@treenity/react/bind/hook';
-import * as cache from '@treenity/react/cache';
-import { useCurrentNode } from '@treenity/react/context';
-import { execute, useChildren, usePath } from '@treenity/react/hooks';
+import { cache } from '@treenity/react';
+import { useCurrentNode } from '@treenity/react';
+import { execute, useChildren, usePath } from '@treenity/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import {

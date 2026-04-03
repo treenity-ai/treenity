@@ -1,7 +1,7 @@
 // Mind map sidebar — shows selected node details
 // Lightweight panel: path, type, components, fields, actions
 
-import { execute, usePath } from '@treenity/react/hooks';
+import { execute, usePath } from '@treenity/react';
 import { getActions, getComponents, getPlainFields, getSchema } from '@treenity/react/mods/editor-ui/node-utils';
 import { Button } from '@treenity/react/ui/button';
 

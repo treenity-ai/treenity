@@ -2,7 +2,7 @@
 // Each instance calls useChildren when expanded, parent draws curves
 
 import type { NodeData } from '@treenity/core';
-import { useChildren } from '@treenity/react/hooks';
+import { useChildren } from '@treenity/react';
 import { createContext, useContext, useEffect, useRef } from 'react';
 
 export type EditingAt = {

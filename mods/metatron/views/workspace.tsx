@@ -1,7 +1,7 @@
 import { register } from '@treenity/core';
-import { Render, type View } from '@treenity/react/context';
-import { execute, useChildren, usePath } from '@treenity/react/hooks';
-import { cn } from '@treenity/react/lib/utils';
+import { Render, type View } from '@treenity/react';
+import { execute, useChildren, usePath } from '@treenity/react';
+import { cn } from '@treenity/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { MetatronWorkspace } from '../types';

@@ -2,8 +2,8 @@
 
 import type { NodeData } from '@treenity/core';
 import { Badge } from '@treenity/react/components/ui/badge';
-import { Render, RenderContext } from '@treenity/react/context';
-import { useChildren } from '@treenity/react/hooks';
+import { Render, RenderContext } from '@treenity/react';
+import { useChildren } from '@treenity/react';
 import { Bot } from 'lucide-react';
 import type { BotConfig } from '../types';
 

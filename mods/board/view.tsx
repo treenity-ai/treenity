@@ -15,11 +15,11 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { type ComponentData, type NodeData, register } from '@treenity/core';
-import { Render, RenderContext, type View } from '@treenity/react/context';
-import { set, useChildren, useNavigate, usePath } from '@treenity/react/hooks';
-import { minimd } from '@treenity/react/lib/minimd';
-import { cn } from '@treenity/react/lib/utils';
-import { trpc } from '@treenity/react/trpc';
+import { Render, RenderContext, type View } from '@treenity/react';
+import { set, useChildren, useNavigate, usePath } from '@treenity/react';
+import { minimd } from '@treenity/react';
+import { cn } from '@treenity/react';
+import { trpc } from '@treenity/react';
 import { Button } from '@treenity/react/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@treenity/react/ui/dialog';
 import { FormField } from '@treenity/react/ui/form-field';

@@ -1,6 +1,6 @@
-import { useNavigate } from '@treenity/react/hooks';
-import { minimd } from '@treenity/react/lib/minimd';
-import { cn } from '@treenity/react/lib/utils';
+import { useNavigate } from '@treenity/react';
+import { minimd } from '@treenity/react';
+import { cn } from '@treenity/react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 // ── Structured log parser ──

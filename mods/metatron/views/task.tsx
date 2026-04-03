@@ -1,7 +1,7 @@
 import { register } from '@treenity/core';
-import { type View } from '@treenity/react/context';
-import { execute } from '@treenity/react/hooks';
-import { cn } from '@treenity/react/lib/utils';
+import { type View } from '@treenity/react';
+import { execute } from '@treenity/react';
+import { cn } from '@treenity/react';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { MetatronTask } from '../types';

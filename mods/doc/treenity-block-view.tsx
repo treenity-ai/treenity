@@ -1,8 +1,8 @@
 import { NodeViewWrapper } from '@tiptap/react';
 import { getContextsForType } from '@treenity/core';
 import { getRegistryVersion, subscribeRegistry } from '@treenity/core/core/registry';
-import { Render, RenderContext } from '@treenity/react/context';
-import { usePath } from '@treenity/react/hooks';
+import { Render, RenderContext } from '@treenity/react';
+import { usePath } from '@treenity/react';
 import { useSyncExternalStore } from 'react';
 
 export function TreenityBlockView({ node, updateAttributes, deleteNode, editor }: any) {

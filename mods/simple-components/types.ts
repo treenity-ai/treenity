@@ -19,8 +19,6 @@ export class TChecklist {
   async toggle(data: { /** Item id */ id: number }) {
     const item = this.items.find(i => i.id === data.id);
     if (!item) throw new Error('invalid id');
-    if (typeof window === 'undefined')
-      await new Promise(res => setTimeout(res, 1000));
     item.done = !item.done;
   }
 

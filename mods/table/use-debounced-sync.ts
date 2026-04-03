@@ -1,5 +1,5 @@
 import { AnyType, getComponent, type NodeData } from '@treenity/core';
-import { set } from '@treenity/react/hooks';
+import { set } from '@treenity/react';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 

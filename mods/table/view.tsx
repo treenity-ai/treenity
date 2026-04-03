@@ -1,7 +1,7 @@
 import { type ComponentData, isComponent, type NodeData, register } from '@treenity/core';
 import type { TypeSchema } from '@treenity/core/schema/types';
-import { Render, RenderContext, type ViewCtx } from '@treenity/react/context';
-import { useChildren } from '@treenity/react/hooks';
+import { Render, RenderContext, type ViewCtx } from '@treenity/react';
+import { useChildren } from '@treenity/react';
 import { useSchema } from '@treenity/react/schema-loader';
 import { Button } from '@treenity/react/ui/button';
 import { Input } from '@treenity/react/ui/input';

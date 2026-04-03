@@ -3,9 +3,9 @@
 
 import type { NodeData } from '@treenity/core';
 import { register } from '@treenity/core';
-import type { View } from '@treenity/react/context';
-import { useChildren } from '@treenity/react/hooks';
-import { trpc } from '@treenity/react/trpc';
+import type { View } from '@treenity/react';
+import { useChildren } from '@treenity/react';
+import { trpc } from '@treenity/react';
 import { select } from 'd3-selection';
 import 'd3-transition';
 import { zoom as d3zoom, type ZoomBehavior, zoomIdentity } from 'd3-zoom';

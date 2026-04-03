@@ -1,5 +1,5 @@
 import { type NodeData, register } from '@treenity/core';
-import { useChildren, usePath } from '@treenity/react/hooks';
+import { useChildren, usePath } from '@treenity/react';
 import { Button } from '@treenity/react/ui/button';
 import { Input } from '@treenity/react/ui/input';
 import { useState } from 'react';

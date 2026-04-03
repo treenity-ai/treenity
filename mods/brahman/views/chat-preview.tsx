@@ -2,7 +2,7 @@
 // Registered as react:chat for brahman.page
 
 import type { NodeData } from '@treenity/core';
-import { useChildren, usePath } from '@treenity/react/hooks';
+import { useChildren, usePath } from '@treenity/react';
 import { Camera, File, Mic, Video } from 'lucide-react';
 import type { MenuRow, MenuType, TString } from '../types';
 import { actionIcon, actionSummary } from './action-cards';

@@ -4,7 +4,7 @@
 import { Button } from '@treenity/react/components/ui/button';
 import { Input } from '@treenity/react/components/ui/input';
 import { Textarea } from '@treenity/react/components/ui/textarea';
-import { cn } from '@treenity/react/lib/utils';
+import { cn } from '@treenity/react';
 import { useState } from 'react';
 import type { TString } from '../types';
 

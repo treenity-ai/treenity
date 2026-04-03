@@ -18,7 +18,7 @@ import { Button } from '@treenity/react/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@treenity/react/components/ui/dialog';
 import { Input } from '@treenity/react/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@treenity/react/components/ui/select';
-import { trpc } from '@treenity/react/trpc';
+import { trpc } from '@treenity/react';
 import { ArrowRight, Plus, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { ACTION_TYPES, MENU_TYPES, type MenuButton, type MenuRow, type MenuType, type TString } from '../types';

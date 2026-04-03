@@ -3,9 +3,7 @@
 
 import { onResolveMiss, register, unregister } from '#core';
 import { createInflight } from '#tree/inflight';
-import * as cache from '@treenity/react/cache';
-import { tree } from '@treenity/react/client';
-import { UixNoView } from '@treenity/react/context';
+import { cache, tree, UixNoView } from '@treenity/react';
 import React from 'react';
 import { compileComponent, invalidateCache } from './compile';
 

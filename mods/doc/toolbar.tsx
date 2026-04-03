@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react';
-import { cn } from '@treenity/react/lib/utils';
+import { cn } from '@treenity/react';
 import { Button } from '@treenity/react/ui/button';
 import {
   Bold,

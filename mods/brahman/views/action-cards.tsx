@@ -7,8 +7,8 @@ import { Checkbox } from '@treenity/react/components/ui/checkbox';
 import { Input } from '@treenity/react/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@treenity/react/components/ui/select';
 import { Textarea } from '@treenity/react/components/ui/textarea';
-import { set, usePath } from '@treenity/react/hooks';
-import { trpc } from '@treenity/react/trpc';
+import { set, usePath } from '@treenity/react';
+import { trpc } from '@treenity/react';
 import {
   AlertTriangle,
   ArrowLeft,

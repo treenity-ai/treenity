@@ -1,7 +1,7 @@
 import { register } from '@treenity/core';
-import { type View } from '@treenity/react/context';
-import { execute, set, useChildren, useNavigate } from '@treenity/react/hooks';
-import { cn } from '@treenity/react/lib/utils';
+import { type View } from '@treenity/react';
+import { execute, set, useChildren, useNavigate } from '@treenity/react';
+import { cn } from '@treenity/react';
 import { useCallback, useState } from 'react';
 
 import type { MetatronConfig } from '../types';
@@ -20,7 +20,7 @@ function PermissionManager({ configPath }: { configPath: string }) {
 
   const handleAdd = useCallback(async () => {
     if (!tool.trim()) return;
-    const trpc = (await import('@treenity/react/trpc')).trpc;
+    const trpc = (await import('@treenity/react')).trpc;
     const { createNode } = await import('@treenity/core');
     const id = `rule-${Date.now()}`;
     const path = `${configPath}/permissions/${id}`;
@@ -34,7 +34,7 @@ function PermissionManager({ configPath }: { configPath: string }) {
   }, [tool, policy, configPath]);
 
   const handleRemove = useCallback(async (path: string) => {
-    const trpc = (await import('@treenity/react/trpc')).trpc;
+    const trpc = (await import('@treenity/react')).trpc;
     await trpc.remove.mutate({ path });
   }, []);
 
@@ -243,7 +243,7 @@ const ConfigView: View<MetatronConfig> = ({ value, ctx }) => {
   const handleNewWorkspace = useCallback(async () => {
     const name = window.prompt('Workspace name:');
     if (!name?.trim()) return;
-    const trpc = (await import('@treenity/react/trpc')).trpc;
+    const trpc = (await import('@treenity/react')).trpc;
     const { createNode } = await import('@treenity/core');
     const id = `ws-${Date.now()}`;
     const wsPath = `${path}/workspaces/${id}`;
