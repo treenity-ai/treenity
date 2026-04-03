@@ -1,12 +1,15 @@
 {
-  "$id": "brahman.action.resethistory",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Reset history — clear page navigation stack",
   "properties": {},
   "methods": {
     "run": {
-      "arguments": []
+      "arguments": [
+        {
+          "name": "bCtx"
+        }
+      ]
     }
-  }
+  },
+  "$id": "brahman.action.resethistory",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

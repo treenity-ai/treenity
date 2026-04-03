@@ -5,28 +5,24 @@
   "properties": {},
   "methods": {
     "start": {
-      "arguments": [],
-      "description": "Start the simulation"
+      "arguments": []
     },
     "stop": {
-      "arguments": [],
-      "description": "Stop the simulation"
+      "arguments": []
     },
     "set-config": {
       "arguments": [
         {
           "name": "params"
         }
-      ],
-      "description": "Update simulation settings"
+      ]
     },
     "add-entity": {
       "arguments": [
         {
           "name": "params"
         }
-      ],
-      "description": "Add agent or item to the world"
+      ]
     }
   }
 }

@@ -1,8 +1,5 @@
 {
-  "$id": "board.task",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Task card — status-driven workflow with assignment and priority",
   "properties": {
     "title": {
       "type": "string",
@@ -83,23 +80,13 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "result": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "Result notes"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "result": {
+              "type": "string",
+              "title": "Result notes"
             }
-          ]
+          }
         }
       ]
     },
@@ -112,23 +99,13 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "reason": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "Reason for rejection"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "title": "Reason for rejection"
             }
-          ]
+          }
         }
       ]
     },
@@ -154,5 +131,7 @@
       "description": "Reopen task — reset to backlog",
       "arguments": []
     }
-  }
+  },
+  "$id": "board.task",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

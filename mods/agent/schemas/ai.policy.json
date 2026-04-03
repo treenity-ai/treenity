@@ -1,8 +1,5 @@
 {
-  "$id": "ai.policy",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Persistent tool policy — lives on agent (per-agent) or /agents/guardian (global)",
   "properties": {
     "allow": {
       "type": "array",
@@ -104,5 +101,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "ai.policy",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

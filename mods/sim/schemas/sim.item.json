@@ -5,16 +5,14 @@
   "properties": {},
   "methods": {
     "examine": {
-      "arguments": [],
-      "description": "Look at the item closely"
+      "arguments": []
     },
     "use": {
       "arguments": [
         {
           "name": "params"
         }
-      ],
-      "description": "Interact with the item"
+      ]
     }
   }
 }

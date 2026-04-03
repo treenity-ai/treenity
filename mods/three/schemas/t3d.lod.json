@@ -1,8 +1,5 @@
 {
-  "$id": "t3d.lod",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D LOD — level of detail",
   "properties": {
     "d0": {
       "type": "number",
@@ -24,5 +21,7 @@
     "d0",
     "d1",
     "d2"
-  ]
+  ],
+  "$id": "t3d.lod",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

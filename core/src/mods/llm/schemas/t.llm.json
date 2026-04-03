@@ -5,16 +5,10 @@
   "properties": {},
   "methods": {
     "schema": {
-      "arguments": [],
-      "description": "Export all registered types with schemas, contexts, and actions for LLM consumption"
+      "arguments": []
     },
     "describe": {
-      "arguments": [
-        {
-          "name": "data"
-        }
-      ],
-      "description": "Describe the subtree under this node as indented text (depth-limited)"
+      "arguments": []
     }
   }
 }

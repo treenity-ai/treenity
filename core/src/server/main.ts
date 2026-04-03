@@ -7,12 +7,13 @@ import { treenity } from './factory';
 // Lock CWD — no library may change it
 process.chdir = () => { throw new Error('process.chdir is forbidden'); };
 
-// Auto-generate schemas (typescript is a devDependency — available in dev via tsx)
+// Auto-generate schemas (oxc-parser is a devDependency — available in dev via tsx)
 try {
-  const { exec } = await import('#schema/extract-schemas');
+  const { generateSchemas } = await import('#schema/extract-schemas-oxc');
   const coreDir = new URL('../..', import.meta.url).pathname;
   const engineDir = new URL('../../..', import.meta.url).pathname;
-  await exec(join(coreDir, 'tsconfig.json'), [
+  await generateSchemas([
+    join(coreDir, 'src'),
     join(engineDir, 'mods'),
     join(engineDir, 'packages'),
     resolve('mods'),

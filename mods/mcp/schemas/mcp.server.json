@@ -1,6 +1,4 @@
 {
-  "$id": "mcp.server",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "port": {
@@ -16,5 +14,7 @@
   "required": [
     "port",
     "host"
-  ]
+  ],
+  "$id": "mcp.server",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

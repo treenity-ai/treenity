@@ -1,13 +1,9 @@
 {
-  "$id": "brahman.action.call",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Call tree action — execute any Treenity action from bot flow",
   "properties": {
     "path": {
       "type": "string",
-      "title": "Node path",
-      "description": "Template with {session.vars}",
+      "title": "Node path @description Template with {session.vars}",
       "default": ""
     },
     "action": {
@@ -17,27 +13,22 @@
     },
     "type": {
       "type": "string",
-      "title": "Component type",
-      "description": "Optional $type for resolution",
+      "title": "Component type @description Optional $type for resolution",
       "default": ""
     },
     "key": {
       "type": "string",
-      "title": "Component key",
-      "description": "Optional named component key",
+      "title": "Component key @description Optional named component key",
       "default": ""
     },
     "dataExpr": {
       "type": "string",
-      "title": "Input data",
-      "format": "textarea",
-      "description": "JSON template",
+      "title": "Input data @format textarea @description JSON template",
       "default": "{}"
     },
     "saveTo": {
       "type": "string",
-      "title": "Save result to",
-      "description": "Session key for result",
+      "title": "Save result to @description Session key for result",
       "default": ""
     }
   },
@@ -51,7 +42,13 @@
   ],
   "methods": {
     "run": {
-      "arguments": []
+      "arguments": [
+        {
+          "name": "bCtx"
+        }
+      ]
     }
-  }
+  },
+  "$id": "brahman.action.call",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

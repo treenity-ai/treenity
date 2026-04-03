@@ -1,8 +1,5 @@
 {
-  "$id": "t3d.animator",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D Animator — animation state",
   "properties": {
     "src": {
       "type": "string",
@@ -42,5 +39,7 @@
     "loop",
     "speed",
     "crossfadeDuration"
-  ]
+  ],
+  "$id": "t3d.animator",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

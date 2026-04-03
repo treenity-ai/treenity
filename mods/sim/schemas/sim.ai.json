@@ -1,8 +1,5 @@
 {
-  "$id": "sim.ai",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Agent AI config — system prompt and model override",
   "properties": {
     "systemPrompt": {
       "type": "string",
@@ -10,15 +7,12 @@
       "default": ""
     },
     "model": {
-      "anyOf": [
-        {},
-        {
-          "type": "string"
-        }
-      ]
+      "type": "string"
     }
   },
   "required": [
     "systemPrompt"
-  ]
+  ],
+  "$id": "sim.ai",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

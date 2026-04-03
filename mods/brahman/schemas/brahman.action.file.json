@@ -1,8 +1,5 @@
 {
-  "$id": "brahman.action.file",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Send file — deliver photo/document/video/audio to chat",
   "properties": {
     "fileId": {
       "type": "string",
@@ -11,8 +8,7 @@
     },
     "asType": {
       "type": "string",
-      "title": "Override type",
-      "description": "photo, document, video, audio, voice",
+      "title": "Override type @description photo, document, video, audio, voice",
       "default": ""
     }
   },
@@ -22,7 +18,13 @@
   ],
   "methods": {
     "run": {
-      "arguments": []
+      "arguments": [
+        {
+          "name": "bCtx"
+        }
+      ]
     }
-  }
+  },
+  "$id": "brahman.action.file",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

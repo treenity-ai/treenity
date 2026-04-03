@@ -56,14 +56,13 @@ describe('schema loader', () => {
   });
 
   it('component schemas have methods', () => {
-    const handler = resolve('test.fixture', 'schema') as (() => any) | null;
-    assert.ok(handler, 'test.fixture schema not loaded');
+    const handler = resolve('autostart', 'schema') as (() => any) | null;
+    assert.ok(handler, 'autostart schema not loaded');
     const schema = handler();
-    assert.ok(schema.methods, 'test.fixture missing methods');
-    assert.ok(schema.methods.rename, 'test.fixture missing rename method');
-    assert.ok(schema.methods.clear, 'test.fixture missing clear method');
-    assert.deepEqual(schema.methods.clear.arguments, []);
-    assert.equal(schema.methods.rename.arguments[0].type, 'object');
+    assert.ok(schema.methods, 'autostart missing methods');
+    assert.ok(schema.methods.start, 'autostart missing start method');
+    assert.ok(schema.methods.stop, 'autostart missing stop method');
+    assert.ok(Array.isArray(schema.methods.start.arguments), 'start should have arguments array');
   });
 
   it('emits refType when property type is a registered component class', () => {

@@ -1,8 +1,5 @@
 {
-  "$id": "ui.table",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Table view — paginates children, auto-columns from schema, per-column filters",
   "properties": {
     "displayType": {
       "type": "string",
@@ -33,6 +30,7 @@
       "default": "asc"
     },
     "columns": {
+      "type": "object",
       "default": {}
     }
   },
@@ -44,5 +42,7 @@
     "sort",
     "sortDir",
     "columns"
-  ]
+  ],
+  "$id": "ui.table",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

@@ -1,43 +1,34 @@
 {
-  "$id": "brahman.bot",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Telegram bot instance — token, proxy, language, maintenance",
   "properties": {
     "token": {
       "type": "string",
-      "title": "Token",
-      "description": "Telegram bot token",
+      "title": "Token @description Telegram bot token",
       "default": ""
     },
     "proxy": {
       "type": "string",
-      "title": "Proxy",
-      "description": "SOCKS proxy URL",
+      "title": "Proxy @description SOCKS proxy URL",
       "default": ""
     },
     "alias": {
       "type": "string",
-      "title": "Alias",
-      "description": "Bot username",
+      "title": "Alias @description Bot username",
       "default": ""
     },
     "name": {
       "type": "string",
-      "title": "Name",
-      "description": "Display name",
+      "title": "Name @description Display name",
       "default": ""
     },
     "langs": {
       "type": "string",
-      "title": "Langs",
-      "description": "Comma-separated: ru,en,de,uz",
+      "title": "Langs @description Comma-separated: ru,en,de,uz",
       "default": "ru,en"
     },
     "maintenance": {
       "type": "string",
-      "title": "Maintenance",
-      "description": "Non-empty = paused",
+      "title": "Maintenance @description Non-empty = paused",
       "default": ""
     },
     "running": {
@@ -55,14 +46,14 @@
     "maintenance",
     "running"
   ],
+  "$id": "brahman.bot",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "methods": {
     "start": {
-      "arguments": [],
-      "description": "Start the Telegram bot polling loop via autostart service"
+      "arguments": []
     },
     "stop": {
-      "arguments": [],
-      "description": "Stop the Telegram bot polling loop via autostart service"
+      "arguments": []
     }
   }
 }

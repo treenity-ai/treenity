@@ -1,8 +1,5 @@
 {
-  "$id": "ai.assignment",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "AI workflow on a board.task — routing + discussion cursor",
   "properties": {
     "origin": {
       "type": "string",
@@ -18,6 +15,7 @@
       "default": []
     },
     "cursors": {
+      "type": "object",
       "title": "agentPath → last read message index (don't re-send old messages)",
       "default": {}
     }
@@ -26,5 +24,7 @@
     "origin",
     "nextRoles",
     "cursors"
-  ]
+  ],
+  "$id": "ai.assignment",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

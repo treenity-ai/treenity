@@ -1,8 +1,5 @@
 {
-  "$id": "autostart",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Service lifecycle manager — start/stop services via ref children",
   "properties": {},
   "methods": {
     "start": {
@@ -40,5 +37,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "autostart",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

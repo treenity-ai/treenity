@@ -1,6 +1,4 @@
 {
-  "$id": "t.mount.rawfs",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "root": {
@@ -15,5 +13,7 @@
   "required": [
     "root",
     "shared"
-  ]
+  ],
+  "$id": "t.mount.rawfs",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

@@ -1,8 +1,5 @@
 {
-  "$id": "t3d.trail",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D Trail — trail renderer behind moving objects",
   "properties": {
     "width": {
       "type": "number",
@@ -41,5 +38,7 @@
     "colorStart",
     "colorEnd",
     "attenuation"
-  ]
+  ],
+  "$id": "t3d.trail",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

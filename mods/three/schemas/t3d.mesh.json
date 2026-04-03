@@ -1,8 +1,5 @@
 {
-  "$id": "t3d.mesh",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D Mesh — geometry shape",
   "properties": {
     "geometry": {
       "type": "string",
@@ -61,5 +58,7 @@
     "segments",
     "castShadow",
     "receiveShadow"
-  ]
+  ],
+  "$id": "t3d.mesh",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

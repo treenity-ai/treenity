@@ -1,8 +1,5 @@
 {
-  "$id": "sim.position",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Agent 2D map position and interaction radius",
   "properties": {
     "x": {
       "type": "number",
@@ -21,5 +18,7 @@
     "x",
     "y",
     "radius"
-  ]
+  ],
+  "$id": "sim.position",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

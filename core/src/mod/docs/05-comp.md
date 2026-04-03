@@ -107,5 +107,5 @@ class BlockHero {
 }
 
 registerComp('block.hero', BlockHero);
-// npm run schema → dist/schema/block.hero.json
+// schemas auto-generate on dev startup (npm run schema for CI)
 ```

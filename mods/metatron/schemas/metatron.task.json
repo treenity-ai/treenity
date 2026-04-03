@@ -1,8 +1,5 @@
 {
-  "$id": "metatron.task",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "AI task — prompt with status and result of LLM execution",
   "properties": {
     "prompt": {
       "type": "string",
@@ -102,15 +99,9 @@
             "atIndex"
           ]
         }
-      ],
-      "return": {
-        "type": "object",
-        "properties": {
-          "taskPath": {
-            "type": "string"
-          }
-        }
-      }
+      ]
     }
-  }
+  },
+  "$id": "metatron.task",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

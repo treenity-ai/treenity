@@ -1,6 +1,4 @@
 {
-  "$id": "simple.estimate",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "value": {
@@ -34,11 +32,11 @@
               "title": "Numeric value"
             },
             "unit": {
-              "anyOf": [
-                {},
-                {},
-                {},
-                {}
+              "type": "string",
+              "enum": [
+                "hours",
+                "points",
+                "days"
               ],
               "title": "Unit"
             }
@@ -49,5 +47,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "simple.estimate",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

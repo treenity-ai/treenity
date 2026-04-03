@@ -1,6 +1,4 @@
 {
-  "$id": "ai.approval",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "agentPath": {
@@ -58,22 +56,17 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "remember": {
-                  "anyOf": [
-                    {},
-                    {},
-                    {}
-                  ],
-                  "title": "Remember this decision for future calls"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "remember": {
+              "type": "string",
+              "enum": [
+                "agent",
+                "global"
+              ],
+              "title": "Remember this decision for future calls"
             }
-          ]
+          }
         }
       ]
     },
@@ -82,24 +75,21 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "remember": {
-                  "anyOf": [
-                    {},
-                    {},
-                    {}
-                  ],
-                  "title": "Remember this decision for future calls"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "remember": {
+              "type": "string",
+              "enum": [
+                "agent",
+                "global"
+              ],
+              "title": "Remember this decision for future calls"
             }
-          ]
+          }
         }
       ]
     }
-  }
+  },
+  "$id": "ai.approval",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

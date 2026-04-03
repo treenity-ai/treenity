@@ -1,6 +1,4 @@
 {
-  "$id": "t.agent.port",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "label": {
@@ -24,31 +22,8 @@
       "title": "Connected",
       "default": false
     },
-    "pendingKey": {
-      "anyOf": [
-        {},
-        {
-          "type": "string"
-        }
-      ],
-      "title": "@hidden"
-    },
-    "approvedKey": {
-      "anyOf": [
-        {},
-        {
-          "type": "string"
-        }
-      ],
-      "title": "@hidden"
-    },
     "connectedAt": {
-      "anyOf": [
-        {},
-        {
-          "type": "number"
-        }
-      ],
+      "type": "number",
       "title": "Connected At"
     }
   },
@@ -70,5 +45,7 @@
       "title": "Reset to idle — allows re-pairing with a different agent",
       "arguments": []
     }
-  }
+  },
+  "$id": "t.agent.port",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

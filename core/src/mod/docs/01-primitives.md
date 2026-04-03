@@ -28,7 +28,7 @@ src/mods/my-mod/
 ## Dev workflow
 
 ```bash
-npm run schema        # извлечь JSON Schema из JSDoc → dist/schema/
+npm run schema        # извлечь JSON Schema (auto на dev startup, вручную для CI)
 npm test              # tsx --test src/**/*.test.ts
 npm run dev:server    # tsx --watch src/server/index.ts (порт 3001)
 npm run dev:front     # vite (React-фронт)

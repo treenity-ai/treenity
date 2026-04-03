@@ -9,8 +9,7 @@
         {
           "name": "data"
         }
-      ],
-      "description": "Stream N sensor readings as a generator, persisting each as a child node"
+      ]
     }
   }
 }

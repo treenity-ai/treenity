@@ -1,6 +1,4 @@
 {
-  "$id": "cafe.mail",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "title": "Mail delivery settings",
   "properties": {
@@ -16,8 +14,7 @@
     },
     "from": {
       "type": "string",
-      "title": "Sender address",
-      "format": "email",
+      "title": "Sender address @format email",
       "default": ""
     }
   },
@@ -25,5 +22,7 @@
     "host",
     "port",
     "from"
-  ]
+  ],
+  "$id": "cafe.mail",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

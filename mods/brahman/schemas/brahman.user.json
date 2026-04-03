@@ -1,8 +1,5 @@
 {
-  "$id": "brahman.user",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Bot user profile — Telegram identity, language, tags, ban status",
   "properties": {
     "tid": {
       "type": "number",
@@ -55,5 +52,7 @@
     "blocked",
     "banned",
     "tags"
-  ]
+  ],
+  "$id": "brahman.user",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

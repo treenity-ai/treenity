@@ -1,6 +1,4 @@
 {
-  "$id": "todo.list",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "title": {
@@ -29,5 +27,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "todo.list",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

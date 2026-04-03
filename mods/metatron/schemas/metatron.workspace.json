@@ -1,8 +1,5 @@
 {
-  "$id": "metatron.workspace",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Multi-task workspace — side-by-side columns of conversations",
   "properties": {
     "name": {
       "type": "string",
@@ -57,5 +54,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "metatron.workspace",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

@@ -1,13 +1,10 @@
 {
-  "$id": "cafe.contact",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "title": "Contact form use case — receives form submissions, logs them",
   "properties": {
     "recipient": {
       "type": "string",
-      "title": "Recipient",
-      "format": "email",
+      "title": "Recipient @format email",
       "default": ""
     },
     "mailService": {
@@ -52,5 +49,7 @@
         }
       ]
     }
-  }
+  },
+  "$id": "cafe.contact",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

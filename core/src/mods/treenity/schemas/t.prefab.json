@@ -1,6 +1,4 @@
 {
-  "$id": "t.prefab",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "mod": {
@@ -29,11 +27,7 @@
               "title": "Target path where nodes will be created, e.g. \"/\" or \"/my/site\""
             },
             "allowAbsolute": {
-              "anyOf": [
-                {},
-                {},
-                {}
-              ],
+              "type": "boolean",
               "title": "Allow writing outside target (e.g. /sys/autostart refs)"
             }
           },
@@ -41,22 +35,9 @@
             "target"
           ]
         }
-      ],
-      "return": {
-        "type": "object",
-        "properties": {
-          "deployed": {
-            "type": "number"
-          },
-          "skipped": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "deployed",
-          "skipped"
-        ]
-      }
+      ]
     }
-  }
+  },
+  "$id": "t.prefab",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

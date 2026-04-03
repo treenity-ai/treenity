@@ -1,8 +1,5 @@
 {
-  "$id": "t3d.light",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D Light — light source",
   "properties": {
     "kind": {
       "type": "string",
@@ -86,5 +83,7 @@
     "shadowMapSize",
     "rectWidth",
     "rectHeight"
-  ]
+  ],
+  "$id": "t3d.light",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

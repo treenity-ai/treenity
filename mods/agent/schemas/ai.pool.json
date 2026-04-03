@@ -1,8 +1,5 @@
 {
-  "$id": "ai.pool",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Concurrency pool — lives on /agents node",
   "properties": {
     "maxConcurrent": {
       "type": "number",
@@ -30,10 +27,11 @@
     "active",
     "queue"
   ],
+  "$id": "ai.pool",
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "methods": {
     "scan": {
-      "arguments": [],
-      "description": "Trigger inbox scan for pending tasks"
+      "arguments": []
     }
   }
 }

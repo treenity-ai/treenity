@@ -1,8 +1,5 @@
 {
-  "$id": "ai.plan",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "AI execution plan — lives as named component on board.task node.\nAgent writes plan first, human reviews + approves before execution.",
   "properties": {
     "text": {
       "type": "string",
@@ -35,23 +32,13 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "feedback": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "Optional feedback/adjustments for the agent"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "feedback": {
+              "type": "string",
+              "title": "Optional feedback/adjustments for the agent"
             }
-          ]
+          }
         }
       ]
     },
@@ -60,25 +47,17 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "feedback": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "What to change"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "feedback": {
+              "type": "string",
+              "title": "What to change"
             }
-          ]
+          }
         }
       ]
     }
-  }
+  },
+  "$id": "ai.plan",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

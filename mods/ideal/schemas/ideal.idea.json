@@ -1,6 +1,4 @@
 {
-  "$id": "ideal.idea",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "title": {
@@ -36,5 +34,7 @@
     "reject": {
       "arguments": []
     }
-  }
+  },
+  "$id": "ideal.idea",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

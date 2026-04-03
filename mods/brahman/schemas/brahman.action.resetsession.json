@@ -1,12 +1,15 @@
 {
-  "$id": "brahman.action.resetsession",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Reset session — clear all user session data",
   "properties": {},
   "methods": {
     "run": {
-      "arguments": []
+      "arguments": [
+        {
+          "name": "bCtx"
+        }
+      ]
     }
-  }
+  },
+  "$id": "brahman.action.resetsession",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

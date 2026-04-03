@@ -1,8 +1,5 @@
 {
-  "$id": "ai.agent",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "AI Agent — autonomous worker node at /agents/{name}\nLLM config (model, systemPrompt, sessionId) lives in named metatron.config component.\nWork creates metatron.task nodes under /agents/{name}/tasks/.",
   "properties": {
     "role": {
       "type": "string",
@@ -10,14 +7,6 @@
       "default": "qa"
     },
     "status": {
-      "type": "string",
-      "enum": [
-        "blocked",
-        "error",
-        "idle",
-        "offline",
-        "working"
-      ],
       "default": "offline"
     },
     "currentTask": {
@@ -84,23 +73,13 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "reason": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "Reason"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "title": "Reason"
             }
-          ]
+          }
         }
       ]
     },
@@ -109,25 +88,17 @@
       "arguments": [
         {
           "name": "data",
-          "anyOf": [
-            {},
-            {
-              "type": "object",
-              "properties": {
-                "error": {
-                  "anyOf": [
-                    {},
-                    {
-                      "type": "string"
-                    }
-                  ],
-                  "title": "Error message"
-                }
-              }
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string",
+              "title": "Error message"
             }
-          ]
+          }
         }
       ]
     }
-  }
+  },
+  "$id": "ai.agent",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

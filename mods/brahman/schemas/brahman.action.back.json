@@ -1,12 +1,15 @@
 {
-  "$id": "brahman.action.back",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Go back — return to previous page in history",
   "properties": {},
   "methods": {
     "run": {
-      "arguments": []
+      "arguments": [
+        {
+          "name": "bCtx"
+        }
+      ]
     }
-  }
+  },
+  "$id": "brahman.action.back",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

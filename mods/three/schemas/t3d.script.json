@@ -1,13 +1,9 @@
 {
-  "$id": "t3d.script",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "3D Script — client-side update loop",
   "properties": {
     "code": {
       "type": "string",
-      "title": "Code",
-      "format": "textarea",
+      "title": "Code @format textarea",
       "default": ""
     },
     "active": {
@@ -19,5 +15,7 @@
   "required": [
     "code",
     "active"
-  ]
+  ],
+  "$id": "t3d.script",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

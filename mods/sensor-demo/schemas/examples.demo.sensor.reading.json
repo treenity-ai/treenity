@@ -1,8 +1,5 @@
 {
-  "$id": "examples.demo.sensor.reading",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "description": "A single sensor reading data point",
   "properties": {
     "ts": {
       "type": "number",
@@ -21,5 +18,7 @@
     "ts",
     "value",
     "seq"
-  ]
+  ],
+  "$id": "examples.demo.sensor.reading",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

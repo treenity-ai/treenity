@@ -1,8 +1,5 @@
 {
-  "$id": "task",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "title": "Agent task — question/answer workflow with status tracking",
   "properties": {
     "status": {
       "type": "string",
@@ -51,12 +48,7 @@
               "type": "string"
             },
             "by": {
-              "anyOf": [
-                {},
-                {
-                  "type": "string"
-                }
-              ]
+              "type": "string"
             }
           },
           "required": [
@@ -73,24 +65,16 @@
           "type": "object",
           "properties": {
             "reason": {
-              "anyOf": [
-                {},
-                {
-                  "type": "string"
-                }
-              ]
+              "type": "string"
             },
             "by": {
-              "anyOf": [
-                {},
-                {
-                  "type": "string"
-                }
-              ]
+              "type": "string"
             }
           }
         }
       ]
     }
-  }
+  },
+  "$id": "task",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

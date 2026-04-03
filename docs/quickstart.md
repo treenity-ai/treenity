@@ -120,13 +120,7 @@ That's it. No manifest, no config. The server walks `mods/*/server.ts` on startu
 
 ## 3. See It Work
 
-Generate JSON schemas so the admin UI knows your types:
-
-```bash
-npm run schema
-```
-
-Restart the dev server (it watches files, but new mods need a restart).
+Schemas auto-generate on dev server startup. Restart the dev server (it watches files, but new mods need a restart).
 
 Navigate to [http://localhost:3210/t/todo/list](http://localhost:3210/t/todo/list).
 

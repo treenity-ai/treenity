@@ -1,6 +1,4 @@
 {
-  "$id": "simple.time-track",
-  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "entries": {
@@ -40,5 +38,7 @@
       "description": "Stop the timer",
       "arguments": []
     }
-  }
+  },
+  "$id": "simple.time-track",
+  "$schema": "http://json-schema.org/draft-07/schema#"
 }

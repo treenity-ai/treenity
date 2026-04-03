@@ -6,7 +6,7 @@
 Class JSDoc → extract-schemas.ts → src/schema/generated/*.json → registry('schema') → Inspector / MCP / Client
 ```
 
-`registerType(type, Class)` регистрирует класс. `npm run schema` сканирует AST, извлекает JSDoc, генерирует JSON Schema. Схема загружается при старте через `register(type, 'schema', () => schema)`. Три потребителя:
+`registerType(type, Class)` регистрирует класс. Схемы генерируются автоматически при старте dev-сервера (сканируется AST, извлекается JSDoc → JSON Schema). `npm run schema` — для CI или без перезапуска. Схема загружается через `register(type, 'schema', () => schema)`. Три потребителя:
 
 1. **Inspector** — рендерит формы с лейблами, подсказками, виджетами
 2. **MCP** — `catalog`, `describe_type`, `search_types` для AI-discovery
@@ -123,7 +123,7 @@ register('brahman.bot', 'action:start', startHandler);
 6. `_` prefix для скрытых/внутренних методов
 7. `@refType` auto-detect для свойств с типом registered class
 8. `@pre`/`@post` для документирования зависимостей между полями
-9. После изменений: `npm run schema`
+9. Схемы генерируются автоматически при старте dev-сервера (`npm run schema` — для CI)
 10. Проверить: `src/schema/generated/{type}.json` — title, properties, methods
 
 ## Промпт для LLM
@@ -152,5 +152,5 @@ When creating or documenting a Treenity component class:
    - describe_type(name) → full schema + cross-references
    - search_types(query) → find by keyword
 
-After writing: npm run schema → verify src/schema/generated/{type}.json
+Schemas auto-generate on dev server startup. For CI: npm run schema. Verify: src/schema/generated/{type}.json
 ```
