@@ -4,6 +4,7 @@
 import type { NodeData } from '@treenity/core';
 import { applyPatch, type Operation } from 'fast-json-patch';
 import * as cache from './cache';
+import { applyServerPatch, applyServerSet } from './rebase';
 import { trpc } from './trpc';
 
 type LoadChildren = (path: string) => Promise<void>;
@@ -68,26 +69,31 @@ export function startEvents(config: EventsConfig) {
       }
 
       if (event.type === 'set') {
-        cache.put({ $path: event.path, ...event.node } as NodeData);
+        const node = { $path: event.path, ...event.node } as NodeData;
+        if (!applyServerSet(event.path, node)) cache.put(node);
         if (event.addVps) event.addVps.forEach((vp: string) => cache.addToParent(event.path, vp));
         if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));
       } else if (event.type === 'patch') {
-        const existing = cache.get(event.path);
-        if (existing && event.patches) {
-          try {
-            const patched = structuredClone(existing);
-            applyPatch(patched, event.patches as Operation[]);
-            cache.put(patched);
-          } catch (e) {
-            console.error('Failed to apply patches, fetching full node:', e);
+        if (event.patches && applyServerPatch(event.path, event.patches as Operation[])) {
+          // rebase handled it
+        } else {
+          const existing = cache.get(event.path);
+          if (existing && event.patches) {
+            try {
+              const patched = structuredClone(existing);
+              applyPatch(patched, event.patches as Operation[]);
+              cache.put(patched);
+            } catch (e) {
+              console.error('Failed to apply patches, fetching full node:', e);
+              trpc.get.query({ path: event.path }).then((n) => {
+                if (n) cache.put(n as NodeData);
+              });
+            }
+          } else {
             trpc.get.query({ path: event.path }).then((n) => {
               if (n) cache.put(n as NodeData);
             });
           }
-        } else {
-          trpc.get.query({ path: event.path }).then((n) => {
-            if (n) cache.put(n as NodeData);
-          });
         }
         if (event.addVps) event.addVps.forEach((vp: string) => cache.addToParent(event.path, vp));
         if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));

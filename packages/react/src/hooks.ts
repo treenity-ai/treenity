@@ -8,6 +8,7 @@
 import { getComponent, getMeta, type NodeData, normalizeType, resolve } from '@treenity/core';
 import { type Class, getDefaults, type TypeProxy } from '@treenity/core/comp';
 import { deriveURI, parseURI } from '@treenity/core/uri';
+import { pushOptimistic, rollback } from './rebase';
 import {
   useCallback,
   useEffect,
@@ -155,16 +156,19 @@ export const execute = (
   // Optimistic: resolve class from cache + registry, predict locally
   const cached = cache.get(path);
   if (cached) {
-    const compType = type ?? cached.$type;
+    const compType = type ?? (cached[key!] as { $type?: string })?.$type ?? cached.$type;
     const meta = getMeta(compType, `action:${action}`);
     if (!meta?.noOptimistic) {
       const cls = resolve(compType, 'class');
       const actionFn = resolve(compType, `action:${action}`, false);
-      if (cls && actionFn) predictOptimistic(path, cls, key, actionFn, data);
+      if (cls && actionFn) pushOptimistic(path, cls, key, actionFn, data);
     }
   }
 
-  return trpc.execute.mutate({ path, type, key, action, data });
+  return trpc.execute.mutate({ path, type, key, action, data }).catch(err => {
+    rollback(path);
+    throw err;
+  });
 };
 
 // ── useCanWrite: ACL-based write permission check ──
