@@ -148,7 +148,7 @@ const TaskView: View<BoardTask> = ({ value, ctx }) => {
             <SelectTrigger className="h-8 w-32">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" portal={false} className="min-w-32">
               {PRIORITIES.map(p => (
                 <SelectItem key={p.value} value={p.value}>
                   <span className="flex items-center gap-1.5">
@@ -598,7 +598,7 @@ const KanbanView: View<BoardKanban> = ({ value, ctx }) => {
       </DndContext>
 
       {selectedTask && selectedNode && (
-        <Dialog open onOpenChange={open => { if (!open) setSelectedTask(null); }}>
+        <Dialog open modal={false} onOpenChange={open => { if (!open) setSelectedTask(null); }}>
           <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-[960px]" aria-describedby={undefined}>
             <DialogTitle className="sr-only">Task</DialogTitle>
             <Render value={selectedNode} />
