@@ -32,7 +32,7 @@ describe('pre/post action conditions', () => {
     // Schema with pre/post arrays
     register('test.ticket', 'schema', () => ({
       $id: 'test.ticket',
-      type: 'object',
+      title: 'test.ticket', type: 'object' as const,
       properties: {
         status: { type: 'string' },
         assignee: { type: 'string' },

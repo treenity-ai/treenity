@@ -158,7 +158,7 @@ describe('e2e: tRPC over HTTP', () => {
       methods: { escalate: { arguments: [] }, deescalate: { arguments: [] } },
     }));
 
-    register('test.task', 'schema', () => ({ type: 'object', title: 'Test Task' }));
+    register('test.task', 'schema', () => ({ type: 'object' as const, title: 'Test Task', properties: {} }));
   });
 
   beforeEach(async () => {

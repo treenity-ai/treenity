@@ -416,7 +416,7 @@ describe('defineComponent', () => {
       $path: '/snoop1', $type: 'test.snoop',
       $acl: [{ g: 'admins', p: 15 }],
       $owner: 'secret-user',
-      $refs: ['/some/ref'],
+      $refs: [{ t: '/some/ref' }],
       title: 'visible',
     } as NodeData);
 

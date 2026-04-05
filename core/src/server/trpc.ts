@@ -88,7 +88,7 @@ export function createTreeRouter(baseStore: Tree, watcher: WatchManager, opts?: 
     get: authed
       .input(z.object({ path: safePath, watch: z.boolean().optional() }))
       .query(async ({ input, ctx }) => {
-        const node = await ctx.tp.get(input.path);
+        const node = await ctx.tree.get(input.path);
         if (input.watch && node && ctx.session && (await ctx.tree.getPerm(input.path)) & S)
           watcher.watch(ctx.session.userId, [input.path]);
         return node;

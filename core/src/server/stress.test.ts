@@ -742,6 +742,7 @@ describe('Stress: volatile + validation', () => {
     clearRegistry();
     register('ephemeral', 'volatile', () => true);
     register('validated', 'schema', () => ({
+      title: 'validated', type: 'object' as const,
       properties: {
         name: { type: 'string' },
         count: { type: 'number' },

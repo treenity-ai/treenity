@@ -6,6 +6,16 @@ import { describe, it } from 'node:test'
 import { createMemoryTree } from '#tree'
 import { createTreeP, type TreePError, type ActionExecutor } from '#protocol/treep'
 
+// tp.get() returns unknown (protocol is polymorphic); narrow with runtime check
+function asObj(v: unknown): Record<string, unknown> {
+  assert.ok(v != null && typeof v === 'object');
+  return v as Record<string, unknown>;
+}
+function asPage(v: unknown): { items: Record<string, unknown>[]; total: number } {
+  assert.ok(v != null && typeof v === 'object' && 'items' in v);
+  return v as { items: Record<string, unknown>[]; total: number };
+}
+
 // Helper: create a TreeP instance backed by memory tree with seed data
 async function setup() {
   const tree = createMemoryTree()
@@ -32,7 +42,7 @@ async function setup() {
 describe('TreeP get() — node', () => {
   it('returns node by path', async () => {
     const { tp } = await setup()
-    const node = await tp.get('/orders/1')
+    const node = asObj(await tp.get('/orders/1'))
     assert.equal(node.$type, 'order')
     assert.equal(node.status, 'pending')
   })
@@ -47,21 +57,19 @@ describe('TreeP get() — node', () => {
 describe('TreeP get() — children (trailing slash)', () => {
   it('returns children page', async () => {
     const { tp } = await setup()
-    const page = await tp.get('/orders/')
-    assert.ok(page.items)
+    const page = asPage(await tp.get('/orders/'))
     assert.equal(page.items.length, 3)
   })
 
   it('supports pagination', async () => {
     const { tp } = await setup()
-    const page = await tp.get('/orders/', { limit: 2 })
+    const page = asPage(await tp.get('/orders/', { limit: 2 }))
     assert.equal(page.items.length, 2)
   })
 
   it('root children via opts.children', async () => {
     const { tp } = await setup()
-    const page = await tp.get('/', { children: true })
-    assert.ok(page.items)
+    const page = asPage(await tp.get('/', { children: true }))
     assert.ok(page.items.length >= 2) // /orders, /users, /tasks
   })
 })
@@ -95,7 +103,7 @@ describe('TreeP get() — nested field (#key.field)', () => {
 
   it('returns component object (#key without field)', async () => {
     const { tp } = await setup()
-    const wf = await tp.get('/tasks/1#workflow')
+    const wf = asObj(await tp.get('/tasks/1#workflow'))
     assert.equal(wf.$type, 'workflow')
     assert.equal(wf.state, 'open')
   })
@@ -107,7 +115,7 @@ describe('TreeP set() — replace node', () => {
   it('replaces node when data has $type', async () => {
     const { tp } = await setup()
     await tp.set('/orders/1', { $path: '/orders/1', $type: 'order', status: 'shipped', amount: 100 })
-    const node = await tp.get('/orders/1')
+    const node = asObj(await tp.get('/orders/1'))
     assert.equal(node.status, 'shipped')
   })
 
@@ -115,10 +123,10 @@ describe('TreeP set() — replace node', () => {
     const { tp } = await setup()
     // data.$path says /users/kriz but URI says /orders/1 — URI wins
     await tp.set('/orders/1', { $path: '/users/kriz', $type: 'order', status: 'hijacked', amount: 999 })
-    const node = await tp.get('/orders/1')
+    const node = asObj(await tp.get('/orders/1'))
     assert.equal(node.status, 'hijacked')
     // /users/kriz should be untouched
-    const kriz = await tp.get('/users/kriz')
+    const kriz = asObj(await tp.get('/users/kriz'))
     assert.equal(kriz.name, 'Kriz')
   })
 })
@@ -127,7 +135,7 @@ describe('TreeP set() — patch ops', () => {
   it('applies patch when data is array', async () => {
     const { tp } = await setup()
     await tp.set('/orders/1', [['r', 'status', 'shipped']])
-    const node = await tp.get('/orders/1')
+    const node = asObj(await tp.get('/orders/1'))
     assert.equal(node.status, 'shipped')
   })
 
@@ -152,7 +160,7 @@ describe('TreeP set() — field (#name)', () => {
   it('sets top-level field', async () => {
     const { tp } = await setup()
     await tp.set('/orders/1#status', 'cancelled')
-    const node = await tp.get('/orders/1')
+    const node = asObj(await tp.get('/orders/1'))
     assert.equal(node.status, 'cancelled')
   })
 })
@@ -187,8 +195,7 @@ describe('TreeP remove()', () => {
 describe('TreeP URI dispatch', () => {
   it('trailing slash on non-root path = children', async () => {
     const { tp } = await setup()
-    const page = await tp.get('/users/')
-    assert.ok(page.items)
+    const page = asPage(await tp.get('/users/'))
     assert.equal(page.items.length, 1)
   })
 

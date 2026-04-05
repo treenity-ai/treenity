@@ -1,5 +1,5 @@
 // Test fixture for OXC schema extraction — covers all AST patterns
-import { registerType } from '#core/component';
+import { registerType } from '#comp';
 
 /** A complex widget for testing schema extraction */
 class SchemaTestWidget {
@@ -124,7 +124,7 @@ class SchemaTestWidget {
    * Returns an async generator that yields
    * serialized event strings.
    */
-  *watch(filter: string): AsyncGenerator<string> {}
+  async *watch(filter: string): AsyncGenerator<string> { yield ''; }
 
   /**
    * Reset all counters to zero.

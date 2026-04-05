@@ -293,7 +293,7 @@ async function resolveActionHandler(
 // Per-path lock prevents lost updates from concurrent mutations on the same node.
 const lockAction = createPathLock();
 
-export async function executeAction(
+export async function executeAction<T = unknown>(
   tree: Tree,
   path: string,
   componentType: string | undefined,
@@ -301,7 +301,7 @@ export async function executeAction(
   action: string,
   data?: unknown,
   opts?: { userId?: string | null },
-): Promise<unknown> {
+): Promise<T> {
   return lockAction(path, async () => {
   const { node, handler, type, deps, fieldKey } = await resolveActionHandler(
     tree, path, componentType, componentKey, action,
@@ -355,7 +355,7 @@ export async function executeAction(
     const ops = immerToPatchOps(patches);
     await tree.patch(node.$path, ops);
   }
-  return result;
+  return result as T;
   }); // lockAction
 }
 

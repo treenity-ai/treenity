@@ -17,22 +17,24 @@ export function useNavigate(): NavigateFn {
 // ── beforeNavigate guard — one view at a time can block SPA navigation ──
 // Uses window to share state across Vite module instances
 
+declare global {
+  interface Window { __beforeNavigateMsg?: string | null; }
+}
+
 export function checkBeforeNavigate(): boolean {
-  const msg = (window as Record<string, unknown>).__beforeNavigateMsg as string | null;
-  if (!msg) return true;
-  return confirm(msg);
+  if (!window.__beforeNavigateMsg) return true;
+  return confirm(window.__beforeNavigateMsg);
 }
 
 export function useBeforeNavigate(message: string) {
   useEffect(() => {
-    const w = window as Record<string, unknown>;
-    const prev = w.__beforeNavigateMsg as string | null | undefined;
+    const prev = window.__beforeNavigateMsg;
     if (prev && prev !== message) {
       console.warn('[useBeforeNavigate] overwriting existing guard:', prev, '→', message);
     }
-    w.__beforeNavigateMsg = message;
+    window.__beforeNavigateMsg = message;
     return () => {
-      if (w.__beforeNavigateMsg === message) w.__beforeNavigateMsg = null;
+      if (window.__beforeNavigateMsg === message) window.__beforeNavigateMsg = null;
     };
   }, [message]);
 }

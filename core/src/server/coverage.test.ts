@@ -631,6 +631,7 @@ describe('Validation edge cases', () => {
 
   it('rejects boolean where string expected', async () => {
     register('typed', 'schema', () => ({
+      title: 'typed', type: 'object' as const,
       properties: { name: { type: 'string' } },
     }));
 
@@ -643,6 +644,7 @@ describe('Validation edge cases', () => {
 
   it('rejects string where number expected', async () => {
     register('numtype', 'schema', () => ({
+      title: 'numtype', type: 'object' as const,
       properties: { count: { type: 'number' } },
     }));
 
@@ -655,6 +657,7 @@ describe('Validation edge cases', () => {
 
   it('rejects number where boolean expected', async () => {
     register('booltype', 'schema', () => ({
+      title: 'booltype', type: 'object' as const,
       properties: { flag: { type: 'boolean' } },
     }));
 
@@ -667,6 +670,7 @@ describe('Validation edge cases', () => {
 
   it('allows null/undefined values (optional by default)', async () => {
     register('opttype', 'schema', () => ({
+      title: 'opttype', type: 'object' as const,
       properties: { name: { type: 'string' } },
     }));
 
@@ -685,7 +689,7 @@ describe('Validation edge cases', () => {
   });
 
   it('skips schemas without properties', async () => {
-    register('emptyschema', 'schema', () => ({}));
+    register('emptyschema', 'schema', () => ({ title: 'emptyschema', type: 'object' as const, properties: {} }));
 
     const tree = withValidation(createMemoryTree());
     await tree.set({ $path: '/v', $type: 'x', comp: { $type: 'emptyschema', x: 1 } } as any);
@@ -780,7 +784,7 @@ describe('TypesStore', () => {
   });
 
   it('remove throws on registry type', async () => {
-    register('vendor.widget', 'schema', () => ({ properties: {} }));
+    register('vendor.widget', 'schema', () => ({ title: 'vendor.widget', type: 'object' as const, properties: {} }));
     const backing = createMemoryTree();
     const ts = createTypesStore(backing);
 

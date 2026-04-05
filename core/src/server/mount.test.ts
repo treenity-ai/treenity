@@ -294,7 +294,7 @@ describe('Mounts', () => {
     // The mount-point node itself should still be readable
     const node = await ms.get('/catalog');
     assert.equal(node?.$type, 't.dir');
-    assert.equal(node?.mount.disabled, true);
+    assert.equal((node?.mount as Record<string, unknown>)?.disabled, true);
   });
 
   it('enabled mount still works normally', async () => {
@@ -406,20 +406,20 @@ describe('Types mount adapter', () => {
 
   it('returns registered type as node', async () => {
     register('test.block.hero', 'schema', () => ({
-      label: 'Hero',
-      fields: { title: { type: 'string', label: 'Title' } },
+      title: 'Hero', type: 'object' as const,
+      properties: { title: { type: 'string' } },
     }));
     const ts = createTypesStore(backingStore, '/types');
     const node = await ts.get('/types/test/block/hero');
     assert.equal(node?.$type, 't.type');
     assert.equal(node?.$path, '/types/test/block/hero');
-    const schema = node?.schema as { label: string };
-    assert.equal(schema.label, 'Hero');
+    const schema = node?.schema as { title: string };
+    assert.equal(schema.title, 'Hero');
   });
 
   it('getChildren /types returns vendor folders', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
-    register('test.block.text', 'schema', () => ({ label: 'Text', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
+    register('test.block.text', 'schema', () => ({ title: 'Text', type: 'object' as const, properties: {} }));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types');
     const testFolder = children.items.find(n => n.$path === '/types/test');
@@ -428,8 +428,8 @@ describe('Types mount adapter', () => {
   });
 
   it('getChildren returns type nodes in category', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
-    register('test.block.text', 'schema', () => ({ label: 'Text', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
+    register('test.block.text', 'schema', () => ({ title: 'Text', type: 'object' as const, properties: {} }));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types/test/block');
     assert.equal(children.items.length, 2);
@@ -438,7 +438,7 @@ describe('Types mount adapter', () => {
   });
 
   it('get category folder returns dir node', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
     const ts = createTypesStore(backingStore, '/types');
     const node = await ts.get('/types/test/block');
     assert.equal(node?.$type, 't.dir');
@@ -452,7 +452,7 @@ describe('Types mount adapter', () => {
   });
 
   it('merges registry and stored types in getChildren', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
     await backingStore.set(createNode('/types/custom', 'dir'));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types');
@@ -463,20 +463,19 @@ describe('Types mount adapter', () => {
 
   it('registry wins on conflict', async () => {
     register('test.block.hero', 'schema', () => ({
-      label: 'Hero from registry',
-      fields: {},
+      title: 'Hero from registry', type: 'object' as const, properties: {},
     }));
     await backingStore.set(createNode('/types/test/block/hero', 'type'));
     const ts = createTypesStore(backingStore, '/types');
     const node = await ts.get('/types/test/block/hero');
-    const schema = node?.schema as { label: string };
-    assert.equal(schema.label, 'Hero from registry');
+    const schema = node?.schema as { title: string };
+    assert.equal(schema.title, 'Hero from registry');
   });
 
   it('type node includes all registered contexts', async () => {
     register('test.block.hero', 'schema', () => ({
       title: 'Hero',
-      type: 'object',
+      type: 'object' as const,
       properties: {},
     }));
     register('test.block.hero', 'react', () => 'react-component');
@@ -509,7 +508,7 @@ describe('Types mount adapter', () => {
   });
 
   it('remove throws on registry type', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
     const ts = createTypesStore(backingStore, '/types');
     await assert.rejects(() => ts.remove('/types/test/block/hero'));
   });
@@ -537,7 +536,7 @@ describe('Types mount adapter', () => {
   });
 
   it('getChildren merges dynamic and registry in same category', async () => {
-    register('test.block.hero', 'schema', () => ({ label: 'Hero', fields: {} }));
+    register('test.block.hero', 'schema', () => ({ title: 'Hero', type: 'object' as const, properties: {} }));
     await backingStore.set(createNode('/types/test/block/custom-block', 'type'));
     const ts = createTypesStore(backingStore, '/types');
     const children = await ts.getChildren('/types/test/block');

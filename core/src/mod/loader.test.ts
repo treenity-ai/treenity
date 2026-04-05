@@ -160,7 +160,7 @@ describe('loadMods', () => {
     await loadMods([m('dur')], 'server');
     const mod = getMod('dur')!;
     assert.equal(typeof mod.loadDurationMs, 'number');
-    assert.ok(mod.loadDurationMs >= 0);
+    assert.ok(mod.loadDurationMs! >= 0);
   });
 
   it('times out on hanging onLoad', async () => {

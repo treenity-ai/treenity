@@ -52,6 +52,7 @@ function Button({
   const Comp = asChild ? Slot.Root : "button"
 
   return (
+    // @ts-ignore duplicate @types/react in engine/ vs root
     <Comp
       data-slot="button"
       data-variant={variant}
