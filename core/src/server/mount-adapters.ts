@@ -87,7 +87,7 @@ registerType('t.mount.tree.trpc', MountTreeTrpc);
 register(MountMongo, 'mount', async (mount, ctx) => {
   const uri = mount.uri || process.env.MONGO_URI;
   if (!uri) throw new Error('t.mount.mongo: no uri and MONGO_URI not set');
-  const { createMongoTree } = await import('#tree/mongo');
+  const { createMongoTree } = await import('@treenity/mongo');
   const tree = await createMongoTree(uri, mount.db, mount.collection);
   return mount.shared ? tree : createRepathTree(tree, ctx.path, '/');
 });

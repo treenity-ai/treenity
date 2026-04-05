@@ -28,11 +28,11 @@ await store.set(node); // если $rev изменился — OptimisticConcurr
 ```ts
 import { createMemoryStore } from '#tree';
 import { createFsStore } from '#tree/fs';
-import { createMongoStore } from '#tree/mongo';
+import { createMongoTree } from '@treenity/mongo';
 
 const mem   = createMemoryStore();
 const fs    = await createFsStore('./data/base');
-const mongo = await createMongoStore(uri, 'mydb', 'nodes');
+const mongo = await createMongoTree(uri, 'mydb', 'nodes');
 ```
 
 ## Комбинаторы

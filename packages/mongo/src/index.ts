@@ -1,10 +1,10 @@
 // Treenity Mongo Tree — Layer 1
 // Drop-in replacement for MemoryStore.
 
-import { type NodeData, toStorageKeys, fromStorageKeys } from '#core';
+import { type NodeData, toStorageKeys, fromStorageKeys } from '@treenity/core';
 import { type Collection, type Db, MongoClient } from 'mongodb';
-import { type Tree } from './index';
-import { defaultPatch } from './patch';
+import { type Tree } from '@treenity/core/tree';
+import { defaultPatch } from '@treenity/core/tree/patch';
 
 const toStorage = (node: NodeData) => toStorageKeys(node);
 const fromStorage = (doc: Record<string, unknown>) => fromStorageKeys(doc) as NodeData;
@@ -85,7 +85,7 @@ export async function createMongoTree(
       const doc = toStorage(node);
       const prevRev = doc._rev as number | undefined;
       doc._rev = (prevRev ?? 0) + 1;
-      
+
       if (prevRev === undefined) {
          try {
            await col.insertOne(doc);

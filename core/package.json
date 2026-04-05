@@ -78,16 +78,7 @@
   "optionalDependencies": {
     "@orama/orama": "^3.1.18"
   },
-  "peerDependencies": {
-    "mongodb": ">=6"
-  },
-  "peerDependenciesMeta": {
-    "mongodb": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "mongodb": "^7.1.0",
     "oxc-parser": "^0.123.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
