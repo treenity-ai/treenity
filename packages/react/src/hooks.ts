@@ -197,84 +197,7 @@ export function useCanWrite(path: string | null): boolean {
   return (perm & W) !== 0;
 }
 
-// ── useAutoSave: throttled auto-persist for editable views ──
-// First save fires after 500ms (responsive), subsequent saves throttled to 2s.
-// Returns [localData, setField, dirty] — local updates are instant, server writes are batched.
-
-// TODO: check why unused
-export function useAutoSave(node: NodeData) {
-  const [local, setLocal] = useState<Record<string, unknown>>({});
-  const dirtyRef = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savingRef = useRef(false);
-  const pendingRef = useRef(false);
-  const lastSaveRef = useRef(0);
-  const nodeRef = useRef(node);
-  nodeRef.current = node;
-
-  const flush = useCallback(async () => {
-    if (savingRef.current) { pendingRef.current = true; return; }
-    if (!dirtyRef.current) return;
-    savingRef.current = true;
-    try {
-      const merged = { ...nodeRef.current, ...local };
-      delete merged.$rev; // skip OCC — force-write
-      await set(merged);
-      dirtyRef.current = false;
-      lastSaveRef.current = Date.now();
-    } catch (e) {
-      console.error('[autoSave] failed:', e);
-    } finally {
-      savingRef.current = false;
-      if (pendingRef.current) {
-        pendingRef.current = false;
-        flush();
-      }
-    }
-  }, [local]);
-
-  const setField = useCallback((field: string, value: unknown) => {
-    setLocal(prev => ({ ...prev, [field]: value }));
-    dirtyRef.current = true;
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-    const elapsed = Date.now() - lastSaveRef.current;
-    const delay = elapsed > 2000 ? 500 : 2000; // first batch fast, then throttle
-    timerRef.current = setTimeout(() => { timerRef.current = null; flush(); }, delay);
-  }, [flush]);
-
-  // Flush on unmount
-  useEffect(() => () => {
-    if (timerRef.current) { clearTimeout(timerRef.current); flush(); }
-  }, [flush]);
-
-  // Reset local on node path change
-  useEffect(() => { setLocal({}); dirtyRef.current = false; }, [node.$path]);
-
-  const merged = useMemo(() => ({ ...node, ...local }), [node, local]);
-
-  return [merged, setField, dirtyRef.current] as const;
-}
-
 // ── Internals ──
-
-/** Optimistic prediction: run action handler locally on a cloned cached node */
-export function predictOptimistic<T extends object>(
-  path: string, cls: Class<T>, key: string | undefined,
-  actionHandler: Function, data: unknown,
-): void {
-  const cached = cache.get(path);
-  if (!cached) return;
-
-  try {
-    const draft = structuredClone(cached);
-    const comp = getComponent(draft, cls, key);
-    if (!comp) return;
-
-    actionHandler({ comp, node: draft }, data);
-    cache.put(draft);
-  } catch { /* prediction failed — server-only */ }
-}
 
 function streamToAsyncIterable<T>(
   input: { path: string; type?: string; key?: string; action: string; data?: unknown },
@@ -327,16 +250,7 @@ function makeProxy<T extends object>(
       if (meta.stream)
         return (data?: unknown) => streamToAsyncIterable({ path, type, key, action: prop, data });
 
-      return (data?: unknown) => {
-        if (!meta.noOptimistic) {
-          const actionFn = resolve(type, `action:${prop}`, false);
-          if (actionFn) pushOptimistic(path, cls, key, actionFn, data);
-        }
-        return trpc.execute.mutate({ path, type, key, action: prop, data }).catch(err => {
-          rollback(path);
-          throw err;
-        });
-      };
+      return (data?: unknown) => execute(path, prop, data, type, key);
     },
   }) as TypeProxy<T>;
 }
