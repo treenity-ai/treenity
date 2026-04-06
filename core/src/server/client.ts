@@ -5,6 +5,7 @@
 // when multiple SSE streams are open to the same origin.
 
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from '@trpc/client';
+// TS2742: declaration emit needs access to internal trpc types
 import { EventSource as BaseEventSource } from 'eventsource';
 import http from 'node:http';
 import { Readable } from 'node:stream';

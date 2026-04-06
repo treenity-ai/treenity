@@ -1,7 +1,6 @@
 // treenity() — universal server factory
 // Single entry point: loads infrastructure, mods, builds pipeline, wires logging.
 
-import '#contexts/schema/index';
 import '#contexts/text/index';
 import '#schema/action';
 import './mount-adapters';

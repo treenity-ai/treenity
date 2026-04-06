@@ -4,10 +4,11 @@
 
 import { getComponentField, isRef, type NodeData, resolve, S } from '#core';
 import { assertSafePath } from '#core/path';
-import type { Tree } from '#tree';
 import { createTreeP } from '#protocol/treep';
+import type { Tree } from '#tree';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { observable } from '@trpc/server/observable';
+// TS2742: declaration emit needs access to internal trpc types
 import { z } from 'zod';
 import {
   type ActionCtx,

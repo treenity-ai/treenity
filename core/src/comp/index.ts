@@ -65,11 +65,10 @@ declare module '#core/context' {
 let _als: any = null;
 let _ctx: ExecCtx | null = null;
 
-// Async init — resolves before any action can fire (server boot is async).
+// Top-level await: guarantees _als is ready before any action runs.
 // Browser: import fails → _als stays null → falls back to _ctx global.
-import('node:async_hooks')
-  .then(m => { _als = new m.AsyncLocalStorage(); })
-  .catch(() => {});
+try { _als = new (await import('node:async_hooks')).AsyncLocalStorage(); }
+catch {}
 
 setCtxProvider(() => _als?.getStore() ?? _ctx);
 
