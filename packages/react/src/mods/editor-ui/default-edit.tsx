@@ -18,7 +18,7 @@ function DefaultEditForm({ value, onChange }: { value: ComponentData; onChange?:
   const setData = (fn: (prev: Record<string, unknown>) => Record<string, unknown>) => {
     if (!onChange) return;
     const next = fn(data);
-    onChange({ ...value, ...next } as ComponentData);
+    onChange(next);
   };
 
   // Schema-driven form

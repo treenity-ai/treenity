@@ -130,7 +130,7 @@ function EditableText({
     saving.current = true;
     const html = ref.current.innerHTML;
     const clean = sanitizeHtml(html);
-    if (clean !== text) onChange({ ...value, [lang]: clean });
+    if (clean !== text) onChange({ [lang]: clean });
     saving.current = false;
   }
 

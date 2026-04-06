@@ -46,7 +46,7 @@ export function TStringInput({ value = {}, onChange, langs = ['ru', 'en'], rows 
         rows={rows}
         placeholder={placeholder ?? `Text (${activeLang})`}
         value={value[activeLang] ?? ''}
-        onChange={e => onChange({ ...value, [activeLang]: e.target.value })}
+        onChange={e => onChange({ [activeLang]: e.target.value })}
         className="resize-none"
       />
     </div>
@@ -80,7 +80,7 @@ export function TStringLineInput({ value = {}, onChange, langs = ['ru', 'en'], p
         className="flex-1 border-0 shadow-none focus-visible:ring-0"
         placeholder={placeholder ?? `Text (${activeLang})`}
         value={value[activeLang] ?? ''}
-        onChange={e => onChange({ ...value, [activeLang]: e.target.value })}
+        onChange={e => onChange({ [activeLang]: e.target.value })}
       />
     </div>
   );

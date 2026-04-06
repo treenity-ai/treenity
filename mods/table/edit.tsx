@@ -69,7 +69,7 @@ function TableEditView({ value, onChange }: { value: ComponentData; onChange?: (
   const state = value as unknown as UITable;
   const emit = (patch: Partial<UITable>) => {
     if (!onChange) return;
-    onChange({ ...value, ...patch } as ComponentData);
+    onChange(patch);
   };
 
   // Detect types
