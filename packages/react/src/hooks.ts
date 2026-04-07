@@ -22,6 +22,24 @@ import { tree } from '#tree/client';
 import { trpc } from '#tree/trpc';
 export { useNavigate, useBeforeNavigate } from '#navigate';
 
+// ── Watch ref-counting ──
+// Multiple components may watch the same path; ref-count to avoid premature unwatch.
+
+const pathWatchRefs = new Map<string, number>();
+const childrenWatchRefs = new Map<string, number>();
+
+function refWatch(map: Map<string, number>, path: string) {
+  map.set(path, (map.get(path) ?? 0) + 1);
+}
+
+/** Decrement ref count. Returns true when last consumer unwatched → caller should unwatch on server. */
+function unrefWatch(map: Map<string, number>, path: string): boolean {
+  const count = (map.get(path) ?? 0) - 1;
+  if (count <= 0) { map.delete(path); return true; }
+  map.set(path, count);
+  return false;
+}
+
 // ── usePath: universal reactive hook ──
 // URI mode:   usePath('/path#comp.field')      → derived value
 // Typed mode: usePath('/path', MyClass)        → TypeProxy<T>
@@ -61,6 +79,17 @@ export function usePath<T extends object>(
       if (n) cache.put(n as NodeData);
     });
   }, [path, opts?.once, gen]);
+
+  // Watch cleanup — unwatch on unmount or path change (ref-counted)
+  useEffect(() => {
+    if (!path || opts?.once) return;
+    refWatch(pathWatchRefs, path);
+    return () => {
+      if (unrefWatch(pathWatchRefs, path)) {
+        trpc.unwatch.mutate({ paths: [path] }).catch(() => {});
+      }
+    };
+  }, [path, opts?.once]);
 
   return useMemo(() => {
     if (cls && path) return makeProxy(path, cls, node, key);
@@ -105,6 +134,19 @@ export function useChildren(parentPath: string, opts?: WatchOpts) {
       });
   }, [parentPath, gen, opts?.limit, opts?.watch, opts?.watchNew]);
 
+  // Watch cleanup — unwatchChildren on unmount or path change (ref-counted)
+  // Separate effect: the data-fetching effect above has an early-return guard
+  // that would prevent cleanup from being returned consistently.
+  useEffect(() => {
+    if (!(opts?.watch || opts?.watchNew)) return;
+    refWatch(childrenWatchRefs, parentPath);
+    return () => {
+      if (unrefWatch(childrenWatchRefs, parentPath)) {
+        trpc.unwatchChildren.mutate({ paths: [parentPath] }).catch(() => {});
+      }
+    };
+  }, [parentPath, opts?.watch, opts?.watchNew]);
+
   return useSyncExternalStore(
     useCallback((cb: () => void) => cache.subscribeChildren(parentPath, cb), [parentPath]),
     useCallback(() => cache.getChildren(parentPath), [parentPath]),
@@ -147,6 +189,18 @@ export async function addComponent(path: string, name: string, type: string) {
   const node = cache.get(path);
   if (node) cache.put({ ...node, [name]: comp });
   await trpc.patch.mutate({ path, ops: [['r', name, comp]] });
+}
+
+// ── removeComponent: detach a named component from a node (optimistic + patch) ──
+
+export async function removeComponent(path: string, name: string) {
+  const node = cache.get(path);
+  if (node) {
+    const next = { ...node };
+    delete next[name];
+    cache.put(next);
+  }
+  await trpc.patch.mutate({ path, ops: [['d', name]] });
 }
 
 // ── removeNode: optimistic delete + server persist ──
