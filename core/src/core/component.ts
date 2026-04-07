@@ -70,11 +70,11 @@ export function assertNonSystemName(name: string) {
   if (name.startsWith('$')) throw new Error(`Component name cannot start with $: ${name}`);
 }
 
-export function createNode<T, C = Record<string, ComponentData<any>>>(
+export function makeNode<T, C = Record<string, ComponentData<any>>>(
   path: string, type: Class<T>, data?: Partial<T>, components?: C): NodeData<T & C>;
-export function createNode<T = any, C = Record<string, ComponentData<any>>>(
+export function makeNode<T = any, C = Record<string, ComponentData<any>>>(
   path: string, type: string, data?: T, components?: C): NodeData<T & C>;
-export function createNode(
+export function makeNode(
   path: string,
   type: TypeId,
   data?: any,
@@ -88,6 +88,9 @@ export function createNode(
 
   return node;
 }
+
+/** @deprecated Use makeNode — createNode just builds an object, doesn't persist */
+export const createNode = makeNode;
 
 export function getComponentField<T = unknown>(
   node: NodeData,
