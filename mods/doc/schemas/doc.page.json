@@ -10,7 +10,7 @@
     "content": {
       "type": "string",
       "title": "Content",
-      "default": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Нажмите кнопку Edit чтобы начать редактирование.\"}]}]}"
+      "default": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Press Edit to start editing.\"}]}]}"
     }
   },
   "required": [
