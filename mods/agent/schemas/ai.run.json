@@ -25,13 +25,19 @@
         "chat"
       ],
       "default": "work"
+    },
+    "queryKey": {
+      "type": "string",
+      "title": "Key used by invokeClaude — needed to abort the correct query",
+      "default": ""
     }
   },
   "required": [
     "taskRef",
     "prompt",
     "result",
-    "mode"
+    "mode",
+    "queryKey"
   ],
   "methods": {
     "stop": {

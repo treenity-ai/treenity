@@ -50,7 +50,7 @@
           ]
         }
       ],
-      "title": "Trust level: 0=sandbox 1=observer 2=worker 3=operator 4=admin",
+      "title": "Trust level (metadata only — not enforced by guardian yet).",
       "default": 2
     },
     "model": {

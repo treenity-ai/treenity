@@ -24,27 +24,24 @@ async function agentRuntimeSeed(tree: Tree) {
 
   await tree.set({ $path: '/agents', $type: 'ai.pool', maxConcurrent: 2, active: [], queue: [] })
   await tree.set({
-    $path: '/agents/guardian', $type: 'dir',
-    policy: {
-      $type: 'ai.policy',
-      allow: ['mcp__treenity__get_node', 'mcp__treenity__list_children'],
-      deny: ['mcp__treenity__remove_node'],
-      escalate: ['mcp__treenity__set_node'],
-    },
+    $path: '/guardian', $type: 'ai.policy',
+    allow: ['mcp__treenity__get_node', 'mcp__treenity__list_children'],
+    deny: ['mcp__treenity__remove_node'],
+    escalate: ['mcp__treenity__set_node'],
   })
-  await tree.set({ $path: '/agents/approvals', $type: 'ai.approvals' })
+  await tree.set({ $path: '/guardian/approvals', $type: 'ai.approvals' })
   await tree.set({
     $path: '/agents/qa', $type: 'ai.agent',
-    role: 'qa', status: 'idle', currentTask: '', taskRef: '',
+    role: 'qa', status: 'idle', currentTask: '', currentRun: '',
     lastRunAt: 0, totalTokens: 0,
   })
-  await tree.set({ $path: '/agents/qa/tasks', $type: 'dir' })
+  await tree.set({ $path: '/agents/qa/runs', $type: 'dir' })
   await tree.set({
     $path: '/agents/dev', $type: 'ai.agent',
-    role: 'dev', status: 'idle', currentTask: '', taskRef: '',
+    role: 'dev', status: 'idle', currentTask: '', currentRun: '',
     lastRunAt: 0, totalTokens: 0,
   })
-  await tree.set({ $path: '/agents/dev/tasks', $type: 'dir' })
+  await tree.set({ $path: '/agents/dev/runs', $type: 'dir' })
   await tree.set({ $path: '/board', $type: 'board.kanban' })
   await tree.set({ $path: '/board/backlog', $type: 'board.column', title: 'Backlog', order: 0 })
   await tree.set({ $path: '/board/data', $type: 'dir' })
@@ -232,13 +229,12 @@ describe('e2e: treerun agent-runtime (public)', () => {
 
   it('seed: guardian with policy', async () => {
     const c = createClient(ctx.url)
-    const guardian = await c.get.query({ path: '/agents/guardian' })
+    const guardian = await c.get.query({ path: '/guardian' })
     assert.ok(guardian)
-    const policy = (guardian as Record<string, unknown>).policy as Record<string, unknown>
-    assert.ok(policy)
-    assert.ok(Array.isArray(policy.allow))
-    assert.ok(Array.isArray(policy.deny))
-    assert.ok(Array.isArray(policy.escalate))
+    assert.equal(guardian.$type, 'ai.policy')
+    assert.ok(Array.isArray((guardian as Record<string, unknown>).allow))
+    assert.ok(Array.isArray((guardian as Record<string, unknown>).deny))
+    assert.ok(Array.isArray((guardian as Record<string, unknown>).escalate))
   })
 
   it('seed: QA + Dev agents', async () => {

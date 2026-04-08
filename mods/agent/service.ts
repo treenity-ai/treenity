@@ -28,7 +28,7 @@ import {
 
 const log = createLogger('agent-office');
 
-const makeRunId = () => `r-${dayjs().format('YYMMDD-HHmm')}`;
+const makeRunId = () => `r-${dayjs().format('YYMMDD-HHmmss')}-${Math.random().toString(36).slice(2, 5)}`;
 
 const MAX_OCC_RETRIES = 3;
 
@@ -91,13 +91,18 @@ function buildWorkPrompt(role: string, task: NodeData, agent: NodeData, cursor: 
     ? String(agentComp.systemPrompt)
     : `You are a ${role} agent for the Treenity project.`;
 
+  // Include org.post hat if agent lives on an org.post node
+  const hat = agent.$type === 'org.post' && typeof agent.hat === 'string' && agent.hat
+    ? `\n## Hat\n${agent.hat}\n`
+    : '';
+
   const plan = getComponent(task, AiPlan);
   const planSection = plan?.text && plan.approved
     ? `\n## Approved Plan\n${plan.text}\n${plan.feedback ? `\n### Human feedback\n${plan.feedback}\n` : ''}`
     : '';
 
   return `${base}
-
+${hat}
 ## Current Task
 **${title}**
 ${desc}
@@ -265,11 +270,13 @@ async function runAgent(
   const runId = makeRunId();
   const runPath = `${agentNode.$path}/runs/${runId}`;
 
+  const queryKey = agentNode.$path;
   const runNode = createNode(runPath, 'ai.run', {
     taskRef: taskNode.$path,
     prompt,
     result: '',
     mode: 'work' as const,
+    queryKey,
   });
   setComponent(runNode, AiRunStatus, { status: 'running', startedAt: Date.now(), finishedAt: 0, error: '' });
   setComponent(runNode, AiLog, { entries: [] });
@@ -424,18 +431,20 @@ async function planAgent(
   const cursor = assignment?.cursors?.[agentNode.$path] ?? 0;
   const prompt = buildPlanPrompt(role, taskNode, agentNode, cursor);
 
-  // Plan mode uses read-only tools only — no writes, no execution
-  const canUseTool = createCanUseTool(role, agentNode.$path, store);
+  // Plan mode: policy-enforced read-only (not just prompt-constrained)
+  const canUseTool = createCanUseTool(role, agentNode.$path, store, { readOnly: true });
 
   // Create ai.run for plan mode — same ECS observability as work mode
   const runId = makeRunId();
   const runPath = `${agentNode.$path}/runs/${runId}`;
 
+  const queryKey = `plan:${agentNode.$path}`;
   const runNode = createNode(runPath, 'ai.run', {
     taskRef: taskNode.$path,
     prompt,
     result: '',
     mode: 'plan' as const,
+    queryKey,
   });
   setComponent(runNode, AiRunStatus, { status: 'running', startedAt: Date.now(), finishedAt: 0, error: '' });
   setComponent(runNode, AiLog, { entries: [] });
@@ -542,12 +551,49 @@ register('ai.pool', 'service', async (node: NodeData, ctx: ServiceCtx) => {
     return items.filter(n => n.$type === 'ai.agent');
   }
 
-  /** Build a map of role → idle agents (dynamic, no hardcoded roles) */
+  /** Collect org.post nodes that have ai.agent components */
+  async function getOrgAgents(): Promise<NodeData[]> {
+    const orgPosts: NodeData[] = [];
+    try {
+      const orgNode = await ctx.tree.get('org');
+      if (!orgNode) return orgPosts;
+      const { items: divisions } = await ctx.tree.getChildren('org');
+      for (const div of divisions) {
+        if (div.$type !== 'org.division') continue;
+        const { items: posts } = await ctx.tree.getChildren(div.$path);
+        for (const post of posts) {
+          if (post.$type === 'org.post' && getComponent(post, AiAgent)) orgPosts.push(post);
+        }
+      }
+    } catch {
+      // org tree may not exist
+    }
+    return orgPosts;
+  }
+
+  /** Resolve org.run component on a task (duck-typed, no org import) */
+  function getOrgRun(task: NodeData): { postRef: string; scope: string[] } | null {
+    for (const k of Object.keys(task)) {
+      const v = task[k];
+      if (v && typeof v === 'object' && '$type' in v && (v as ComponentData).$type === 'org.run') {
+        const run = v as Record<string, unknown>;
+        if (typeof run.postRef === 'string' && run.postRef) {
+          return { postRef: run.postRef, scope: Array.isArray(run.scope) ? run.scope as string[] : [] };
+        }
+      }
+    }
+    return null;
+  }
+
+  /** Build a map of role → idle agents (dynamic, no hardcoded roles).
+   *  Discovers agents both under /agents and on org.post nodes. */
   async function buildRoleIndex(): Promise<Map<string, NodeData[]>> {
     const agents = await getAgents();
+    const orgAgents = await getOrgAgents();
+    const all = [...agents, ...orgAgents];
     const index = new Map<string, NodeData[]>();
 
-    for (const a of agents) {
+    for (const a of all) {
       const comp = getComponent(a, AiAgent);
       if (!comp || comp.status !== 'idle') continue;
       const list = index.get(comp.role) ?? [];
@@ -607,9 +653,33 @@ register('ai.pool', 'service', async (node: NodeData, ctx: ServiceCtx) => {
           }
         }
 
-        // ── Work mode: assignee + status=todo ──
-        if (task.status === 'todo' && typeof task.assignee === 'string') {
-          const role = task.assignee as string;
+        // ── Work mode: status=todo, route by org.run.postRef or assignee ──
+        if (task.status !== 'todo') continue;
+
+        // Resolve role: org.run.postRef takes priority over assignee
+        const orgRun = getOrgRun(task);
+        let role: string | undefined;
+        let targetAgentPath: string | undefined;
+
+        if (orgRun) {
+          // org.run routing: resolve postRef → post node → ai.agent → role
+          try {
+            const postNode = await ctx.tree.get(orgRun.postRef);
+            if (postNode) {
+              const postAgent = getComponent(postNode, AiAgent);
+              if (postAgent) {
+                role = postAgent.role;
+                targetAgentPath = postNode.$path;
+              }
+            }
+          } catch { /* post not found — fall through to assignee */ }
+        }
+
+        if (!role && typeof task.assignee === 'string') {
+          role = task.assignee as string;
+        }
+
+        if (role) {
 
           // Plan mode: check if task has an approved plan
           const plan = getComponent(task, AiPlan);
@@ -623,13 +693,21 @@ register('ai.pool', 'service', async (node: NodeData, ctx: ServiceCtx) => {
           const idleAgents = roleIndex.get(role);
           if (!idleAgents?.length) continue;
 
-          const agent = idleAgents[0];
+          // org.run targets a specific post agent; otherwise take first idle
+          let agentIdx = 0;
+          if (targetAgentPath) {
+            const idx = idleAgents.findIndex(a => a.$path === targetAgentPath);
+            if (idx < 0) continue; // target agent not idle
+            agentIdx = idx;
+          }
+
+          const agent = idleAgents[agentIdx];
           if (!poolAcquire(pool, agent.$path)) {
             log.warn(`pool full, ${agent.$path} queued`);
             continue;
           }
           poolDirty = true;
-          idleAgents.shift();
+          idleAgents.splice(agentIdx, 1);
 
           const readyAgent = await updateComp(ctx.tree, agent.$path, AiAgent, (c) => {
             c.status = 'working';

@@ -87,6 +87,7 @@ const TaskView: View<BoardTask, { draft?: boolean }> = ({ value, onChange, ctx, 
   const priority = typeof value.priority === 'string' ? value.priority : 'normal';
   const assignee = typeof value.assignee === 'string' ? value.assignee : '';
   const result = typeof value.result === 'string' ? value.result : '';
+  const runRef = typeof node.currentRun === 'string' ? node.currentRun : '';
 
   const save = (patch: Record<string, unknown>) => {
     onChange?.({ ...patch, updatedAt: Date.now() });
@@ -177,7 +178,7 @@ const TaskView: View<BoardTask, { draft?: boolean }> = ({ value, onChange, ctx, 
 
       <AttachMenu node={node} />
 
-      <EmbeddedTaskLog taskRef={typeof node.taskRef === 'string' ? node.taskRef : ''} />
+      <EmbeddedTaskLog taskRef={runRef} />
 
     </div>
   );
@@ -185,7 +186,7 @@ const TaskView: View<BoardTask, { draft?: boolean }> = ({ value, onChange, ctx, 
 
 function NamedComponents({ node }: { node: NodeData }) {
   const keys = Object.keys(node).filter(k => {
-    if (k.startsWith('$') || k === 'taskRef') return false;
+    if (k.startsWith('$') || k === 'currentRun') return false;
     const v = node[k];
     return v && typeof v === 'object' && '$type' in v;
   });

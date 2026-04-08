@@ -8,7 +8,7 @@ Infrastructure module for AI agent system. Provides Claude SDK wrapper, permissi
 
 - `claude.ts` — `invokeClaude()` wrapper around Claude Agent SDK. Handles streaming, sessions, abort, structured `LogEntry[]` output, cost tracking.
 - `permissions.ts` — Permission rule evaluation engine.
-- `types.ts` — `MetatronTask`, `MetatronSkill`, `MetatronTemplate` and other legacy types.
+- `types.ts` — `MetatronSkill`, `MetatronTemplate` — legacy types kept for schema compat.
 - `seed.ts` — Seeds `/metatron` as global AI assistant agent with chat capability.
 
 ## What was removed

@@ -56,6 +56,8 @@ export class AiRun {
   /** @format textarea */
   result = '';
   mode: 'plan' | 'work' | 'discuss' | 'chat' = 'work';
+  /** Key used by invokeClaude — needed to abort the correct query */
+  queryKey = '';
 
   /** @description Stop the running task */
   stop() {
@@ -64,9 +66,7 @@ export class AiRun {
     if (!status || status.status !== 'running') throw new Error('run is not running');
     status.status = 'aborted';
     status.finishedAt = Date.now();
-    // Abort the live Claude query — key is the agent path (parent of runs/)
-    const agentPath = node.$path.split('/').slice(0, -2).join('/');
-    abortQuery(agentPath);
+    abortQuery(this.queryKey || node.$path.split('/').slice(0, -2).join('/'));
   }
 }
 
@@ -79,7 +79,8 @@ export class AiAgent {
   /** Open-ended role string. Guardian policies keyed by role. */
   role = 'qa';
   status: AgentStatus = 'offline';
-  /** Trust level: 0=sandbox 1=observer 2=worker 3=operator 4=admin */
+  /** Trust level (metadata only — not enforced by guardian yet).
+   * 0=sandbox 1=observer 2=worker 3=operator 4=admin */
   trustLevel: 0 | 1 | 2 | 3 | 4 = 2;
   model = 'claude-opus-4-6';
   /** @format textarea */
@@ -206,6 +207,7 @@ export class AiApproval {
   tool = '';
   /** @format textarea */
   input = '';
+  inputTruncated = false;
   status: 'pending' | 'approved' | 'denied' = 'pending';
   reason = '';
   createdAt = 0;

@@ -318,6 +318,60 @@ describe('canUseTool', () => {
   });
 });
 
+// ── readOnly mode (plan) ──
+
+describe('canUseTool: readOnly mode', () => {
+  it('allows read-only tools', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    assert.equal((await canUse('mcp__treenity__get_node', { path: '/foo' })).behavior, 'allow');
+    assert.equal((await canUse('mcp__treenity__list_children', { path: '/foo' })).behavior, 'allow');
+    assert.equal((await canUse('mcp__treenity__catalog', {})).behavior, 'allow');
+  });
+
+  it('denies write tools in read-only mode', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    assert.equal((await canUse('mcp__treenity__set_node', { path: '/foo' })).behavior, 'deny');
+    assert.equal((await canUse('mcp__treenity__remove_node', { path: '/foo' })).behavior, 'deny');
+    assert.equal((await canUse('mcp__treenity__execute', { path: '/foo', action: 'doStuff' })).behavior, 'deny');
+  });
+
+  it('allows read-only bash in read-only mode', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    assert.equal((await canUse('Bash', { command: 'ls -la' })).behavior, 'allow');
+    assert.equal((await canUse('Bash', { command: 'cat file.ts' })).behavior, 'allow');
+    assert.equal((await canUse('Bash', { command: 'git status' })).behavior, 'allow');
+    assert.equal((await canUse('Bash', { command: 'git log --oneline' })).behavior, 'allow');
+  });
+
+  it('denies write bash in read-only mode', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    const r1 = await canUse('Bash', { command: 'mkdir foo' });
+    assert.equal(r1.behavior, 'deny');
+    assert.ok((r1 as any).message?.includes('Plan mode'));
+
+    const r2 = await canUse('Bash', { command: 'git commit -m "x"' });
+    assert.equal(r2.behavior, 'deny');
+  });
+
+  it('denies code-executing commands in read-only mode', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    // npm test and tsc execute arbitrary code
+    assert.equal((await canUse('Bash', { command: 'npm test' })).behavior, 'deny');
+    assert.equal((await canUse('Bash', { command: 'tsc --noEmit' })).behavior, 'deny');
+    assert.equal((await canUse('Bash', { command: 'node script.js' })).behavior, 'deny');
+  });
+
+  it('safety checks still apply in read-only mode', async () => {
+    const canUse = createCanUseTool('qa', '/agents/qa', undefined, { readOnly: true });
+    // Dangerous patterns blocked even for whitelisted verbs
+    assert.equal((await canUse('Bash', { command: 'cat .env.local' })).behavior, 'deny');
+    // Shell metacharacters blocked
+    assert.equal((await canUse('Bash', { command: 'git status $(rm -rf /)' })).behavior, 'deny');
+    // Redirections blocked
+    assert.equal((await canUse('Bash', { command: 'cat file > /tmp/out' })).behavior, 'deny');
+  });
+});
+
 // ── splitBashParts ──
 
 describe('splitBashParts', () => {
@@ -694,6 +748,7 @@ describe('AiRun', () => {
   it('stop action sets status to aborted', () => {
     const node = createNode('/agents/qa/runs/r-1', 'ai.run', {
       prompt: 'Do stuff', result: '', mode: 'work', taskRef: '',
+      queryKey: 'plan:/agents/qa',
       'run-status': { $type: 'ai.run-status', status: 'running', startedAt: Date.now(), finishedAt: 0, error: '' },
     });
 

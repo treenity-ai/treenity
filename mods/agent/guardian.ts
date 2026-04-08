@@ -46,17 +46,17 @@ function policyFromNode(p: AiPolicy): ToolPolicy {
   };
 }
 
-/** Merge two policies: b overrides a (more specific wins) */
+/** Merge two policies: override can relax escalate→allow, but NEVER cancel deny.
+ * Deny is authoritative — once denied by base, agent-local allow cannot override. */
 function mergePolicies(base: ToolPolicy, override: ToolPolicy): ToolPolicy {
   const allow = [...new Set([...base.allow, ...override.allow])];
   const deny = [...new Set([...base.deny, ...override.deny])];
   const escalate = [...new Set([...base.escalate, ...override.escalate])];
-  // Remove from escalate/deny if explicitly allowed in override
+  // Override allow can relax escalate (ask→allow), but never cancel deny
   const cleanEscalate = escalate.filter(t => !override.allow.includes(t));
-  const cleanDeny = deny.filter(t => !override.allow.includes(t));
   return {
     allow,
-    deny: cleanDeny,
+    deny,
     escalate: cleanEscalate,
   };
 }
@@ -340,7 +340,7 @@ export async function reconcileOnStartup(store: Tree): Promise<ResumableAgent[]>
         await store.set({ ...node, status: 'idle', currentTask: '', currentRun: '' });
         console.log(`[guardian] reset stuck agent: ${node.$path}`);
 
-        // Reset stuck metatron.tasks under this agent
+        // Reset stuck ai.run nodes under this agent
         try {
           const { items: runs } = await store.getChildren(`${node.$path}/runs`);
           for (const run of runs) {
@@ -396,10 +396,26 @@ const CLASS_PRIORITY: Record<ReturnType<typeof classifyBashCommand>, number> = {
 
 // ── canUseTool callback for Agent SDK ──
 
+// Read-only tools that plan mode is allowed to use
+const READ_ONLY_TOOLS = new Set([
+  'mcp__treenity__get_node', 'mcp__treenity__list_children',
+  'mcp__treenity__catalog', 'mcp__treenity__describe_type',
+  'mcp__treenity__search_types',
+  'mcp__treenity__compile_view',
+]);
+
+const READ_ONLY_BASH = new Set([
+  'cat', 'head', 'tail', 'ls', 'pwd', 'wc', 'file', 'which',
+  'grep', 'find', 'rg', 'tree', 'du', 'df', 'echo', 'date', 'uname',
+  'git status', 'git log', 'git diff', 'git branch', 'git show', 'git remote',
+  'npm ls', 'npm info', 'npm view',
+]);
+
 export function createCanUseTool(
   role: string,
   agentPath: string,
   store?: Tree,
+  opts?: { readOnly?: boolean },
 ) {
   const allow = (): PermissionResult => ({ behavior: 'allow' });
   const deny = (message: string): PermissionResult => ({ behavior: 'deny', message });
@@ -429,6 +445,14 @@ export function createCanUseTool(
     // Deny-list check first (bare tool name)
     if (matchesAny(policy.deny, toolName)) {
       return deny(`${role}: denied: ${toolName}`);
+    }
+
+    // Read-only mode for non-Bash tools — policy-enforced, not just prompt-constrained
+    if (opts?.readOnly && toolName !== 'Bash') {
+      if (!READ_ONLY_TOOLS.has(toolName)) {
+        return deny(`Plan mode: read-only. "${toolName}" is not allowed.`);
+      }
+      return allow();
     }
 
     // Bash → safety net, then classify each sub-command
@@ -475,6 +499,19 @@ export function createCanUseTool(
         const full = `Bash:${part.trim()}`;
         if (matchesAny(policy.deny, full)) return deny(`${role}: denied: ${full}`);
       }
+
+      // Read-only Bash: after safety checks pass, only allow whitelisted read commands
+      if (opts?.readOnly) {
+        for (const part of parts) {
+          const words = part.trim().split(/\s+/);
+          const twoWord = words.slice(0, 2).join(' ');
+          if (!READ_ONLY_BASH.has(twoWord) && !READ_ONLY_BASH.has(words[0])) {
+            return deny(`Plan mode: read-only. "${words[0]}" is not allowed. Only read commands (ls, cat, grep, git status, etc).`);
+          }
+        }
+        return allow();
+      }
+
       let policyEscalated: string | null = null;
       for (const part of parts) {
         const full = `Bash:${part.trim()}`;
@@ -548,7 +585,7 @@ export function createCanUseTool(
       if (store) {
         const inputStr = JSON.stringify(input);
         const approved = await requestApproval(store, {
-          agentPath, role, tool: toolName, input: inputStr,
+          agentPath, role, tool: toolCacheKey, input: inputStr,
           reason: 'requires approval',
         });
         sessionApproved.set(toolCacheKey, approved);
@@ -567,7 +604,7 @@ export function createCanUseTool(
     if (store) {
       const inputStr = JSON.stringify(input);
       const approved = await requestApproval(store, {
-        agentPath, role, tool: toolName, input: inputStr,
+        agentPath, role, tool: toolCacheKey, input: inputStr,
         reason: 'unknown tool',
       });
       sessionApproved.set(toolCacheKey, approved);

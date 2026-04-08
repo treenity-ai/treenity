@@ -18,6 +18,10 @@
       "format": "textarea",
       "default": ""
     },
+    "inputTruncated": {
+      "type": "boolean",
+      "default": false
+    },
     "status": {
       "type": "string",
       "enum": [
@@ -45,6 +49,7 @@
     "agentRole",
     "tool",
     "input",
+    "inputTruncated",
     "status",
     "reason",
     "createdAt",
