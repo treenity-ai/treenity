@@ -9,19 +9,17 @@ import { ScrollArea } from '#components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '#components/ui/tabs';
 import { ConfirmPopover } from '#components/ConfirmPopover';
 import { JsonEditor } from '#mods/editor-ui/JsonEditor';
+import { removeComponent, set } from '#hooks';
 import { FieldLabel, RefEditor } from '#mods/editor-ui/FieldLabel';
 import { getComponents, getPlainFields } from '#mods/editor-ui/node-utils';
+import type { SaveHandle } from '#tree/auto-save';
 import { type ComponentData, type GroupPerm, isRef, type NodeData, resolve } from '@treenity/core';
-import { getDefaults } from '@treenity/core/comp';
 import type { TypeSchema } from '@treenity/core/schema/types';
 import { ChevronRight, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { proxy, snapshot, useSnapshot } from 'valtio';
+import { proxy, useSnapshot } from 'valtio';
 import { AclEditor } from './AclEditor';
 import { ComponentSection } from './ComponentSection';
-import { set } from '#hooks';
-import { trpc } from '#tree/trpc';
-import type { SaveHandle } from '#tree/auto-save';
 
 function NodeCard({ path, type, onChangeType }: {
   path: string;
@@ -138,7 +136,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   }
 
   async function handleRemoveComponent(name: string) {
-    await trpc.patch.mutate({ path: node.$path, ops: [['d', name]] });
+    await removeComponent(node.$path, name);
   }
 
   // Main component value: node's own fields (cache has optimistic updates from auto-save)

@@ -4,6 +4,7 @@
 import { normalizeType, register } from '#core';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export function loadSchemasFromDir(dir: string): number {
   if (!fs.existsSync(dir)) return 0;
@@ -18,4 +19,10 @@ export function loadSchemasFromDir(dir: string): number {
     count++;
   }
   return count;
+}
+
+/** Load `./schemas/*.json` relative to caller's module — for tests that bypass mod loader.
+ * Usage: `loadTestSchemas(import.meta.url)` */
+export function loadTestSchemas(metaUrl: string): number {
+  return loadSchemasFromDir(path.join(path.dirname(fileURLToPath(metaUrl)), 'schemas'));
 }

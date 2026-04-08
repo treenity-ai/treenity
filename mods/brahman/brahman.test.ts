@@ -1,7 +1,7 @@
 // Brahman bot tests — fake Grammy, real tree, full signal flow
 // Tests: template engine, keyboards, tag filtering, page/action execution, middleware
 
-import { type NodeData, resolve } from '@treenity/core';
+import { type NodeData, register, resolve } from '@treenity/core';
 import { registerType } from '@treenity/core/comp';
 import type { ServiceCtx } from '@treenity/core/contexts/service';
 import { serverNodeHandle } from '@treenity/core/server/actions';
@@ -760,6 +760,11 @@ class _TestTarget {
   }
 }
 registerType('test.brahman.target', _TestTarget);
+register('test.brahman.target', 'schema', () => ({
+  $id: 'test.brahman.target', title: 'TestTarget', type: 'object' as const,
+  properties: { value: { type: 'number' } },
+  methods: { bump: { arguments: [] } },
+}));
 
 describe('brahman.action.call', () => {
   it('calls tree action via server executeAction and saves result', async () => {
