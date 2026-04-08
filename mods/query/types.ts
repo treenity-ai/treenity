@@ -6,12 +6,12 @@ export class QueryView {
   /** @title Source path */
   source = '/';
   /** @title Type filter */
-  filterType = '';
+  typeFilter = '';
   /** @title Filters @format hidden */
   filters: QueryFilter[] = [];
   /** @title Render mode */
   mode: 'list' | 'table' | 'kanban' = 'list';
-  /** @title Group by field (for kanban mode) */
+  /** @title Group by field */
   groupBy = 'status';
 }
 

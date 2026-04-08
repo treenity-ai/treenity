@@ -6,7 +6,7 @@
       "title": "Source path",
       "default": "/"
     },
-    "filterType": {
+    "typeFilter": {
       "type": "string",
       "title": "Type filter",
       "default": ""
@@ -29,13 +29,13 @@
     },
     "groupBy": {
       "type": "string",
-      "title": "Group by field (for kanban mode)",
+      "title": "Group by field",
       "default": "status"
     }
   },
   "required": [
     "source",
-    "filterType",
+    "typeFilter",
     "filters",
     "mode",
     "groupBy"
