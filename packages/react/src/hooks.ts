@@ -312,7 +312,7 @@ function makeProxy<T extends object>(
 ): TypeProxy<T> {
   const type = normalizeType(cls);
   const comp = node
-    ? (key ? getComponent(node, key) : getComponent(node, cls))
+    ? getComponent(node, cls, key)
     : undefined;
 
   return new Proxy(comp ?? {}, {

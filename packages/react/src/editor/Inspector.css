@@ -58,9 +58,17 @@ body > div:has([data-radix-popover-content-wrapper]),
 }
 .node-view:has(> .view-full) {
   max-width: none;
+  height: 100%;
 }
 
-/* Allow horizontal scroll for full-width views inside ScrollArea */
+/* Full-height views fill the viewport, manage their own scroll */
 [data-slot="scroll-area-viewport"]:has(.view-full) {
   overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+/* Let wrapper div stretch for view-full */
+.editor .p-4:has(.view-full) {
+  height: 100%;
+  padding: 0;
 }

@@ -162,12 +162,12 @@ export function App() {
   const navFromPopstate = useRef(false);
   useEffect(() => {
     if (mode !== 'editor') return;
+    if (navFromPopstate.current) { navFromPopstate.current = false; return; }
     const base = selected ? `/t${selected === '/' ? '' : selected}` : '/';
     const search = root !== '/' ? `?root=${encodeURIComponent(root)}` : '';
     const url = base + search;
     if (location.pathname + location.search !== url) {
-      if (navFromPopstate.current) navFromPopstate.current = false;
-      else pushHistory(url);
+      pushHistory(url);
     }
   }, [selected, root, mode]);
 
