@@ -6,9 +6,25 @@ import { pendingPermissions, type PermissionMeta, type PermissionRule } from '#m
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { createNode, getComponent, type NodeData } from '@treenity/core';
 import { setComponent } from '@treenity/core/comp';
-import { matchesAny } from '@treenity/core/glob';
+import { globMatch, matchesAny } from '@treenity/core/glob';
 import type { Tree } from '@treenity/core/tree';
 import { AiAgent, AiChat, AiPolicy, AiRunStatus } from './types';
+
+// ── Pattern specificity — exact match (no wildcard) > wildcard, longer > shorter ──
+
+/** Return specificity score of the best matching pattern for any subject, or -1 if none match.
+ *  Exact match = pattern length + 1000 (always beats wildcard). Wildcard = pattern length. */
+function bestMatchSpecificity(patterns: string[], subjects: string[]): number {
+  let best = -1;
+  for (const s of subjects) {
+    for (const p of patterns) {
+      if (!globMatch(p, s)) continue;
+      const score = p.includes('*') ? p.length : p.length + 1000;
+      if (score > best) best = score;
+    }
+  }
+  return best;
+}
 
 // ── ToolPolicy shape (runtime, with RegExp) ──
 
@@ -476,12 +492,13 @@ export function createCanUseTool(
       return deny(`${role}: denied: ${toolName}`);
     }
 
-    // Read-only mode for non-Bash tools — policy-enforced, not just prompt-constrained
+    // Read-only mode for non-Bash tools — restrict to whitelist AFTER deny check
+    // Path-scoped denies (e.g. get_node:/secret/*) are evaluated in compound section below
     if (opts?.readOnly && toolName !== 'Bash') {
       if (!READ_ONLY_TOOLS.has(toolName)) {
         return deny(`Plan mode: read-only. "${toolName}" is not allowed.`);
       }
-      return allow();
+      // Don't return allow() here — fall through to compound deny check below
     }
 
     // Bash → safety net, then classify each sub-command
@@ -610,24 +627,35 @@ export function createCanUseTool(
     // Most specific subject for cache/approval key
     const toolSubject = subjects[0];
 
-    // Evaluation order matches MCP: deny → allow → escalate
-    // Deny always wins
+    // Specificity-aware evaluation: most specific matching pattern wins.
+    // Deny is absolute. Between allow and escalate, the more specific pattern wins.
+    // Exact match beats wildcard. At same specificity, escalate beats allow (fail-closed).
+
+    // Deny: absolute — any subject match → deny
     for (const s of subjects) {
       if (matchesAny(policy.deny, s)) return deny(`${role}: denied: ${s}`);
     }
 
-    // Allow beats escalate — specific allow (e.g. execute:$schema) takes priority
-    // over wildcard escalate (e.g. execute:*)
-    for (const s of subjects) {
-      if (matchesAny(policy.allow, s)) return allow();
+    // Read-only mode: if tool passed deny checks, allow (readOnly whitelist already checked above)
+    if (opts?.readOnly) return allow();
+
+    // Find best allow and best escalate matches (by pattern specificity)
+    const allowSpec = bestMatchSpecificity(policy.allow, subjects);
+    const escalateSpec = bestMatchSpecificity(policy.escalate, subjects);
+
+    let verdict: 'allow' | 'escalate' | null = null;
+    if (allowSpec >= 0 && escalateSpec >= 0) {
+      // Both match — higher specificity wins, escalate wins ties (fail-closed)
+      verdict = allowSpec > escalateSpec ? 'allow' : 'escalate';
+    } else if (allowSpec >= 0) {
+      verdict = 'allow';
+    } else if (escalateSpec >= 0) {
+      verdict = 'escalate';
     }
 
-    // Escalate: any subject match → request human approval
-    let shouldEscalate = false;
-    for (const s of subjects) {
-      if (matchesAny(policy.escalate, s)) { shouldEscalate = true; break; }
-    }
-    if (shouldEscalate) {
+    if (verdict === 'allow') return allow();
+
+    if (verdict === 'escalate') {
       const cached = sessionApproved.get(toolSubject);
       if (cached !== undefined) return cached ? allow() : deny('session-denied');
 

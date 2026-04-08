@@ -487,17 +487,30 @@ describe('canUseTool: policy precedence', () => {
     }
   }
 
-  it('allow beats escalate (deny → allow → escalate order)', async () => {
-    // Wildcard allow + specific escalate → allow wins (MCP semantics)
+  it('specific escalate beats wildcard allow (specificity wins)', async (t) => {
+    // Specific escalate (set_node) beats wildcard allow (*) — more specific pattern wins
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+
     const store = mockStore(undefined, {
       allow: ['mcp__treenity__*'],
       deny: [],
       escalate: ['mcp__treenity__set_node'],
     });
 
-    const canUse = createCanUseTool('dev', '/agents/test', store);
-    const r = await canUse('mcp__treenity__set_node', { path: '/foo' });
-    assert.equal(r.behavior, 'allow', 'allow should beat escalate (MCP order)');
+    let escalated = false;
+    store.set = async (node: any) => {
+      if (node?.$type === 'ai.approval') escalated = true;
+    };
+
+    const resultPromise = createCanUseTool('dev', '/agents/test', store)(
+      'mcp__treenity__set_node', { path: '/foo' },
+    );
+
+    await flush();
+    assert.ok(escalated, 'specific escalate should beat wildcard allow');
+
+    await resolveAllPending(false);
+    await resultPromise;
   });
 
   it('specific allow beats wildcard escalate (execute:$schema)', async () => {
@@ -581,6 +594,30 @@ describe('canUseTool: policy precedence', () => {
     const canUse = createCanUseTool('dev', '/agents/test', store);
     const r = await canUse('mcp__treenity__deploy_prefab', { target: '/agents/bot' });
     assert.equal(r.behavior, 'allow', 'target should work as path fallback in subjects');
+  });
+
+  it('plan mode respects path-scoped denies on read tools', async () => {
+    const store = mockStore(undefined, {
+      allow: ['mcp__treenity__get_node'],
+      deny: ['mcp__treenity__get_node:/secret/*'],
+      escalate: [],
+    });
+
+    const canUse = createCanUseTool('dev', '/agents/test', store, { readOnly: true });
+    const r = await canUse('mcp__treenity__get_node', { path: '/secret/keys' });
+    assert.equal(r.behavior, 'deny', 'path-scoped deny must apply even in plan mode');
+  });
+
+  it('plan mode allows read tools on non-denied paths', async () => {
+    const store = mockStore(undefined, {
+      allow: ['mcp__treenity__get_node'],
+      deny: ['mcp__treenity__get_node:/secret/*'],
+      escalate: [],
+    });
+
+    const canUse = createCanUseTool('dev', '/agents/test', store, { readOnly: true });
+    const r = await canUse('mcp__treenity__get_node', { path: '/public/data' });
+    assert.equal(r.behavior, 'allow', 'non-denied path should be allowed in plan mode');
   });
 });
 
