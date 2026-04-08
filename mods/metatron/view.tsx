@@ -1,4 +1,1 @@
-// Barrel — registers all metatron views
-import './views/config';
-import './views/task';
-import './views/workspace';
+// Barrel — metatron views (standalone views removed, types remain for ECS components)

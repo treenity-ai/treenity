@@ -3,6 +3,7 @@
 // Sessions persist via `resume` option. If resume fails, auto-retries fresh.
 // Active query registry: keyed by configPath, enables abort from stop action.
 
+import type { LogEntry } from '#agent/types';
 import { type CanUseTool, query, type Query } from '@anthropic-ai/claude-agent-sdk';
 import { evaluatePermission, type PermissionRule } from './permissions';
 
@@ -14,6 +15,7 @@ function ts(): string {
 export type ClaudeResult = {
   output: string;   // full log: text + tool calls + thinking + results
   text: string;     // clean text only (assistant text blocks)
+  logEntries: LogEntry[];
   sessionId?: string;
   durationMs: number;
   costUsd?: number;
@@ -103,9 +105,11 @@ async function runQuery(
     permissionRules?: PermissionRule[];
     canUseTool?: CanUseTool;
     onOutput?: ClaudeStreamCallback;
+    onLogEntry?: (entry: LogEntry) => void;
   },
 ): Promise<ClaudeResult> {
   const mcpUrl = opts.mcpUrl || process.env.TREENITY_MCP_URL || 'http://localhost:3212/mcp';
+  const mcpToken = process.env.TREENITY_MCP_TOKEN || 'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd';
   const startTime = Date.now();
 
   let sessionId: string | undefined;
@@ -118,6 +122,8 @@ async function runQuery(
   // Array accumulation avoids O(n^2) string concatenation
   const outputChunks: string[] = [];
   const textChunks: string[] = [];
+  const logEntries: LogEntry[] = [];
+  const pendingTools = new Map<string, { name: string; ts: number; input: Record<string, unknown> }>();
 
   const stream = query({
     prompt,
@@ -132,7 +138,7 @@ async function runQuery(
       ...(denied.length ? { disallowedTools: denied } : {}),
       ...(opts.canUseTool ? { canUseTool: opts.canUseTool } : {}),
       mcpServers: {
-        treenity: { type: 'http', url: mcpUrl },
+        treenity: { type: 'http', url: mcpUrl, headers: { Authorization: `Bearer ${mcpToken}` } },
       },
     },
   });
@@ -143,6 +149,11 @@ async function runQuery(
   const append = (text: string) => {
     outputChunks.push(text);
     opts.onOutput?.(text);
+  };
+
+  const pushEntry = (entry: LogEntry) => {
+    logEntries.push(entry);
+    opts.onLogEntry?.(entry);
   };
 
   try {
@@ -159,12 +170,17 @@ async function runQuery(
           if (block.type === 'text' && block.text) {
             textChunks.push(block.text);
             append(block.text);
+            pushEntry({ ts: Date.now(), type: 'text', output: block.text });
           } else if (block.type === 'tool_use') {
             log(`  tool: ${block.name} ${JSON.stringify(block.input)}`);
             const input = JSON.stringify(block.input, null, 2);
             append(`\n[tool ${ts()}] ${block.name}\n${input}\n`);
+            const toolInput = block.input as Record<string, unknown>;
+            pushEntry({ ts: Date.now(), type: 'tool_call', tool: block.name, input: toolInput });
+            pendingTools.set(block.id, { name: block.name, ts: Date.now(), input: toolInput });
           } else if (block.type === 'thinking' && block.thinking) {
             append(`\n[thinking ${ts()}]\n${block.thinking}\n`);
+            pushEntry({ ts: Date.now(), type: 'thinking', output: block.thinking });
           }
         }
       }
@@ -175,6 +191,17 @@ async function runQuery(
           if (block.type === 'tool_result') {
             const content = extractToolResultText(block.content);
             append(`\n[result ${ts()}] ${content}\n`);
+
+            const entry: LogEntry = { ts: Date.now(), type: 'tool_result', output: content };
+
+            const pending = pendingTools.get(block.tool_use_id);
+            if (pending) {
+              entry.duration = Date.now() - pending.ts;
+              if (typeof pending.input.path === 'string') entry.ref = pending.input.path;
+              pendingTools.delete(block.tool_use_id);
+            }
+
+            pushEntry(entry);
           }
         }
       }
@@ -192,6 +219,7 @@ async function runQuery(
       return {
         output: outputChunks.join(''),
         text: textChunks.join(''),
+        logEntries,
         sessionId,
         durationMs: Date.now() - startTime,
         costUsd,
@@ -206,6 +234,7 @@ async function runQuery(
   return {
     output: outputChunks.join(''),
     text: textChunks.join(''),
+    logEntries,
     sessionId,
     durationMs: Date.now() - startTime,
     costUsd,
@@ -225,6 +254,7 @@ export async function invokeClaude(
     permissionRules?: PermissionRule[];
     canUseTool?: CanUseTool;
     onOutput?: ClaudeStreamCallback;
+    onLogEntry?: (entry: LogEntry) => void;
   } = {},
 ): Promise<ClaudeResult> {
   const promptPreview = prompt.length > 120 ? prompt.slice(0, 120) + '...' : prompt;

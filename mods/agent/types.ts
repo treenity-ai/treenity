@@ -2,22 +2,92 @@
 // Role determines prompt + tool policy. Uses metatron's invokeClaude for LLM.
 // Agent = node, tree = protocol.
 
+import { abortQuery } from '#metatron/claude';
 import { resolvePermission } from '#metatron/permissions';
-import { registerType } from '@treenity/core/comp';
+import { getComponent } from '@treenity/core';
+import { getCtx, registerType } from '@treenity/core/comp';
+
+// ── Structured log entry — atomic unit of observability ──
+
+export type LogEntry = {
+  ts: number
+  type: 'text' | 'tool_call' | 'tool_result' | 'thinking' | 'approval' | 'embed'
+  tool?: string
+  input?: Record<string, unknown>
+  output?: string
+  duration?: number
+  approved?: boolean
+  /** Treenity node path — UI can render via <Render /> */
+  ref?: string
+};
+
+// ── Reusable ECS components ──
+
+/** Structured activity log — attachable to any node (run, chat, etc.) */
+export class AiLog {
+  entries: LogEntry[] = [];
+}
+
+/** Generic lifecycle status — reusable for any process */
+export class AiRunStatus {
+  status: 'pending' | 'running' | 'done' | 'error' | 'aborted' = 'pending';
+  startedAt = 0;
+  finishedAt = 0;
+  error = '';
+}
+
+/** Cost tracking — attachable to any billable operation */
+export class AiCost {
+  inputTokens = 0;
+  outputTokens = 0;
+  costUsd = 0;
+  model = '';
+}
+
+// ── Node types ──
+
+/** One Claude invocation — lives at /agents/{name}/runs/{id} */
+export class AiRun {
+  /** Reference to board task */
+  taskRef = '';
+  /** @format textarea */
+  prompt = '';
+  /** Clean text output */
+  /** @format textarea */
+  result = '';
+  mode: 'plan' | 'work' | 'discuss' | 'chat' = 'work';
+
+  /** @description Stop the running task */
+  stop() {
+    const { node } = getCtx();
+    const status = getComponent(node, AiRunStatus);
+    if (!status || status.status !== 'running') throw new Error('run is not running');
+    status.status = 'aborted';
+    status.finishedAt = Date.now();
+    // Abort the live Claude query — key is the agent path (parent of runs/)
+    const agentPath = node.$path.split('/').slice(0, -2).join('/');
+    abortQuery(agentPath);
+  }
+}
 
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'error' | 'offline';
 
 /** AI Agent — autonomous worker node at /agents/{name}
- * LLM config (model, systemPrompt, sessionId) lives in named metatron.config component.
- * Work creates metatron.task nodes under /agents/{name}/tasks/. */
+ * LLM config (model, systemPrompt) lives directly on agent.
+ * Chat session in ai.chat component. Work creates ai.run nodes under runs/. */
 export class AiAgent {
   /** Open-ended role string. Guardian policies keyed by role. */
   role = 'qa';
   status: AgentStatus = 'offline';
+  /** Trust level: 0=sandbox 1=observer 2=worker 3=operator 4=admin */
+  trustLevel: 0 | 1 | 2 | 3 | 4 = 2;
+  model = 'claude-opus-4-6';
+  /** @format textarea */
+  systemPrompt = '';
   /** Path to current board.task being worked on */
   currentTask = '';
-  /** Path to current metatron.task (live log) */
-  taskRef = '';
+  /** Path to current ai.run (live log) */
+  currentRun = '';
   lastRunAt = 0;
   /** Total tokens used across all tasks */
   totalTokens = 0;
@@ -149,7 +219,8 @@ export class AiApproval {
     if (this.status !== 'pending') throw new Error('already resolved');
     this.status = 'approved';
     this.resolvedAt = Date.now();
-    const id = (this as any).$path?.split('/').pop();
+    const { node } = getCtx();
+    const id = node.$path.split('/').pop();
     if (id) resolvePermission(id, true, {
       tool: this.tool,
       input: this.input,
@@ -166,7 +237,8 @@ export class AiApproval {
     if (this.status !== 'pending') throw new Error('already resolved');
     this.status = 'denied';
     this.resolvedAt = Date.now();
-    const id = (this as any).$path?.split('/').pop();
+    const { node } = getCtx();
+    const id = node.$path.split('/').pop();
     if (id) resolvePermission(id, false, {
       tool: this.tool,
       input: this.input,
@@ -178,7 +250,7 @@ export class AiApproval {
 
 registerType('ai.approval', AiApproval);
 
-/** Persistent tool policy — lives on agent (per-agent) or /agents/guardian (global) */
+/** Persistent tool policy — lives on agent (per-agent) or /guardian (global) */
 export class AiPolicy {
   allow: string[] = [];
   deny: string[] = [];
@@ -231,3 +303,25 @@ registerType('ai.agent', AiAgent);
 registerType('ai.pool', AiPool);
 registerType('ai.assignment', AiAssignment);
 registerType('ai.thread', AiThread);
+
+/** Interactive chat session — compose with ai.thread for messages */
+export class AiChat {
+  streaming = false;
+  sessionId = '';
+
+  /** @description Clear chat history and reset session */
+  clear() {
+    const { node } = getCtx();
+    const thread = getComponent(node, AiThread);
+    if (thread) thread.messages = [];
+    this.sessionId = '';
+    this.streaming = false;
+  }
+}
+
+// New ECS components + node types
+registerType('ai.chat', AiChat);
+registerType('ai.log', AiLog);
+registerType('ai.run-status', AiRunStatus);
+registerType('ai.cost', AiCost);
+registerType('ai.run', AiRun);

@@ -1,13 +1,23 @@
-// Agent Office — views for ai.pool, ai.agent, ai.approval, ai.thread
+// Agent Office — views for ai.pool, ai.agent, ai.approval, ai.thread, ai.run
 
-import { MetatronConfig } from '#metatron/types';
-import { getComponent, register } from '@treenity/core';
-import { Render, RenderContext, type View } from '@treenity/react';
-import { execute, useChildren, useNavigate, usePath } from '@treenity/react';
-import { minimd } from '@treenity/react';
-import { cn } from '@treenity/react';
+import { register } from '@treenity/core';
+import {
+  cn,
+  execute,
+  minimd,
+  Render,
+  RenderContext,
+  useChildren,
+  useNavigate,
+  usePath,
+  type View,
+} from '@treenity/react';
 import { useMemo, useState } from 'react';
-import { AiApproval, type AgentStatus, AiAgent, AiApprovals, AiPlan, AiPool, AiThread } from './types';
+import { type AgentStatus, AiAgent, AiApproval, AiApprovals, AiPlan, AiPool, AiThread } from './types';
+
+// Side-effect imports — register views for sub-components
+import './views/run';
+import './views/chat';
 
 // ── Status styling ──
 
@@ -44,12 +54,20 @@ function StatusDot({ status }: { status: string }) {
   return <span className={cn('inline-block w-2 h-2 rounded-full', statusStyle(status).dot)} />;
 }
 
+// ── ActiveRun (renders a single run node by path — hook-safe) ──
+
+function ActiveRun({ runPath }: { runPath: string }) {
+  const runNode = usePath(runPath);
+  if (!runNode) return null;
+  return <Render value={runNode} />;
+}
+
 // ── PoolView (ai.pool — dashboard) ──
 
 const PoolView: View<AiPool> = ({ value, ctx }) => {
   const path = ctx!.node.$path;
   const agents = useChildren(path);
-  const approvals = useChildren(path + '/approvals');
+  const approvals = useChildren('/guardian/approvals');
 
   const agentNodes = (agents ?? []).filter(n => n.$type === 'ai.agent');
   const approvalNodes = (approvals ?? []).filter(n => n.$type === 'ai.approval');
@@ -58,6 +76,8 @@ const PoolView: View<AiPool> = ({ value, ctx }) => {
   const activeCount = value.active?.length ?? 0;
   const queueCount = value.queue?.length ?? 0;
   const maxC = value.maxConcurrent ?? 2;
+
+  const activeRuns = agentNodes.filter(a => a.currentRun);
 
   return (
     <div className="flex flex-col gap-6 p-5 max-w-3xl">
@@ -110,6 +130,18 @@ const PoolView: View<AiPool> = ({ value, ctx }) => {
           <p className="text-sm text-zinc-600 italic">No agents registered</p>
         )}
       </div>
+
+      {/* Current runs */}
+      {activeRuns.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-medium text-sky-400 uppercase tracking-wider">
+            Current Runs ({activeRuns.length})
+          </h3>
+          {activeRuns.map(a => (
+            <ActiveRun key={a.$path} runPath={a.currentRun} />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -167,8 +199,16 @@ const AgentView: View<AiAgent> = ({ value, ctx }) => {
   const path = ctx!.node.$path;
   const status = value.status || 'offline';
   const s = statusStyle(status);
-  const config = getComponent(ctx!.node, MetatronConfig);
-  const mtTask = usePath(value.taskRef || null);
+  const runNode = usePath(value.currentRun || null);
+  const runs = useChildren(path + '/runs');
+
+  const sortedRuns = useMemo(() => {
+    if (!runs?.length) return [];
+    return [...runs]
+      .filter(n => n.$type === 'ai.run')
+      .sort((a, b) => b.$path.localeCompare(a.$path))
+      .slice(0, 20);
+  }, [runs]);
 
   return (
     <div className="flex flex-col gap-5 p-5 max-w-2xl">
@@ -182,26 +222,40 @@ const AgentView: View<AiAgent> = ({ value, ctx }) => {
 
       <div className="grid grid-cols-2 gap-3">
         <InfoCell label="Role" value={value.role} />
-        <InfoCell label="Model" value={config?.model || '—'} mono />
+        <InfoCell label="Model" value={value.model || '—'} mono />
         <InfoCell label="Last Run" value={value.lastRunAt ? timeAgo(value.lastRunAt) : 'never'} />
         <InfoCell label="Tokens" value={value.totalTokens > 0 ? `$${(value.totalTokens / 100000).toFixed(3)}` : '—'} mono />
         {value.currentTask && <InfoCell label="Current Task" value={value.currentTask} mono span2 />}
       </div>
 
-      {config?.systemPrompt && (
+      {value.systemPrompt && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">System Prompt</span>
           <pre className="text-xs text-zinc-400 bg-zinc-900/50 border border-zinc-800 rounded-lg p-3 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
-            {config.systemPrompt}
+            {value.systemPrompt}
           </pre>
         </div>
       )}
 
-      {/* Live metatron.task log (D29) */}
-      {mtTask && (
+      {/* Current run (live) */}
+      {runNode && (
         <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] font-medium text-sky-400 uppercase tracking-wider">Live Task</span>
-          <Render value={mtTask} />
+          <span className="text-[11px] font-medium text-sky-400 uppercase tracking-wider">Current Run</span>
+          <Render value={runNode} />
+        </div>
+      )}
+
+      {/* Past runs */}
+      {sortedRuns.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[11px] font-medium text-zinc-500 uppercase tracking-wider">
+            Runs ({sortedRuns.length})
+          </h3>
+          <RenderContext name="react:list">
+            {sortedRuns.map(run => (
+              <Render key={run.$path} value={run} />
+            ))}
+          </RenderContext>
         </div>
       )}
 
@@ -459,10 +513,60 @@ const ApprovalRow: View<AiApproval> = ({ value, ctx }) => {
   );
 };
 
+// ── AgentLayout (react:layout — agent detail + chat panel) ──
+
+const AgentLayout: View<AiAgent> = ({ value, ctx }) => {
+  const node = ctx!.node;
+  const [collapsed, setCollapsed] = useState(true);
+  const hasChat = node.chat && typeof node.chat === 'object' && (node.chat as { $type?: string }).$type === 'ai.chat';
+
+  if (!hasChat) {
+    return (
+      <RenderContext name="react">
+        <Render value={node} />
+      </RenderContext>
+    );
+  }
+
+  return (
+    <div className="view-full flex flex-col h-full overflow-hidden">
+      <div className="shrink-0 border-b border-zinc-800">
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors w-full"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+            className={cn('shrink-0 transition-transform duration-150', !collapsed && 'rotate-90')}>
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+          Agent
+        </button>
+        {collapsed ? (
+          <RenderContext name="react:list">
+            <Render value={node} />
+          </RenderContext>
+        ) : (
+          <div className="max-h-[40vh] overflow-y-auto">
+            <RenderContext name="react">
+              <Render value={node} />
+            </RenderContext>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <RenderContext name="react">
+          <Render value={node.chat} />
+        </RenderContext>
+      </div>
+    </div>
+  );
+};
+
 // ── Register views ──
 
 register(AiPool, 'react', PoolView);
 register(AiAgent, 'react', AgentView);
+register(AiAgent, 'react:layout', AgentLayout);
 register(AiAgent, 'react:list', AgentRow);
 register(AiApproval, 'react', ApprovalView);
 register(AiApproval, 'react:list', ApprovalRow);

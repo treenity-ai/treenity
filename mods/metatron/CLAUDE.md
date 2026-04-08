@@ -1,22 +1,24 @@
 # metatron
 
-AI-оркестратор. Хранит Claude-диалоги как `metatron.task` ноды со структурированным `LogBlock[]` логом. Сервис следит за `running` тасками, собирает промпт из skills/memory/history, гонит Claude-turns. Параллельная обработка через `active: Set<string>`.
+Infrastructure module for AI agent system. Provides Claude SDK wrapper, permissions, and legacy types.
 
-## Types
-- `metatron.config` — model, systemPrompt, service
-- `metatron.task` — prompt, status, log[], actions: task/reply/approve
-- `metatron.skill` — named prompt fragment
-- `metatron.memory` — persistent context
+**Not a standalone service.** Metatron was the original orchestrator; that role is now in `mods/agent`. This module provides shared infrastructure consumed by the agent service and chat.
 
-## Smart Permissions
-- `ALLOWED_TOOLS` — generous whitelist, SDK auto-approves (never calls canUseTool)
-- `NEEDS_APPROVAL` — only `remove_node` needs interactive user approval
-- `canUseTool` — auto-allows anything not in NEEDS_APPROVAL; session memory auto-approves after first allow
-- `metatron.permission` LogBlock — id, tool, input, status (pending/approved/denied)
-- `approve` action on task — sets block status + resolves waiting canUseTool Promise
-- Permission blocks flush immediately (bypass 2s debounce) for instant UI visibility
+## What lives here
 
-## Parallel Execution
-- `active: Set<string>` tracks running task paths (replaces `processing` boolean)
-- `processRunning()` finds ALL running tasks not in active set, fires each independently (no await)
-- Each `processTask()` self-contained: add to active → run → delete from active → recheck
+- `claude.ts` — `invokeClaude()` wrapper around Claude Agent SDK. Handles streaming, sessions, abort, structured `LogEntry[]` output, cost tracking.
+- `permissions.ts` — Permission rule evaluation engine.
+- `types.ts` — `MetatronTask`, `MetatronSkill`, `MetatronTemplate` and other legacy types.
+- `seed.ts` — Seeds `/metatron` as global AI assistant agent with chat capability.
+
+## What was removed
+
+- `MetatronConfig` — fields moved to `AiAgent` (model, systemPrompt) and `AiChat` (sessionId)
+- Standalone service — replaced by `mods/agent/service.ts`
+- Views — replaced by `mods/agent/views/`
+
+## Key exports
+
+- `invokeClaude(prompt, opts)` → `ClaudeResult { text, output, logEntries, sessionId, costUsd }`
+- `abortQuery(key)` — abort a running query
+- `MetatronSkill`, `MetatronTemplate` — registered types

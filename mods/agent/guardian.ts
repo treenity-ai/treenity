@@ -1,15 +1,14 @@
 // Guardian — extensible tool policy for AI agents.
-// Cascade: agent ai.policy → global ai.policy (/agents/guardian) → hardcoded fallback.
+// Cascade: agent ai.policy → global ai.policy (/guardian) → hardcoded fallback.
 // Escalation: creates ai.approval node → Promise resolution via pendingPermissions.
 
 import { pendingPermissions, type PermissionMeta, type PermissionRule } from '#metatron/permissions';
-import { MetatronConfig } from '#metatron/types';
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
 import { createNode, getComponent } from '@treenity/core';
 import { setComponent } from '@treenity/core/comp';
 import { matchesAny } from '@treenity/core/glob';
 import type { Tree } from '@treenity/core/tree';
-import { AiApproval, AiPolicy } from './types';
+import { AiChat, AiPolicy, AiRunStatus } from './types';
 
 // ── ToolPolicy shape (runtime, with RegExp) ──
 
@@ -19,7 +18,7 @@ export type ToolPolicy = {
   escalate: string[];
 };
 
-// ── Minimal fallback — read-only, everything else escalated ──
+// ── Fail-closed fallback — deny destructive, escalate writes, allow reads ──
 
 const FALLBACK_POLICY: ToolPolicy = {
   allow: [
@@ -28,7 +27,12 @@ const FALLBACK_POLICY: ToolPolicy = {
     'mcp__treenity__search_types',
     'mcp__treenity__execute:$schema',
   ],
-  deny: [],
+  deny: [
+    'mcp__treenity__guardian_approve',
+    'Bash:git checkout *', 'Bash:git checkout -- *',
+    'Bash:git reset --hard*', 'Bash:git push --force*', 'Bash:git clean*',
+    'Bash:rm -rf *', 'Bash:rm -r *', 'Bash:cat *.env*',
+  ],
   escalate: ['mcp__treenity__set_node', 'mcp__treenity__execute:*', 'mcp__treenity__remove_node'],
 };
 
@@ -57,13 +61,13 @@ function mergePolicies(base: ToolPolicy, override: ToolPolicy): ToolPolicy {
   };
 }
 
-const GUARDIAN_PATH = '/agents/guardian';
+const GUARDIAN_PATH = '/guardian';
 
 /** Resolve policy cascade: agent → global → fallback */
 async function resolvePolicy(store: Tree, agentPath: string): Promise<ToolPolicy> {
   const hardcoded = FALLBACK_POLICY;
 
-  // Global policy from /agents/guardian
+  // Global policy from /guardian
   let base = hardcoded;
   try {
     const guardianNode = await store.get(GUARDIAN_PATH);
@@ -104,7 +108,7 @@ export function buildPermissionRules(_role: string): PermissionRule[] {
 }
 
 
-// ── Always-deny bash patterns ──
+// ── Always-deny bash patterns (non-negotiable safety net) ──
 
 const DANGEROUS_BASH = [
   /rm\s+-rf/, /push\s+--force/, /reset\s+--hard/, /--no-verify/,
@@ -113,6 +117,69 @@ const DANGEROUS_BASH = [
   /chmod\s+777/, /chmod\s+\+s/,                            // permission escalation
   /\bdd\s+.*of=\/dev\//, /\bmkfs\b/,                      // disk destruction
 ];
+
+// ── Shell metacharacter detection ──
+// Commands containing these are not safe for word-based classification —
+// they can embed arbitrary sub-commands or redirect output.
+
+const SHELL_META_RE = /[`$]|\$\(|[<>]|[|]{2}|[&]{2}/;
+
+/** Returns true if the sub-command contains shell metacharacters that could
+ *  embed or redirect arbitrary commands (backticks, $(), redirections). */
+export function hasShellMeta(cmd: string): boolean {
+  // Only strip single-quoted strings — double quotes still expand $ and backticks in shell
+  const stripped = cmd.replace(/'[^']*'/g, '');
+  return SHELL_META_RE.test(stripped);
+}
+
+// ── Bash command classification ──
+
+const BASH_AUTO = new Set([
+  'cd', 'ls', 'pwd', 'cat', 'head', 'tail', 'wc', 'file', 'which',
+  'grep', 'find', 'rg', 'tree', 'du', 'df', 'echo', 'printf', 'date', 'uname',
+  'git status', 'git log', 'git diff', 'git branch', 'git show', 'git remote',
+  'npm ls', 'npm test', 'npm info', 'npm view',
+  'tsc',
+]);
+
+const BASH_SESSION = new Set([
+  'mkdir', 'touch', 'cp', 'mv',
+  'node', 'tsx', 'npx', 'npm run',
+  'git add', 'git commit', 'git stash', 'git fetch', 'git pull',
+  'npm install', 'npm ci', 'npm update',
+]);
+
+const BASH_ESCALATE = new Set([
+  'git push', 'git merge', 'git rebase', 'git tag',
+  'npm publish',
+  'docker',
+]);
+
+export function classifyBashCommand(cmd: string): 'auto' | 'session' | 'escalate' | 'unknown' {
+  const trimmed = cmd.trim();
+
+  // Shell metacharacters bypass word-based classification → always unknown
+  if (hasShellMeta(trimmed)) return 'unknown';
+
+  const words = trimmed.split(/\s+/);
+  const twoWord = words.slice(0, 2).join(' ');
+  const oneWord = words[0];
+
+  if (BASH_AUTO.has(twoWord) || BASH_AUTO.has(oneWord)) return 'auto';
+  if (BASH_SESSION.has(twoWord) || BASH_SESSION.has(oneWord)) return 'session';
+  if (BASH_ESCALATE.has(twoWord) || BASH_ESCALATE.has(oneWord)) return 'escalate';
+  return 'unknown';
+}
+
+/** Coarse cache key for session approval: Bash:{twoWord} or Bash:{oneWord} */
+function bashCacheKey(cmd: string): string {
+  const words = cmd.trim().split(/\s+/);
+  const twoWord = words.slice(0, 2).join(' ');
+  if (BASH_AUTO.has(twoWord) || BASH_SESSION.has(twoWord) || BASH_ESCALATE.has(twoWord)) {
+    return `Bash:${twoWord}`;
+  }
+  return `Bash:${words[0]}`;
+}
 
 // ── Split bash command by operators, respecting quotes ──
 
@@ -153,13 +220,14 @@ export async function requestApproval(
   opts: { agentPath: string; role: string; tool: string; input: string; reason: string },
 ): Promise<boolean> {
   const id = `a-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-  const path = `/agents/approvals/${id}`;
+  const path = `/guardian/approvals/${id}`;
 
   await store.set(createNode(path, 'ai.approval', {
     agentPath: opts.agentPath,
     agentRole: opts.role,
     tool: opts.tool,
-    input: opts.input.slice(0, 1000),
+    input: opts.input.slice(0, 4000),
+    inputTruncated: opts.input.length > 4000,
     status: 'pending',
     reason: opts.reason,
     createdAt: Date.now(),
@@ -240,7 +308,7 @@ export async function reconcileOnStartup(store: Tree): Promise<ResumableAgent[]>
 
   // Expire orphaned approvals
   try {
-    const { items } = await store.getChildren('/agents/approvals');
+    const { items } = await store.getChildren('/guardian/approvals');
     for (const approval of items) {
       if (approval.$type !== 'ai.approval' || approval.status !== 'pending') continue;
       await store.set({ ...approval, status: 'denied' as const, reason: 'expired: server restart', resolvedAt: Date.now() });
@@ -258,27 +326,31 @@ export async function reconcileOnStartup(store: Tree): Promise<ResumableAgent[]>
       if (node.status !== 'working' && node.status !== 'blocked') continue;
 
       // Check if agent has a session to resume
-      const config = getComponent(node, MetatronConfig);
-      const hasSession = config && typeof config.sessionId === 'string' && config.sessionId.length > 0;
+      const chat = getComponent(node, AiChat);
+      const hasSession = chat && typeof chat.sessionId === 'string' && chat.sessionId.length > 0;
       const taskPath = typeof node.currentTask === 'string' ? node.currentTask : '';
 
       if (hasSession && taskPath) {
         // Agent can resume — keep working status, collect for re-launch
         resumable.push({ agentPath: node.$path, taskPath });
         resumablePaths.push(node.$path);
-        console.log(`[guardian] resumable agent: ${node.$path} → ${taskPath} (session ${config.sessionId.slice(0, 8)}...)`);
+        console.log(`[guardian] resumable agent: ${node.$path} → ${taskPath} (session ${chat.sessionId.slice(0, 8)}...)`);
       } else {
         // No session — reset to idle
-        await store.set({ ...node, status: 'idle', currentTask: '', taskRef: '' });
+        await store.set({ ...node, status: 'idle', currentTask: '', currentRun: '' });
         console.log(`[guardian] reset stuck agent: ${node.$path}`);
 
         // Reset stuck metatron.tasks under this agent
         try {
-          const { items: tasks } = await store.getChildren(`${node.$path}/tasks`);
-          for (const task of tasks) {
-            if (task.$type !== 'metatron.task' || task.status !== 'running') continue;
-            await store.set({ ...task, status: 'error', result: 'interrupted: server restart' });
-            console.log(`[guardian] reset stuck agent task: ${task.$path}`);
+          const { items: runs } = await store.getChildren(`${node.$path}/runs`);
+          for (const run of runs) {
+            if (run.$type !== 'ai.run') continue;
+            const runStatus = getComponent(run, AiRunStatus);
+            if (!runStatus || runStatus.status !== 'running') continue;
+            runStatus.status = 'error';
+            runStatus.error = 'interrupted: server restart';
+            await store.set(run);
+            console.log(`[guardian] reset stuck agent run: ${run.$path}`);
           }
         } catch { /* no tasks dir yet */ }
       }
@@ -313,6 +385,15 @@ export async function reconcileOnStartup(store: Tree): Promise<ResumableAgent[]>
   return resumable;
 }
 
+// ── Classification priority: deny > escalate > session > auto ──
+
+const CLASS_PRIORITY: Record<ReturnType<typeof classifyBashCommand>, number> = {
+  auto: 0,
+  session: 1,
+  escalate: 2,
+  unknown: 3,
+};
+
 // ── canUseTool callback for Agent SDK ──
 
 export function createCanUseTool(
@@ -326,6 +407,9 @@ export function createCanUseTool(
   // Cache resolved policy (per agent run)
   let cachedPolicy: ToolPolicy | null = null;
 
+  // Session-level approval cache — persists for the duration of one task run
+  const sessionApproved = new Map<string, boolean>();
+
   return async (
     toolName: string,
     input: Record<string, unknown>,
@@ -336,15 +420,18 @@ export function createCanUseTool(
       cachedPolicy = store
         ? await resolvePolicy(store, agentPath)
         : FALLBACK_POLICY;
+      console.log(`[guardian] resolved policy for ${role}@${agentPath}: allow=${cachedPolicy.allow.length} deny=${cachedPolicy.deny.length} escalate=${cachedPolicy.escalate.length}`);
     }
     const policy = cachedPolicy;
+
+    console.log(`[guardian] canUseTool: ${toolName} → deny=${matchesAny(policy.deny, toolName)} allow=${matchesAny(policy.allow, toolName)} escalate=${matchesAny(policy.escalate, toolName)}`);
 
     // Deny-list check first (bare tool name)
     if (matchesAny(policy.deny, toolName)) {
       return deny(`${role}: denied: ${toolName}`);
     }
 
-    // Bash → split by pipes/operators, check each sub-command independently
+    // Bash → safety net, then classify each sub-command
     if (toolName === 'Bash') {
       const cmd = typeof input.command === 'string' ? input.command.trim() : '';
 
@@ -367,60 +454,104 @@ export function createCanUseTool(
         }
       }
 
-      // Split into sub-commands and check each
+      // Split into sub-commands and classify each
       const parts = lines.length > 0 ? lines.flatMap(l => splitBashParts(l)) : [];
-      const effectiveNames = parts.map(p => `Bash:${p}`);
+      if (parts.length === 0) return deny(`${role}: empty bash command`);
 
-      // Any sub-command denied → deny entire command
-      for (const eName of effectiveNames) {
-        if (matchesAny(policy.deny, eName)) {
-          return deny(`${role}: denied: ${eName}`);
+      // Early reject: shell metacharacters in any sub-command → deny with guidance
+      for (const part of parts) {
+        if (hasShellMeta(part)) {
+          return deny(
+            `Shell metacharacters are not allowed in commands. ` +
+            `No $(), backticks, $VAR, or redirections (>, <). ` +
+            `Run each command directly. To write files use the Write tool, not shell redirections.`,
+          );
         }
       }
 
-      // Escalate BEFORE allow: explicit escalate beats wildcard allow
-      const escalated = effectiveNames.filter(e => matchesAny(policy.escalate, e));
-      if (escalated.length > 0) {
-        if (store) {
-          const approved = await requestApproval(store, {
-            agentPath, role, tool: escalated[0], input: cmd.slice(0, 200),
-            reason: 'requires approval',
-          });
-          return approved ? allow() : deny('denied by human');
-        }
-        return deny(`${role}: escalated but no store: ${escalated[0]}`);
+      // Check each sub-command against policy Bash:* rules (deny > escalate > allow)
+      // Match against full command (Bash:cat .env) so arg-sensitive patterns work
+      for (const part of parts) {
+        const full = `Bash:${part.trim()}`;
+        if (matchesAny(policy.deny, full)) return deny(`${role}: denied: ${full}`);
+      }
+      let policyEscalated: string | null = null;
+      for (const part of parts) {
+        const full = `Bash:${part.trim()}`;
+        if (matchesAny(policy.escalate, full)) { policyEscalated = full; break; }
       }
 
-      // All sub-commands must be allowed — if any isn't, escalate as unknown
-      const notAllowed = effectiveNames.filter(e => !matchesAny(policy.allow, e));
-      if (notAllowed.length === 0 && effectiveNames.length > 0) {
-        return allow();
-      }
-
-      // Unknown sub-commands → escalate
-      const unknownName = notAllowed[0] ?? `Bash:${cmd}`;
-      if (store) {
+      // If policy explicitly escalates a sub-command, escalate the whole command
+      if (policyEscalated) {
+        const cached = sessionApproved.get(policyEscalated);
+        if (cached !== undefined) return cached ? allow() : deny('session-denied');
+        if (!store) return deny(`${role}: not allowed: ${policyEscalated}`);
         const approved = await requestApproval(store, {
-          agentPath, role, tool: unknownName, input: cmd.slice(0, 200),
-          reason: 'unknown tool',
+          agentPath, role, tool: policyEscalated, input: cmd,
+          reason: 'policy escalation',
         });
+        sessionApproved.set(policyEscalated, approved);
         return approved ? allow() : deny('denied by human');
       }
-      return deny(`${role}: not allowed: ${unknownName}`);
+
+      // If policy explicitly allows all sub-commands, allow
+      let allPolicyAllowed = true;
+      for (const part of parts) {
+        if (!matchesAny(policy.allow, `Bash:${part.trim()}`)) { allPolicyAllowed = false; break; }
+      }
+      if (allPolicyAllowed) return allow();
+
+      // Fallback: classify each sub-command
+      let strictest: ReturnType<typeof classifyBashCommand> = 'auto';
+      let strictestPart = parts[0];
+      for (const part of parts) {
+        const cls = classifyBashCommand(part);
+        if (CLASS_PRIORITY[cls] > CLASS_PRIORITY[strictest]) {
+          strictest = cls;
+          strictestPart = part;
+        }
+      }
+
+      // auto → allow immediately
+      if (strictest === 'auto') return allow();
+
+      // session, escalate, unknown → check session cache (coarse key), then escalate to human
+      const coarseKey = bashCacheKey(strictestPart);
+      const cached = sessionApproved.get(coarseKey);
+      if (cached !== undefined) return cached ? allow() : deny('session-denied');
+
+      if (!store) return deny(`${role}: not allowed: ${coarseKey}`);
+
+      const approved = await requestApproval(store, {
+        agentPath, role, tool: coarseKey, input: cmd,
+        reason: strictest === 'unknown' ? 'unknown command' : 'requires approval',
+      });
+      sessionApproved.set(coarseKey, approved);
+      return approved ? allow() : deny('denied by human');
     }
 
-    // Non-Bash tools — deny → escalate → allow → unknown
-    // Escalate BEFORE allow: explicit "requires approval" beats wildcard allow.
-    if (matchesAny(policy.deny, toolName)) {
-      return deny(`${role}: denied: ${toolName}`);
-    }
+    // Non-Bash tools — escalate → allow → unknown
+    // (deny already checked at top of function)
+    //
+    // Cache key for non-bash: use the full compound name (e.g. mcp__treenity__execute:createPrefab)
+    // to prevent a specific approval from widening to all subjects of the same tool.
+    const toolCacheKey = typeof input.action === 'string'
+      ? `${toolName}:${input.action}`
+      : typeof input.path === 'string'
+        ? `${toolName}@${input.path}`
+        : toolName;
+
     if (matchesAny(policy.escalate, toolName)) {
+      const cached = sessionApproved.get(toolCacheKey);
+      if (cached !== undefined) return cached ? allow() : deny('session-denied');
+
       if (store) {
-        const inputStr = JSON.stringify(input).slice(0, 500);
+        const inputStr = JSON.stringify(input);
         const approved = await requestApproval(store, {
           agentPath, role, tool: toolName, input: inputStr,
           reason: 'requires approval',
         });
+        sessionApproved.set(toolCacheKey, approved);
         return approved ? allow() : deny('denied by human');
       }
       return deny(`${role}: escalated but no store: ${toolName}`);
@@ -430,12 +561,16 @@ export function createCanUseTool(
     }
 
     // Unknown tool — escalate to human
+    const cached = sessionApproved.get(toolCacheKey);
+    if (cached !== undefined) return cached ? allow() : deny('session-denied');
+
     if (store) {
-      const inputStr = JSON.stringify(input).slice(0, 500);
+      const inputStr = JSON.stringify(input);
       const approved = await requestApproval(store, {
         agentPath, role, tool: toolName, input: inputStr,
         reason: 'unknown tool',
       });
+      sessionApproved.set(toolCacheKey, approved);
       return approved ? allow() : deny('denied by human');
     }
     return deny(`${role}: not allowed: ${toolName}`);

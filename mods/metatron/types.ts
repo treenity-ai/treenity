@@ -1,14 +1,5 @@
 import { getCtx, registerType } from '@treenity/core/comp';
 
-/** AI orchestrator config — model, system prompt, session tracking */
-export class MetatronConfig {
-  model = 'claude-opus-4-6';
-  /** @format textarea */
-  systemPrompt = '';
-  sessionId = '';
-  lastRun = 0;
-}
-
 /** AI task — prompt with status and result of LLM execution */
 export class MetatronTask {
   /** @format textarea */
@@ -109,7 +100,6 @@ export class MetatronWorkspace {
   }
 }
 
-registerType('metatron.config', MetatronConfig);
 registerType('metatron.task', MetatronTask);
 registerType('metatron.permission', MetatronPermission);
 registerType('metatron.template', MetatronTemplate);
