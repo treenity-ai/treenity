@@ -149,7 +149,7 @@ describe('classifyBashCommand', () => {
     assert.equal(classifyBashCommand('cat /etc/hosts'), 'auto');
     assert.equal(classifyBashCommand('git status'), 'auto');
     assert.equal(classifyBashCommand('git diff --cached'), 'auto');
-    assert.equal(classifyBashCommand('npm test'), 'auto');
+    assert.equal(classifyBashCommand('npm test'), 'session');
     assert.equal(classifyBashCommand('npm run build'), 'session');
     assert.equal(classifyBashCommand('node index.js'), 'session');
     assert.equal(classifyBashCommand('tsx script.ts'), 'session');
@@ -272,7 +272,6 @@ describe('canUseTool', () => {
   it('auto-allows BASH_AUTO commands without store', async () => {
     const canUse = createCanUseTool('qa', '/agents/qa');
     assert.equal((await canUse('Bash', { command: 'ls -la' })).behavior, 'allow');
-    assert.equal((await canUse('Bash', { command: 'npm test' })).behavior, 'allow');
     assert.equal((await canUse('Bash', { command: 'git status' })).behavior, 'allow');
     assert.equal((await canUse('Bash', { command: 'echo hello' })).behavior, 'allow');
   });
@@ -383,6 +382,10 @@ describe('splitBashParts', () => {
     assert.deepEqual(splitBashParts('npm install && npm test'), ['npm install', 'npm test']);
   });
 
+  it('splits by bare & (background operator)', () => {
+    assert.deepEqual(splitBashParts('ls & git push origin main'), ['ls', 'git push origin main']);
+  });
+
   it('splits by || and ;', () => {
     assert.deepEqual(splitBashParts('cmd1 || cmd2 ; cmd3'), ['cmd1', 'cmd2', 'cmd3']);
   });
@@ -431,6 +434,13 @@ describe('canUseTool pipe-aware', () => {
     // ls is auto, git commit is session → session wins → denied without store
     const canUse = createCanUseTool('qa', '/agents/qa');
     const r = await canUse('Bash', { command: 'ls && git commit -m "test"' });
+    assert.equal(r.behavior, 'deny');
+  });
+
+  it('bare & splits and classifies both parts', async () => {
+    // ls is auto, git push is escalate → denied without store
+    const canUse = createCanUseTool('qa', '/agents/qa');
+    const r = await canUse('Bash', { command: 'ls & git push origin main' });
     assert.equal(r.behavior, 'deny');
   });
 });
@@ -641,7 +651,7 @@ describe('canUseTool: session approval cache', () => {
     // Auto commands are allowed immediately, no store needed
     assert.equal((await canUse('Bash', { command: 'ls' })).behavior, 'allow');
     assert.equal((await canUse('Bash', { command: 'git status' })).behavior, 'allow');
-    assert.equal((await canUse('Bash', { command: 'npm test' })).behavior, 'allow');
+    assert.equal((await canUse('Bash', { command: 'echo hello' })).behavior, 'allow');
   });
 });
 

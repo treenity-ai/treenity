@@ -4,11 +4,11 @@
 
 import { pendingPermissions, type PermissionMeta, type PermissionRule } from '#metatron/permissions';
 import type { PermissionResult } from '@anthropic-ai/claude-agent-sdk';
-import { createNode, getComponent } from '@treenity/core';
+import { createNode, getComponent, type NodeData } from '@treenity/core';
 import { setComponent } from '@treenity/core/comp';
 import { matchesAny } from '@treenity/core/glob';
 import type { Tree } from '@treenity/core/tree';
-import { AiChat, AiPolicy, AiRunStatus } from './types';
+import { AiAgent, AiChat, AiPolicy, AiRunStatus } from './types';
 
 // ── ToolPolicy shape (runtime, with RegExp) ──
 
@@ -138,12 +138,12 @@ const BASH_AUTO = new Set([
   'cd', 'ls', 'pwd', 'cat', 'head', 'tail', 'wc', 'file', 'which',
   'grep', 'find', 'rg', 'tree', 'du', 'df', 'echo', 'printf', 'date', 'uname',
   'git status', 'git log', 'git diff', 'git branch', 'git show', 'git remote',
-  'npm ls', 'npm test', 'npm info', 'npm view',
-  'tsc',
+  'npm ls', 'npm info', 'npm view',
 ]);
 
 const BASH_SESSION = new Set([
   'mkdir', 'touch', 'cp', 'mv',
+  'npm test', 'tsc',
   'node', 'tsx', 'npx', 'npm run',
   'git add', 'git commit', 'git stash', 'git fetch', 'git pull',
   'npm install', 'npm ci', 'npm update',
@@ -202,6 +202,7 @@ export function splitBashParts(cmd: string): string[] {
       if (ch === '|' && cmd[i + 1] === '|') { parts.push(cur); cur = ''; i++; continue; }
       if (ch === '|') { parts.push(cur); cur = ''; continue; }
       if (ch === '&' && cmd[i + 1] === '&') { parts.push(cur); cur = ''; i++; continue; }
+      if (ch === '&') { parts.push(cur); cur = ''; continue; }  // background operator
       if (ch === ';') { parts.push(cur); cur = ''; continue; }
     }
 
@@ -236,8 +237,15 @@ export async function requestApproval(
   console.log(`[guardian] escalation: ${opts.role} wants ${opts.tool} → ${path}`);
 
   return new Promise<boolean>((resolve) => {
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       pendingPermissions.delete(id);
+      // Mark approval node as denied so it doesn't appear stale
+      try {
+        const node = await store.get(path);
+        if (node && node.status === 'pending') {
+          await store.set({ ...node, status: 'denied' as const, reason: 'timeout', resolvedAt: Date.now() });
+        }
+      } catch { /* best-effort cleanup */ }
       console.log(`[guardian] escalation timed out: ${path}`);
       resolve(false);
     }, APPROVAL_TIMEOUT);
@@ -317,46 +325,67 @@ export async function reconcileOnStartup(store: Tree): Promise<ResumableAgent[]>
   } catch { /* no approvals dir */ }
 
   // Reconcile agents — resume those with sessionId, reset the rest
+  const resumablePaths: string[] = [];
+
+  async function reconcileAgentNode(node: NodeData) {
+    const agent = getComponent(node, AiAgent);
+    if (!agent || (agent.status !== 'working' && agent.status !== 'blocked')) return;
+
+    const chat = getComponent(node, AiChat);
+    const hasSession = chat && typeof chat.sessionId === 'string' && chat.sessionId.length > 0;
+    const taskPath = typeof agent.currentTask === 'string' ? agent.currentTask : '';
+
+    if (hasSession && taskPath) {
+      resumable.push({ agentPath: node.$path, taskPath });
+      resumablePaths.push(node.$path);
+      console.log(`[guardian] resumable agent: ${node.$path} → ${taskPath} (session ${chat.sessionId.slice(0, 8)}...)`);
+    } else {
+      agent.status = 'idle';
+      agent.currentTask = '';
+      agent.currentRun = '';
+      await store.set(node);
+      console.log(`[guardian] reset stuck agent: ${node.$path}`);
+
+      try {
+        const { items: runs } = await store.getChildren(`${node.$path}/runs`);
+        for (const run of runs) {
+          if (run.$type !== 'ai.run') continue;
+          const runStatus = getComponent(run, AiRunStatus);
+          if (!runStatus || runStatus.status !== 'running') continue;
+          runStatus.status = 'error';
+          runStatus.error = 'interrupted: server restart';
+          await store.set(run);
+          console.log(`[guardian] reset stuck agent run: ${run.$path}`);
+        }
+      } catch { /* no runs dir yet */ }
+    }
+  }
+
+  // Scan /agents (standard agent nodes)
   try {
     const { items } = await store.getChildren('/agents');
-    const resumablePaths: string[] = [];
-
     for (const node of items) {
       if (node.$type !== 'ai.agent') continue;
-      if (node.status !== 'working' && node.status !== 'blocked') continue;
+      await reconcileAgentNode(node);
+    }
+  } catch { /* */ }
 
-      // Check if agent has a session to resume
-      const chat = getComponent(node, AiChat);
-      const hasSession = chat && typeof chat.sessionId === 'string' && chat.sessionId.length > 0;
-      const taskPath = typeof node.currentTask === 'string' ? node.currentTask : '';
-
-      if (hasSession && taskPath) {
-        // Agent can resume — keep working status, collect for re-launch
-        resumable.push({ agentPath: node.$path, taskPath });
-        resumablePaths.push(node.$path);
-        console.log(`[guardian] resumable agent: ${node.$path} → ${taskPath} (session ${chat.sessionId.slice(0, 8)}...)`);
-      } else {
-        // No session — reset to idle
-        await store.set({ ...node, status: 'idle', currentTask: '', currentRun: '' });
-        console.log(`[guardian] reset stuck agent: ${node.$path}`);
-
-        // Reset stuck ai.run nodes under this agent
-        try {
-          const { items: runs } = await store.getChildren(`${node.$path}/runs`);
-          for (const run of runs) {
-            if (run.$type !== 'ai.run') continue;
-            const runStatus = getComponent(run, AiRunStatus);
-            if (!runStatus || runStatus.status !== 'running') continue;
-            runStatus.status = 'error';
-            runStatus.error = 'interrupted: server restart';
-            await store.set(run);
-            console.log(`[guardian] reset stuck agent run: ${run.$path}`);
-          }
-        } catch { /* no tasks dir yet */ }
+  // Scan /org (org.post nodes with ai.agent components)
+  try {
+    const { items: divisions } = await store.getChildren('/org');
+    for (const div of divisions) {
+      if (div.$type !== 'org.division') continue;
+      const { items: posts } = await store.getChildren(div.$path);
+      for (const post of posts) {
+        if (post.$type === 'org.post' && getComponent(post, AiAgent)) {
+          await reconcileAgentNode(post);
+        }
       }
     }
+  } catch { /* org tree may not exist */ }
 
-    // Update pool — keep resumable agents in active, clear the rest
+  // Update pool — keep resumable agents in active, clear the rest
+  try {
     const poolNode = await store.get('/agents');
     if (poolNode && poolNode.$type === 'ai.pool') {
       await store.set({ ...poolNode, active: resumablePaths, queue: [] });
@@ -567,47 +596,50 @@ export function createCanUseTool(
       return approved ? allow() : deny('denied by human');
     }
 
-    // Non-Bash tools — escalate → allow → unknown
-    // (deny already checked at top of function)
-    //
-    // Cache key for non-bash: use the full compound name (e.g. mcp__treenity__execute:createPrefab)
-    // to prevent a specific approval from widening to all subjects of the same tool.
-    const toolCacheKey = typeof input.action === 'string'
+    // Non-Bash tools — build compound subject for policy matching
+    // e.g. mcp__treenity__execute:$schema, mcp__treenity__set_node@/foo
+    const toolSubject = typeof input.action === 'string'
       ? `${toolName}:${input.action}`
       : typeof input.path === 'string'
         ? `${toolName}@${input.path}`
         : toolName;
+    // Check both bare and compound against deny (compound may match specific rules)
+    if (matchesAny(policy.deny, toolSubject)) {
+      return deny(`${role}: denied: ${toolSubject}`);
+    }
 
-    if (matchesAny(policy.escalate, toolName)) {
-      const cached = sessionApproved.get(toolCacheKey);
+    // escalate → allow → unknown (deny already checked above and at top)
+    // Escalate if EITHER bare or compound matches escalate rules
+    if (matchesAny(policy.escalate, toolName) || matchesAny(policy.escalate, toolSubject)) {
+      const cached = sessionApproved.get(toolSubject);
       if (cached !== undefined) return cached ? allow() : deny('session-denied');
 
       if (store) {
         const inputStr = JSON.stringify(input);
         const approved = await requestApproval(store, {
-          agentPath, role, tool: toolCacheKey, input: inputStr,
+          agentPath, role, tool: toolSubject, input: inputStr,
           reason: 'requires approval',
         });
-        sessionApproved.set(toolCacheKey, approved);
+        sessionApproved.set(toolSubject, approved);
         return approved ? allow() : deny('denied by human');
       }
       return deny(`${role}: escalated but no store: ${toolName}`);
     }
-    if (matchesAny(policy.allow, toolName)) {
+    if (matchesAny(policy.allow, toolName) || matchesAny(policy.allow, toolSubject)) {
       return allow();
     }
 
     // Unknown tool — escalate to human
-    const cached = sessionApproved.get(toolCacheKey);
+    const cached = sessionApproved.get(toolSubject);
     if (cached !== undefined) return cached ? allow() : deny('session-denied');
 
     if (store) {
       const inputStr = JSON.stringify(input);
       const approved = await requestApproval(store, {
-        agentPath, role, tool: toolCacheKey, input: inputStr,
+        agentPath, role, tool: toolSubject, input: inputStr,
         reason: 'unknown tool',
       });
-      sessionApproved.set(toolCacheKey, approved);
+      sessionApproved.set(toolSubject, approved);
       return approved ? allow() : deny('denied by human');
     }
     return deny(`${role}: not allowed: ${toolName}`);
