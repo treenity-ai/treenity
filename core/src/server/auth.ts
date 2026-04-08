@@ -61,7 +61,7 @@ export async function resolveToken(tree: Tree, token: string): Promise<Session |
 
   // Dev token — synthetic admin session, skips tree lookup
   if (process.env.NODE_ENV === 'development' && token === DEV_TOKEN) {
-    return { userId: 'dev', claims: ['u:dev', 'authenticated', 'admins'] };
+    return { userId: 'dev', claims: ['u:dev', 'authenticated', 'agents'] };
   }
   const node = await tree.get(`/auth/sessions/${token}`) as SessionNode | undefined;
   if (!node) return null;
