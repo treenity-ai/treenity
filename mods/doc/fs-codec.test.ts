@@ -1,5 +1,6 @@
+import type { NodeData } from '@treenity/core';
 import type { Tree } from '@treenity/core/tree';
-import { createFsTree } from '@treenity/core/tree/fs';
+import { createRawFsStore } from '@treenity/core/tree/mimefs';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -15,7 +16,7 @@ describe('doc fs-codec', () => {
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'treenity-doc-codec-'));
-    tree = await createFsTree(dir);
+    tree = await createRawFsStore(dir);
   });
 
   afterEach(async () => {
@@ -25,11 +26,11 @@ describe('doc fs-codec', () => {
   it('decode: .md file → doc.page node', async () => {
     await writeFile(join(dir, 'readme.md'), '# Hello World\n\nSome content here.\n');
 
-    const node = await tree.get('/readme');
+    const node = await tree.get('/readme.md');
     assert.equal(node?.$type, 'doc.page');
-    assert.equal((node as any).title, 'Hello World');
+    assert.equal((node as Record<string, unknown>).title, 'Hello World');
 
-    const content = JSON.parse((node as any).content);
+    const content = JSON.parse((node as Record<string, unknown>).content as string);
     assert.equal(content.type, 'doc');
     assert.ok(content.content.length > 0);
   });
@@ -37,11 +38,11 @@ describe('doc fs-codec', () => {
   it('decode: .md without H1 — empty title', async () => {
     await writeFile(join(dir, 'notes.md'), 'Just a paragraph.\n\n## Second heading\n');
 
-    const node = await tree.get('/notes');
+    const node = await tree.get('/notes.md');
     assert.equal(node?.$type, 'doc.page');
-    assert.equal((node as any).title, '');
+    assert.equal((node as Record<string, unknown>).title, '');
 
-    const content = JSON.parse((node as any).content);
+    const content = JSON.parse((node as Record<string, unknown>).content as string);
     assert.equal(content.content[0].type, 'paragraph');
     assert.equal(content.content[1].type, 'heading');
   });
@@ -53,11 +54,11 @@ describe('doc fs-codec', () => {
     };
 
     await tree.set({
-      $path: '/output',
+      $path: '/output.md',
       $type: 'doc.page',
       title: 'My Doc',
       content: JSON.stringify(tiptapDoc),
-    } as any);
+    } as NodeData);
 
     const raw = await readFile(join(dir, 'output.md'), 'utf-8');
     assert.ok(raw.startsWith('# My Doc'));
@@ -71,11 +72,11 @@ describe('doc fs-codec', () => {
     };
 
     await tree.set({
-      $path: '/bare',
+      $path: '/bare.md',
       $type: 'doc.page',
       title: '',
       content: JSON.stringify(tiptapDoc),
-    } as any);
+    } as NodeData);
 
     const raw = await readFile(join(dir, 'bare.md'), 'utf-8');
     assert.ok(!raw.startsWith('#'));
@@ -87,9 +88,9 @@ describe('doc fs-codec', () => {
     await writeFile(join(dir, 'notes.md'), original);
 
     // Decode
-    const node = await tree.get('/notes');
+    const node = await tree.get('/notes.md');
     assert.equal(node?.$type, 'doc.page');
-    assert.equal((node as any).title, 'Project Notes');
+    assert.equal((node as Record<string, unknown>).title, 'Project Notes');
 
     // Encode back
     await tree.set(node!);
@@ -112,8 +113,8 @@ describe('doc fs-codec', () => {
     const { items } = await tree.getChildren('/');
     const types = Object.fromEntries(items.map(n => [n.$path, n.$type]));
 
-    assert.equal(types['/a'], 'doc.page');
-    assert.equal(types['/b'], 'doc.page');
-    assert.equal(types['/c'], 'text/plain');
+    assert.equal(types['/a.md'], 'doc.page');
+    assert.equal(types['/b.md'], 'doc.page');
+    assert.equal(types['/c.txt'], 'text/plain');
   });
 });

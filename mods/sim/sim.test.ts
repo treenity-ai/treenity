@@ -20,9 +20,28 @@ function agent(path: string, name: string, icon: string, x: number, y: number, r
 
 function world(path = '/w', running = false) {
   return createNode(path, 'sim.world', {}, {
-    config: { $type: 'sim.config', width: 600, height: 400, roundDelay: 100, running },
+    config: { $type: 'sim.config', width: 600, height: 400, roundDelay: 1, running },
     round: { $type: 'sim.round', current: 0, phase: 'idle', log: [] },
   });
+}
+
+/** Poll tree until round >= target or timeout */
+async function waitForRound(t: Tree, path: string, target: number, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const w = await t.get(path);
+    const round = getComponent(w!, 'sim.round') as any;
+    if (round?.current >= target) return;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  const w = await t.get(path);
+  const round = getComponent(w!, 'sim.round') as any;
+  assert.fail(`timed out waiting for round ${target}, stuck at ${round?.current ?? '?'}`);
+}
+
+function startService(worldPath: string) {
+  const svc = resolve('sim.world', 'service')!;
+  return tree.get(worldPath).then(w => svc(w!, { tree, path: worldPath, subscribe: () => () => {} }));
 }
 
 beforeEach(() => {
@@ -46,10 +65,9 @@ describe('start/stop actions', () => {
     await tree.set(w);
     const handler = resolve('sim.world', 'action:start')!;
     await handler({ node: w, tree, signal: AbortSignal.timeout(5000) }, {});
-    // Handlers mutate ctx.node in-place; caller persists (executeAction or service loop)
     await tree.set(w);
     const fresh = await tree.get(w.$path);
-    assert.equal((getComponent(fresh!, 'config') as any).running, true);
+    assert.equal((getComponent(fresh!, 'sim.config') as any).running, true);
   });
 
   it('action:stop sets running=false', async () => {
@@ -59,24 +77,22 @@ describe('start/stop actions', () => {
     await handler({ node: w, tree, signal: AbortSignal.timeout(5000) }, {});
     await tree.set(w);
     const fresh = await tree.get(w.$path);
-    assert.equal((getComponent(fresh!, 'config') as any).running, false);
+    assert.equal((getComponent(fresh!, 'sim.config') as any).running, false);
   });
 });
 
 describe('proximity', () => {
   it('agents within radius are nearby', async () => {
     await tree.set(world('/w', true));
-    // Large radius covers entire map — stays nearby even after random moves
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100, 900));
     await tree.set(agent('/w/b', 'Bob', 'B', 200, 200, 900));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 800));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 1);
     await handle.stop();
 
     const a = await tree.get('/w/a');
-    const nearby = getComponent(a!, 'nearby') as any;
+    const nearby = getComponent(a!, 'sim.nearby') as any;
     assert.ok(nearby);
     assert.ok(nearby.agents.includes('Bob'));
   });
@@ -86,13 +102,12 @@ describe('proximity', () => {
     await tree.set(agent('/w/a', 'Alice', 'A', 0, 0, 50));
     await tree.set(agent('/w/b', 'Bob', 'B', 500, 500, 50)); // dist ~707 >> 50
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 1);
     await handle.stop();
 
     const a = await tree.get('/w/a');
-    const nearby = getComponent(a!, 'nearby') as any;
+    const nearby = getComponent(a!, 'sim.nearby') as any;
     assert.ok(nearby);
     assert.equal(nearby.agents.length, 0);
   });
@@ -103,13 +118,12 @@ describe('round engine', () => {
     await tree.set(world('/w', true));
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 1);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     assert.ok(round.current >= 1, `expected round >= 1, got ${round.current}`);
     assert.equal(round.phase, 'idle');
   });
@@ -118,13 +132,13 @@ describe('round engine', () => {
     await tree.set(world('/w', false));
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 400));
+    const handle: ServiceHandle = await startService('/w');
+    // Service checks running flag — with running=false it just sleeps through roundDelay
+    await new Promise((r) => setTimeout(r, 50));
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     assert.equal(round.current, 0);
   });
 
@@ -133,13 +147,12 @@ describe('round engine', () => {
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
     await tree.set(agent('/w/b', 'Bob', 'B', 200, 200));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 2);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     assert.ok(round.log.length > 0, 'expected at least 1 event in log');
   });
 
@@ -147,13 +160,12 @@ describe('round engine', () => {
     await tree.set(world('/w', true));
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 2);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     for (const entry of round.log) {
       assert.ok(typeof entry.round === 'number');
       assert.ok(typeof entry.agent === 'string');
@@ -167,17 +179,14 @@ describe('round engine', () => {
 describe('mock tools', () => {
   it('move clamps to world bounds', async () => {
     await tree.set(world('/w', true));
-    // Place agent so random move could exceed bounds
     await tree.set(agent('/w/a', 'Alice', 'A', 599, 399));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    // Run several rounds to get a move action
-    await new Promise((r) => setTimeout(r, 1500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 5);
     await handle.stop();
 
     const a = await tree.get('/w/a');
-    const pos = getComponent(a!, 'position') as any;
+    const pos = getComponent(a!, 'sim.position') as any;
     assert.ok(pos.x >= 0 && pos.x <= 600, `x=${pos.x} out of bounds`);
     assert.ok(pos.y >= 0 && pos.y <= 400, `y=${pos.y} out of bounds`);
   });
@@ -186,16 +195,12 @@ describe('mock tools', () => {
     await tree.set(world('/w', true));
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    // Run enough rounds for a remember action (mock: ~30% chance per round)
-    await new Promise((r) => setTimeout(r, 2000));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 10);
     await handle.stop();
 
-    // Check if memory was modified (at least one remember should fire in ~10 rounds)
     const a = await tree.get('/w/a');
-    const mem = getComponent(a!, 'memory') as any;
-    // Can't guarantee remember fires, so just verify shape is intact
+    const mem = getComponent(a!, 'sim.memory') as any;
     assert.ok(Array.isArray(mem.entries));
     assert.ok(mem.entries.length <= 20, 'memory should be capped at 20');
   });
@@ -205,13 +210,12 @@ describe('mock tools', () => {
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100, 300));
     await tree.set(agent('/w/b', 'Bob', 'B', 150, 150, 300));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 2000));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 10);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     const speakEvents = round.log.filter((e: any) => e.action === 'speak');
     assert.ok(speakEvents.length > 0, 'should have at least one speak event');
     for (const e of speakEvents) {
@@ -227,16 +231,13 @@ describe('quorum (parallel execution)', () => {
     await tree.set(agent('/w/b', 'Bob', 'B', 200, 200));
     await tree.set(agent('/w/c', 'Eve', 'C', 300, 300));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    // Run several rounds — remember actions don't produce log entries, need enough rounds
-    await new Promise((r) => setTimeout(r, 1500));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 5);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     assert.ok(round.log.length >= 1, 'should have at least 1 event across all rounds');
-    // Verify multiple agents produced events across rounds
     const actors = new Set(round.log.map((e: any) => e.agent));
     assert.ok(actors.size >= 2, `expected >= 2 actors, got ${actors.size}: ${[...actors]}`);
   });
@@ -247,18 +248,17 @@ describe('service lifecycle', () => {
     await tree.set(world('/w', true));
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    await new Promise((r) => setTimeout(r, 300));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 2);
     await handle.stop();
 
     const w1 = await tree.get('/w');
-    const round1 = (getComponent(w1!, 'round') as any).current;
+    const round1 = (getComponent(w1!, 'sim.round') as any).current;
 
-    // Wait more — should NOT advance
-    await new Promise((r) => setTimeout(r, 500));
+    // Wait — should NOT advance
+    await new Promise((r) => setTimeout(r, 50));
     const w2 = await tree.get('/w');
-    const round2 = (getComponent(w2!, 'round') as any).current;
+    const round2 = (getComponent(w2!, 'sim.round') as any).current;
     assert.equal(round1, round2, 'round should not advance after stop');
   });
 });
@@ -269,14 +269,12 @@ describe('log trimming', () => {
     await tree.set(agent('/w/a', 'Alice', 'A', 100, 100, 300));
     await tree.set(agent('/w/b', 'Bob', 'B', 150, 150, 300));
 
-    const svc = resolve('sim.world', 'service')!;
-    const handle: ServiceHandle = await svc((await tree.get('/w'))!, { tree, subscribe: () => () => {} });
-    // Run many rounds
-    await new Promise((r) => setTimeout(r, 3000));
+    const handle: ServiceHandle = await startService('/w');
+    await waitForRound(tree, '/w', 30);
     await handle.stop();
 
     const w = await tree.get('/w');
-    const round = getComponent(w!, 'round') as any;
+    const round = getComponent(w!, 'sim.round') as any;
     assert.ok(round.log.length <= 50, `log has ${round.log.length} entries, expected <= 50`);
   });
 });

@@ -282,30 +282,43 @@ register('brahman.bot', 'service', async (node: NodeData, svcCtx: ServiceCtx): P
   }
 
   let runner: RunnerHandle | null = null;
+  const isRealBot = bot instanceof Bot;
+
+  function startRunner() {
+    if (isRealBot) runner = runBot(bot);
+    else (bot as any).start?.();
+  }
+
+  function stopRunner() {
+    if (runner) { runner.stop(); runner = null; }
+    else (bot as any).stop?.();
+  }
 
   if (config.running !== false) {
-    runner = runBot(bot);
+    startRunner();
   }
 
   // React to start/stop actions toggling the running flag
+  let running = config.running !== false;
   const unsub = svcCtx.subscribe(botPath, async () => {
     const fresh = await svcCtx.tree.get(botPath);
     if (!fresh) return;
     const cfg = getComponent(fresh, BotConfig);
     const shouldRun = cfg?.running !== false;
 
-    if (shouldRun && !runner) {
-      runner = runBot(bot);
-    } else if (!shouldRun && runner) {
-      runner.stop();
-      runner = null;
+    if (shouldRun && !running) {
+      startRunner();
+      running = true;
+    } else if (!shouldRun && running) {
+      stopRunner();
+      running = false;
     }
   });
 
   return {
     stop: async () => {
       unsub();
-      if (runner) runner.stop();
+      stopRunner();
     },
   };
 });
