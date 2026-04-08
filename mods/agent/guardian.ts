@@ -596,21 +596,30 @@ export function createCanUseTool(
       return approved ? allow() : deny('denied by human');
     }
 
-    // Non-Bash tools — build compound subject for policy matching
-    // e.g. mcp__treenity__execute:$schema, mcp__treenity__set_node@/foo
-    const toolSubject = typeof input.action === 'string'
-      ? `${toolName}:${input.action}`
-      : typeof input.path === 'string'
-        ? `${toolName}@${input.path}`
-        : toolName;
-    // Check both bare and compound against deny (compound may match specific rules)
-    if (matchesAny(policy.deny, toolSubject)) {
-      return deny(`${role}: denied: ${toolSubject}`);
+    // Non-Bash tools — build ordered subjects (most specific → least)
+    // Same format as MCP buildSubjects: tool:action:path, tool:action, tool:path, tool
+    const action = typeof input.action === 'string' && input.action ? input.action : null;
+    const target = typeof input.path === 'string' && input.path ? input.path : null;
+    const subjects: string[] = [];
+    if (action && target) subjects.push(`${toolName}:${action}:${target}`);
+    if (action) subjects.push(`${toolName}:${action}`);
+    if (!action && target) subjects.push(`${toolName}:${target}`);
+    subjects.push(toolName);
+
+    // Most specific subject for cache/approval key
+    const toolSubject = subjects[0];
+
+    // Deny: any subject match → deny
+    for (const s of subjects) {
+      if (matchesAny(policy.deny, s)) return deny(`${role}: denied: ${s}`);
     }
 
-    // escalate → allow → unknown (deny already checked above and at top)
-    // Escalate if EITHER bare or compound matches escalate rules
-    if (matchesAny(policy.escalate, toolName) || matchesAny(policy.escalate, toolSubject)) {
+    // Escalate: any subject match → escalate (beats allow)
+    let shouldEscalate = false;
+    for (const s of subjects) {
+      if (matchesAny(policy.escalate, s)) { shouldEscalate = true; break; }
+    }
+    if (shouldEscalate) {
       const cached = sessionApproved.get(toolSubject);
       if (cached !== undefined) return cached ? allow() : deny('session-denied');
 
@@ -625,8 +634,10 @@ export function createCanUseTool(
       }
       return deny(`${role}: escalated but no store: ${toolName}`);
     }
-    if (matchesAny(policy.allow, toolName) || matchesAny(policy.allow, toolSubject)) {
-      return allow();
+
+    // Allow: any subject match → allow
+    for (const s of subjects) {
+      if (matchesAny(policy.allow, s)) return allow();
     }
 
     // Unknown tool — escalate to human
