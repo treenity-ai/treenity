@@ -1,6 +1,42 @@
+// Tests for auto-save: pure functions + React hooks.
+//
+// Run: npx tsx --import ./test/register-dom.mjs --import ./test/register-css.mjs \
+//      --conditions development --experimental-test-module-mocks \
+//      --test src/tree/auto-save.test.ts
+
+import { describe, it, beforeEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
-import { mergeToOps, mergeIntoNode } from './auto-save';
+
+// Mock trpc before importing module under test
+type Op = ['r', string, unknown] | ['d', string];
+type PatchArg = { path: string; ops: Op[] };
+const patchMutate = mock.fn(async (_: PatchArg) => {});
+mock.module('./trpc', {
+  namedExports: {
+    trpc: { patch: { mutate: patchMutate } },
+    getToken: () => null,
+    setToken: () => {},
+    clearToken: () => {},
+    AUTH_EXPIRED_EVENT: 'trpc:auth-expired',
+  },
+});
+
+const { renderHook, act } = await import('@testing-library/react');
+const { mergeToOps, mergeIntoNode, useSave, usePathSave } = await import('./auto-save');
+const cache = await import('#tree/cache');
+const { makeNode } = await import('@treenity/core');
+
+function seed(path: string, type: string, data?: Record<string, unknown>) {
+  cache.put(makeNode(path, type, data));
+  return cache.get(path)!;
+}
+
+beforeEach(() => {
+  patchMutate.mock.resetCalls();
+  cache.clear();
+});
+
+// ── Pure functions ──
 
 describe('mergeToOps', () => {
   it('replace field', () => {
@@ -56,18 +92,283 @@ describe('mergeIntoNode', () => {
   it('deep merge via dot-notation', () => {
     const node = { $path: '/x', $type: 'y', meta: { title: 'old', count: 0 } };
     const result = mergeIntoNode(node, { 'meta.title': 'new' });
-    assert.equal((result.meta as any).title, 'new');
-    assert.equal((result.meta as any).count, 0);
+    assert.equal((result.meta as Record<string, unknown>).title, 'new');
+    assert.equal((result.meta as Record<string, unknown>).count, 0);
   });
 
   it('does not mutate original node', () => {
     const node = { $path: '/x', $type: 'y', meta: { title: 'old' } };
     mergeIntoNode(node, { 'meta.title': 'new' });
-    assert.equal((node.meta as any).title, 'old');
+    assert.equal((node.meta as Record<string, unknown>).title, 'old');
   });
 
   it('skips $ fields', () => {
-    const result = mergeIntoNode({ $path: '/x', $type: 'y' }, { $path: '/hacked' } as any);
+    const result = mergeIntoNode({ $path: '/x', $type: 'y' }, { $path: '/hacked' });
     assert.equal(result.$path, '/x');
+  });
+});
+
+// ── useSave: onChange ──
+
+describe('useSave: onChange', () => {
+  it('updates cache optimistically', () => {
+    seed('/a', 'task', { title: 'Old' });
+    const { result } = renderHook(() => useSave('/a'));
+
+    act(() => result.current.onChange({ title: 'New' }));
+
+    assert.equal(cache.get('/a')!.title, 'New');
+  });
+
+  it('sets dirty=true', () => {
+    seed('/b', 'task', { title: 'X' });
+    const { result } = renderHook(() => useSave('/b'));
+
+    assert.equal(result.current.dirty, false);
+    act(() => result.current.onChange({ title: 'Y' }));
+    assert.equal(result.current.dirty, true);
+  });
+
+  it('accumulates multiple changes', () => {
+    seed('/c', 'task', { title: 'A', count: 0 });
+    const { result } = renderHook(() => useSave('/c'));
+
+    act(() => {
+      result.current.onChange({ title: 'B' });
+      result.current.onChange({ count: 5 });
+    });
+
+    const node = cache.get('/c')!;
+    assert.equal(node.title, 'B');
+    assert.equal(node.count, 5);
+  });
+
+  it('noop for null partial', () => {
+    seed('/d', 'task', { title: 'X' });
+    const { result } = renderHook(() => useSave('/d'));
+
+    act(() => result.current.onChange(null!));
+    assert.equal(result.current.dirty, false);
+  });
+});
+
+// ── useSave: flush ──
+
+describe('useSave: flush', () => {
+  it('sends ops via trpc.patch', async () => {
+    seed('/e', 'task', { title: 'Old' });
+    const { result } = renderHook(() => useSave('/e'));
+
+    act(() => result.current.onChange({ title: 'New', draft: undefined }));
+    await act(() => result.current.flush());
+
+    assert.equal(patchMutate.mock.callCount(), 1);
+    const arg = patchMutate.mock.calls[0].arguments[0];
+    assert.equal(arg.path, '/e');
+    assert.ok(arg.ops.some((op) => op[0] === 'r' && op[1] === 'title' && op[2] === 'New'));
+    assert.ok(arg.ops.some((op) => op[0] === 'd' && op[1] === 'draft'));
+  });
+
+  it('clears dirty after flush', async () => {
+    seed('/f', 'task', { title: 'X' });
+    const { result } = renderHook(() => useSave('/f'));
+
+    act(() => result.current.onChange({ title: 'Y' }));
+    assert.equal(result.current.dirty, true);
+
+    await act(() => result.current.flush());
+    assert.equal(result.current.dirty, false);
+  });
+
+  it('noop when no pending changes', async () => {
+    seed('/g', 'task', { title: 'X' });
+    const { result } = renderHook(() => useSave('/g'));
+
+    await act(() => result.current.flush());
+    assert.equal(patchMutate.mock.callCount(), 0);
+  });
+
+  it('merges pending accumulated during inflight', async () => {
+    seed('/inf', 'task', { title: 'A' });
+    const { result } = renderHook(() => useSave('/inf'));
+
+    act(() => result.current.onChange({ title: 'B' }));
+
+    let flushDone: () => void;
+    const slowPatch = new Promise<void>(r => { flushDone = r; });
+    patchMutate.mock.mockImplementationOnce(async () => { await slowPatch; });
+
+    const flushPromise = act(() => result.current.flush());
+
+    act(() => result.current.onChange({ title: 'C' }));
+
+    flushDone!();
+    await flushPromise;
+
+    assert.equal(result.current.dirty, true);
+  });
+});
+
+// ── useSave: reset ──
+
+describe('useSave: reset', () => {
+  it('restores cache to pre-edit state', () => {
+    seed('/h', 'task', { title: 'Original' });
+    const { result } = renderHook(() => useSave('/h'));
+
+    act(() => result.current.onChange({ title: 'Modified' }));
+    assert.equal(cache.get('/h')!.title, 'Modified');
+
+    act(() => result.current.reset());
+    assert.equal(cache.get('/h')!.title, 'Original');
+  });
+
+  it('clears dirty', () => {
+    seed('/i', 'task', { title: 'X' });
+    const { result } = renderHook(() => useSave('/i'));
+
+    act(() => result.current.onChange({ title: 'Y' }));
+    act(() => result.current.reset());
+    assert.equal(result.current.dirty, false);
+  });
+});
+
+// ── useSave: scope ──
+
+describe('useSave: scope', () => {
+  it('prefixes keys for named component', async () => {
+    seed('/j', 'task', { meta: { title: 'Old', count: 1 } });
+    const { result } = renderHook(() => useSave('/j'));
+
+    act(() => result.current.scope('meta')({ title: 'New' }));
+    await act(() => result.current.flush());
+
+    const { ops } = patchMutate.mock.calls[0].arguments[0];
+    assert.deepEqual(ops, [['r', 'meta.title', 'New']]);
+  });
+});
+
+// ── useSave: path change ──
+
+describe('useSave: path change', () => {
+  it('resets pending on path change', async () => {
+    seed('/k1', 'task', { title: 'K1' });
+    seed('/k2', 'task', { title: 'K2' });
+
+    const { result, rerender } = renderHook(
+      ({ path }: { path: string }) => useSave(path),
+      { initialProps: { path: '/k1' } },
+    );
+
+    act(() => result.current.onChange({ title: 'Changed' }));
+    assert.equal(result.current.dirty, true);
+
+    rerender({ path: '/k2' });
+    assert.equal(result.current.dirty, false);
+
+    await act(() => result.current.flush());
+    assert.equal(patchMutate.mock.callCount(), 0);
+  });
+});
+
+// ── usePathSave: change ──
+
+describe('usePathSave: change', () => {
+  it('updates cache optimistically per path', () => {
+    seed('/p/a', 'col', { label: 'A' });
+    seed('/p/b', 'col', { label: 'B' });
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+
+    act(() => {
+      result.current.change('/p/a', { label: 'A2' });
+      result.current.change('/p/b', { label: 'B2' });
+    });
+
+    assert.equal(cache.get('/p/a')!.label, 'A2');
+    assert.equal(cache.get('/p/b')!.label, 'B2');
+  });
+
+  it('accumulates ops for same path', async () => {
+    seed('/p/c', 'col', { label: 'C', rank: 0 });
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+
+    act(() => {
+      result.current.change('/p/c', { label: 'C2' });
+      result.current.change('/p/c', { rank: 3 });
+    });
+
+    await act(() => result.current.flush());
+
+    assert.equal(patchMutate.mock.callCount(), 1);
+    const { ops } = patchMutate.mock.calls[0].arguments[0];
+    assert.ok(ops.some((op) => op[1] === 'label'));
+    assert.ok(ops.some((op) => op[1] === 'rank'));
+  });
+});
+
+// ── usePathSave: path() ──
+
+describe('usePathSave: path()', () => {
+  it('returns stable cached handle', () => {
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+    const h1 = result.current.path('/x');
+    const h2 = result.current.path('/x');
+    assert.equal(h1, h2);
+  });
+
+  it('different paths get different handles', () => {
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+    const h1 = result.current.path('/x');
+    const h2 = result.current.path('/y');
+    assert.notEqual(h1, h2);
+  });
+
+  it('handle.onChange updates cache', () => {
+    seed('/q', 'col', { label: 'Old' });
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+
+    act(() => result.current.path('/q').onChange({ label: 'New' }));
+
+    assert.equal(cache.get('/q')!.label, 'New');
+  });
+
+  it('handle.scope prefixes keys', async () => {
+    seed('/r', 'col', { meta: { x: 1 } });
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+
+    act(() => result.current.path('/r').scope('meta')({ x: 2 }));
+    await act(() => result.current.flush());
+
+    const call = patchMutate.mock.calls[0].arguments[0];
+    assert.equal(call.path, '/r');
+    assert.deepEqual(call.ops, [['r', 'meta.x', 2]]);
+  });
+});
+
+// ── usePathSave: flush ──
+
+describe('usePathSave: flush', () => {
+  it('sends ops for all accumulated paths', async () => {
+    seed('/s/a', 'col', { label: 'A' });
+    seed('/s/b', 'col', { label: 'B' });
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+
+    act(() => {
+      result.current.change('/s/a', { label: 'A2' });
+      result.current.change('/s/b', { label: 'B2' });
+    });
+
+    await act(() => result.current.flush());
+
+    assert.equal(patchMutate.mock.callCount(), 2);
+    const paths = patchMutate.mock.calls.map((c) => c.arguments[0].path);
+    assert.ok(paths.includes('/s/a'));
+    assert.ok(paths.includes('/s/b'));
+  });
+
+  it('noop when no changes', async () => {
+    const { result } = renderHook(() => usePathSave({ delay: 0 }));
+    await act(() => result.current.flush());
+    assert.equal(patchMutate.mock.callCount(), 0);
   });
 });
