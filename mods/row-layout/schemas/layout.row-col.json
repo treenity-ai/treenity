@@ -1,0 +1,100 @@
+{
+  "type": "object",
+  "properties": {
+    "gap": {
+      "type": "string",
+      "default": "gap-3"
+    },
+    "padding": {
+      "type": "string",
+      "default": "p-4"
+    },
+    "context": {
+      "type": "string",
+      "default": "react"
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "ref": {
+                  "type": "string"
+                },
+                "context": {
+                  "type": "string"
+                },
+                "padding": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "ref"
+              ]
+            }
+          },
+          "grid": {
+            "type": "string"
+          },
+          "gap": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "items"
+        ]
+      },
+      "default": []
+    },
+    "hidden": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "gap",
+    "padding",
+    "context",
+    "rows",
+    "hidden"
+  ],
+  "methods": {
+    "applyTemplate": {
+      "arguments": [
+        {
+          "name": "data",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "name",
+            "refs"
+          ]
+        }
+      ]
+    }
+  },
+  "$id": "layout.row-col",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
