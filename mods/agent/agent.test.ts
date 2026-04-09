@@ -672,6 +672,18 @@ describe('canUseTool: policy precedence', () => {
     await resolveAllPending(false);
     await resultPromise;
   });
+
+  it('infix wildcard: deploy_prefab:*/agents/* beats deploy_prefab:*', async () => {
+    const store = mockStore(undefined, {
+      allow: ['mcp__treenity__deploy_prefab:*/agents/*'],
+      deny: [],
+      escalate: ['mcp__treenity__deploy_prefab:*'],
+    });
+
+    const canUse = createCanUseTool('dev', '/agents/test', store);
+    const r = await canUse('mcp__treenity__deploy_prefab', { target: '/foo/agents/bar' });
+    assert.equal(r.behavior, 'allow', 'infix wildcard allow should beat broader wildcard escalate');
+  });
 });
 
 // ── Session approval cache ──

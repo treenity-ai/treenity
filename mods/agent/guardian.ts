@@ -12,11 +12,10 @@ import { AiAgent, AiChat, AiPolicy, AiRunStatus } from './types';
 
 // ── Specificity-aware policy resolution ──
 
-/** Non-wildcard prefix length — longer prefix = more constrained pattern.
- *  "set_node:/safe/*" → 15, "set_node" → 8, "execute:*" → 8, "*" → 0 */
+// Total literal (non-wildcard) character count — more literals = more constrained.
+// "set_node:/safe/*" → 15, "deploy_prefab:star/agents/star" → 22, "execute:*" → 8
 function patternSpecificity(pattern: string): number {
-  const starIdx = pattern.indexOf('*');
-  return starIdx < 0 ? pattern.length : starIdx;
+  return pattern.replace(/\*/g, '').length;
 }
 
 /** Resolve policy verdict across all subjects.
@@ -575,14 +574,18 @@ export function createCanUseTool(
         }
       }
 
-      // Check each sub-command against policy Bash:* rules (deny > escalate > allow)
-      // Match against full command (Bash:cat .env) so arg-sensitive patterns work
-      for (const part of parts) {
-        const full = `Bash:${part.trim()}`;
-        if (matchesAny(policy.deny, full)) return deny(`${role}: denied: ${full}`);
+      // Build Bash subjects for each sub-command and use specificity-aware resolution
+      const bashSubjects = parts.map(p => `Bash:${p.trim()}`);
+
+      // Check policy via resolveVerdict (same specificity logic as non-Bash)
+      const bashVerdict = resolveVerdict(policy, bashSubjects);
+
+      if (bashVerdict === 'deny') {
+        const denied = bashSubjects.find(s => matchesAny(policy.deny, s)) ?? bashSubjects[0];
+        return deny(`${role}: denied: ${denied}`);
       }
 
-      // Read-only Bash: after safety checks pass, only allow whitelisted read commands
+      // Read-only Bash: after deny checks, only allow whitelisted read commands
       if (opts?.readOnly) {
         for (const part of parts) {
           const words = part.trim().split(/\s+/);
@@ -594,31 +597,20 @@ export function createCanUseTool(
         return allow();
       }
 
-      let policyEscalated: string | null = null;
-      for (const part of parts) {
-        const full = `Bash:${part.trim()}`;
-        if (matchesAny(policy.escalate, full)) { policyEscalated = full; break; }
-      }
-
-      // If policy explicitly escalates a sub-command, escalate the whole command
-      if (policyEscalated) {
-        const cached = sessionApproved.get(policyEscalated);
+      if (bashVerdict === 'escalate') {
+        const escalatedSubject = bashSubjects.find(s => matchesAny(policy.escalate, s)) ?? bashSubjects[0];
+        const cached = sessionApproved.get(escalatedSubject);
         if (cached !== undefined) return cached ? allow() : deny('session-denied');
-        if (!store) return deny(`${role}: not allowed: ${policyEscalated}`);
+        if (!store) return deny(`${role}: not allowed: ${escalatedSubject}`);
         const approved = await requestApproval(store, {
-          agentPath, role, tool: policyEscalated, input: cmd,
+          agentPath, role, tool: escalatedSubject, input: cmd,
           reason: 'policy escalation',
         });
-        sessionApproved.set(policyEscalated, approved);
+        sessionApproved.set(escalatedSubject, approved);
         return approved ? allow() : deny('denied by human');
       }
 
-      // If policy explicitly allows all sub-commands, allow
-      let allPolicyAllowed = true;
-      for (const part of parts) {
-        if (!matchesAny(policy.allow, `Bash:${part.trim()}`)) { allPolicyAllowed = false; break; }
-      }
-      if (allPolicyAllowed) return allow();
+      if (bashVerdict === 'allow') return allow();
 
       // Fallback: classify each sub-command
       let strictest: ReturnType<typeof classifyBashCommand> = 'auto';
