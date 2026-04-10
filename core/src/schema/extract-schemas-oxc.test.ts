@@ -65,13 +65,56 @@ describe('extract-schemas-oxc', () => {
 
   it('string union → enum', () => {
     assert.deepEqual(schema.properties.status, {
-      type: 'string', enum: ['draft', 'active', 'archived'], default: 'draft',
+      type: 'string',
+      enum: ['draft', 'active', 'archived'],
+      default: 'draft',
     });
   });
 
   it('string union with 3 values', () => {
     assert.deepEqual(schema.properties.priority, {
-      type: 'string', enum: ['low', 'medium', 'high'], default: 'medium',
+      type: 'string',
+      enum: ['low', 'medium', 'high'],
+      default: 'medium',
+    });
+  });
+
+  // ── TS enum declarations ──
+
+  it('numeric enum (auto-increment) → number + enumNames labels', () => {
+    assert.deepEqual(schema.properties.level, {
+      type: 'number',
+      enum: [0, 1, 2],
+      enumNames: ['Low', 'Medium', 'High'],
+      default: 1,
+    });
+  });
+
+  it('numeric enum with explicit start → continues from initializer', () => {
+    assert.deepEqual(schema.properties.rank, {
+      type: 'number',
+      enum: [1, 2, 3],
+      enumNames: ['First', 'Second', 'Third'],
+      default: 1,
+    });
+  });
+
+  it('string enum where member names match values → omits enumNames', () => {
+    // `enum Color { red = 'red', green = 'green', blue = 'blue' }`
+    assert.deepEqual(schema.properties.color, {
+      type: 'string',
+      enum: ['red', 'green', 'blue'],
+      default: 'red',
+    });
+  });
+
+  it('string enum where member names differ from values → adds enumNames', () => {
+    // `enum Direction { North = 'N', South = 'S', East = 'E', West = 'W' }`
+    assert.deepEqual(schema.properties.direction, {
+      type: 'string',
+      enum: ['N', 'S', 'E', 'W'],
+      enumNames: ['North', 'South', 'East', 'West'],
+      default: 'N',
     });
   });
 
@@ -79,13 +122,17 @@ describe('extract-schemas-oxc', () => {
 
   it('typed array string[]', () => {
     assert.deepEqual(schema.properties.tags, {
-      type: 'array', items: { type: 'string' }, default: [],
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
     });
   });
 
   it('typed array number[]', () => {
     assert.deepEqual(schema.properties.scores, {
-      type: 'array', items: { type: 'number' }, default: [],
+      type: 'array',
+      items: { type: 'number' },
+      default: [],
     });
   });
 
@@ -98,7 +145,9 @@ describe('extract-schemas-oxc', () => {
 
   it('Array<T> generic syntax', () => {
     assert.deepEqual(schema.properties.history, {
-      type: 'array', items: { type: 'string' }, default: [],
+      type: 'array',
+      items: { type: 'string' },
+      default: [],
     });
   });
 
@@ -106,7 +155,9 @@ describe('extract-schemas-oxc', () => {
     const p = schema.properties.changelog;
     assert.equal(p.type, 'array');
     assert.deepEqual(p.items.properties, {
-      action: { type: 'string' }, actor: { type: 'string' }, ts: { type: 'number' },
+      action: { type: 'string' },
+      actor: { type: 'string' },
+      ts: { type: 'number' },
     });
     assert.deepEqual(p.items.required, ['action', 'actor', 'ts']);
   });
@@ -133,7 +184,8 @@ describe('extract-schemas-oxc', () => {
     const c = schema.properties.config;
     assert.equal(c.type, 'object');
     assert.deepEqual(c.properties.nested, {
-      type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } },
+      type: 'object',
+      properties: { x: { type: 'number' }, y: { type: 'number' } },
       required: ['x', 'y'],
     });
     assert.deepEqual(c.default, { color: 'blue', opacity: 1, nested: { x: 0, y: 0 } });
@@ -165,9 +217,7 @@ describe('extract-schemas-oxc', () => {
   // ── Mixed union → anyOf ──
 
   it('string | number → anyOf', () => {
-    assert.deepEqual(schema.properties.value.anyOf, [
-      { type: 'string' }, { type: 'number' },
-    ]);
+    assert.deepEqual(schema.properties.value.anyOf, [{ type: 'string' }, { type: 'number' }]);
   });
 
   // ── bigint ──
@@ -308,7 +358,7 @@ describe('extract-schemas-oxc', () => {
     const stat1 = await fs.stat(SCHEMA_FILE);
 
     // Small delay so mtime would differ if file were rewritten
-    await new Promise(r => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 50));
     await generateSchemas([import.meta.dirname]);
 
     const after = await fs.readFile(SCHEMA_FILE, 'utf-8');

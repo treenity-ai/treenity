@@ -6,7 +6,13 @@ import { tree as clientStore } from '#tree/client';
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '#components/ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '#components/ui/select';
 import { Switch } from '#components/ui/switch';
 import { Textarea } from '#components/ui/textarea';
 import { DraftTextarea } from '#mods/editor-ui/DraftTextarea';
@@ -14,7 +20,14 @@ import { useSchema } from '#schema-loader';
 import { register, resolve as resolveHandler } from '@treenity/core';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
-import { createElement, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  createElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 type FP = {
   value: {
@@ -22,7 +35,8 @@ type FP = {
     value: unknown;
     label?: string;
     placeholder?: string;
-    enum?: string[];
+    enum?: (string | number)[];
+    enumNames?: string[];
     items?: { type?: string };
     refType?: string; // component type — field can hold ref or embedded value of this type
   };
@@ -50,9 +64,16 @@ function ImageView({ value }: FP) {
 
 function UriView({ value }: FP) {
   const url = String(value.value ?? '');
-  return url
-    ? <a href={url} target="_blank" rel="noopener" className="text-xs text-primary hover:underline truncate block">{url}</a>
-    : null;
+  return url ? (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener"
+      className="text-xs text-primary hover:underline truncate block"
+    >
+      {url}
+    </a>
+  ) : null;
 }
 
 function TimestampView({ value }: FP) {
@@ -68,7 +89,12 @@ function ArrayView({ value }: FP) {
     return (
       <div className="flex flex-wrap gap-1">
         {(arr as string[]).map((tag, i) => (
-          <span key={i} className="text-[11px] font-mono bg-muted text-foreground/70 px-1.5 py-0.5 rounded">{tag}</span>
+          <span
+            key={i}
+            className="text-[11px] font-mono bg-muted text-foreground/70 px-1.5 py-0.5 rounded"
+          >
+            {tag}
+          </span>
         ))}
       </div>
     );
@@ -81,7 +107,9 @@ function ArrayView({ value }: FP) {
 }
 
 function ObjectView({ value }: FP) {
-  const obj = (typeof value.value === 'object' && value.value !== null ? value.value : {}) as Record<string, unknown>;
+  const obj = (
+    typeof value.value === 'object' && value.value !== null ? value.value : {}
+  ) as Record<string, unknown>;
   const entries = Object.entries(obj);
   if (entries.length === 0) return <span className="text-xs text-muted-foreground">{'{}'}</span>;
   return (
@@ -100,22 +128,42 @@ function ObjectView({ value }: FP) {
 
 // ── Form handlers (react:form context) — editable ──
 
+// Shared enum dropdown: value is the raw enum value, label is enumNames[i] when provided.
+// Used by both String and Number form handlers. String select uses stringified values
+// for the radix Select primitive; `toValue` converts back when emitting.
+function EnumSelect({
+  value,
+  onChange,
+  toValue,
+}: {
+  value: FP['value'];
+  onChange: FP['onChange'];
+  toValue: (s: string) => unknown;
+}) {
+  const options = value.enum ?? [];
+  const names = value.enumNames;
+  return (
+    <Select
+      value={String(value.value ?? '')}
+      onValueChange={(v) => onChange?.({ ...value, value: toValue(v) })}
+    >
+      <SelectTrigger className="h-7 text-xs font-mono">
+        <SelectValue placeholder="—" />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((v, i) => (
+          <SelectItem key={String(v)} value={String(v)}>
+            {names?.[i] ?? String(v)}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function StringForm({ value, onChange }: FP) {
-  // enum → select dropdown
-  if (value.enum && value.enum.length > 0) {
-    return (
-      <Select value={String(value.value ?? '')} onValueChange={(v) => onChange?.({ ...value, value: v })}>
-        <SelectTrigger className="h-7 text-xs font-mono">
-          <SelectValue placeholder="—" />
-        </SelectTrigger>
-        <SelectContent>
-          {value.enum.map((v) => (
-            <SelectItem key={v} value={v}>{v}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
+  if (value.enum && value.enum.length > 0)
+    return <EnumSelect value={value} onChange={onChange} toValue={(s) => s} />;
 
   return (
     <Input
@@ -139,6 +187,9 @@ function TextForm({ value, onChange }: FP) {
 }
 
 function NumberForm({ value, onChange }: FP) {
+  if (value.enum && value.enum.length > 0)
+    return <EnumSelect value={value} onChange={onChange} toValue={(s) => Number(s)} />;
+
   return (
     <Input
       type="number"
@@ -199,7 +250,12 @@ function UriForm({ value, onChange }: FP) {
         onChange={(e) => onChange?.({ ...value, value: e.target.value })}
       />
       {url && (
-        <a href={url} target="_blank" rel="noopener" className="text-[10px] text-primary hover:underline truncate block">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener"
+          className="text-[10px] text-primary hover:underline truncate block"
+        >
           {url}
         </a>
       )}
@@ -226,13 +282,18 @@ function TimestampForm({ value, onChange }: FP) {
 function SelectForm({ value, onChange }: FP) {
   const opts = value.enum ?? [];
   return (
-    <Select value={String(value.value ?? '')} onValueChange={(v) => onChange?.({ ...value, value: v })}>
+    <Select
+      value={String(value.value ?? '')}
+      onValueChange={(v) => onChange?.({ ...value, value: v })}
+    >
       <SelectTrigger className="h-7 text-xs font-mono">
         <SelectValue placeholder="—" />
       </SelectTrigger>
       <SelectContent>
         {opts.map((v) => (
-          <SelectItem key={v} value={v}>{v}</SelectItem>
+          <SelectItem key={String(v)} value={String(v)}>
+            {String(v)}
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -244,10 +305,9 @@ function ObjectForm({ value, onChange }: FP) {
   const [jsonDraft, setJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState(false);
   const [newKey, setNewKey] = useState('');
-  const obj = (typeof value.value === 'object' && value.value !== null ? value.value : {}) as Record<
-    string,
-    unknown
-  >;
+  const obj = (
+    typeof value.value === 'object' && value.value !== null ? value.value : {}
+  ) as Record<string, unknown>;
   const emit = (next: Record<string, unknown>) => onChange?.({ ...value, value: next });
   const entries = Object.entries(obj);
 
@@ -405,12 +465,16 @@ function ArrayForm({ value, onChange }: FP) {
   const [input, setInput] = useState('');
   const arr = Array.isArray(value.value) ? (value.value as unknown[]) : [];
   const schemaType = value.items?.type;
-  const sniffed = arr.length > 0
-    ? typeof arr[0] === 'object' && arr[0] !== null ? 'object'
-      : typeof arr[0] === 'number' ? 'number'
-      : typeof arr[0] === 'boolean' ? 'boolean'
-      : 'string'
-    : undefined;
+  const sniffed =
+    arr.length > 0
+      ? typeof arr[0] === 'object' && arr[0] !== null
+        ? 'object'
+        : typeof arr[0] === 'number'
+          ? 'number'
+          : typeof arr[0] === 'boolean'
+            ? 'boolean'
+            : 'string'
+      : undefined;
   const itemType = schemaType ?? sniffed ?? 'string';
   const emit = (next: unknown[]) => onChange?.({ ...value, value: next });
 
@@ -555,7 +619,11 @@ export function MiniTree({ onSelect }: { onSelect: (path: string) => void }) {
   const lf = filter.toLowerCase();
 
   function getKids(path: string): string[] {
-    return cache.getChildren(path).map((n) => n.$path).filter((p) => p !== path).sort();
+    return cache
+      .getChildren(path)
+      .map((n) => n.$path)
+      .filter((p) => p !== path)
+      .sort();
   }
 
   function matchesFilter(path: string): boolean {
@@ -636,7 +704,11 @@ export function MiniTree({ onSelect }: { onSelect: (path: string) => void }) {
 }
 
 // Inline typed editor for embedded object values
-function EmbeddedFields({ data, type, setData }: {
+function EmbeddedFields({
+  data,
+  type,
+  setData,
+}: {
   data: Record<string, unknown>;
   type: string;
   setData: (fn: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
@@ -649,12 +721,19 @@ function EmbeddedFields({ data, type, setData }: {
       <div className="space-y-1.5">
         {Object.entries(schema.properties).map(([field, prop]) => {
           const p = prop as {
-            type: string; title: string; format?: string; description?: string;
-            readOnly?: boolean; enum?: string[]; items?: { type?: string };
+            type: string;
+            title: string;
+            format?: string;
+            description?: string;
+            readOnly?: boolean;
+            enum?: (string | number)[];
+            enumNames?: string[];
+            items?: { type?: string };
           };
           const fieldType = p.format ?? p.type;
           if (fieldType === 'path') return null; // avoid infinite nesting for now
-          const handler = resolveHandler(fieldType, 'react:form') ?? resolveHandler('string', 'react:form');
+          const handler =
+            resolveHandler(fieldType, 'react:form') ?? resolveHandler('string', 'react:form');
           if (!handler) return null;
           const fieldData = {
             $type: fieldType,
@@ -663,6 +742,7 @@ function EmbeddedFields({ data, type, setData }: {
             placeholder: p.description,
             ...(p.items ? { items: p.items } : {}),
             ...(p.enum ? { enum: p.enum } : {}),
+            ...(p.enumNames ? { enumNames: p.enumNames } : {}),
           };
           return (
             <div key={field} className="field">
@@ -671,7 +751,8 @@ function EmbeddedFields({ data, type, setData }: {
                 value: fieldData,
                 onChange: p.readOnly
                   ? undefined
-                  : (next: { value: unknown }) => setData((prev) => ({ ...prev, [field]: next.value })),
+                  : (next: { value: unknown }) =>
+                      setData((prev) => ({ ...prev, [field]: next.value })),
               })}
             </div>
           );
@@ -703,7 +784,9 @@ function PathForm({ value, onChange }: FP) {
   const raw = value.value;
   const refType = value.refType; // expected component type from schema
   const isValue = typeof raw === 'object' && raw !== null;
-  const refPath = isValue ? String((raw as Record<string, unknown>).$path ?? '') : String(raw ?? '');
+  const refPath = isValue
+    ? String((raw as Record<string, unknown>).$path ?? '')
+    : String(raw ?? '');
   const embeddedType = isValue ? String((raw as Record<string, unknown>).$type ?? '') : '';
   const effectiveType = embeddedType || refType || '';
   const [mode, setMode] = useState<'ref' | 'val'>(isValue ? 'val' : 'ref');
@@ -801,9 +884,7 @@ function PathForm({ value, onChange }: FP) {
           {isValue ? (
             <span className="flex-1 min-w-0 text-[11px] font-mono text-foreground/70 truncate py-1">
               {refPath && <span className="text-muted-foreground">{refPath}</span>}
-              {embeddedType && (
-                <span className="ml-1 text-amber-500">{embeddedType}</span>
-              )}
+              {embeddedType && <span className="ml-1 text-amber-500">{embeddedType}</span>}
             </span>
           ) : (
             <Input
@@ -820,7 +901,10 @@ function PathForm({ value, onChange }: FP) {
               size="icon"
               type="button"
               className="h-5 w-5 p-0 text-muted-foreground/40 hover:text-foreground shrink-0"
-              onClick={() => { onChange?.({ ...value, value: '' }); setMode('ref'); }}
+              onClick={() => {
+                onChange?.({ ...value, value: '' });
+                setMode('ref');
+              }}
             >
               <X className="h-3 w-3" />
             </Button>
@@ -839,7 +923,10 @@ function PathForm({ value, onChange }: FP) {
             </PopoverTrigger>
             <PopoverContent align="end" className="w-64 max-h-60 overflow-auto p-0">
               <MiniTree
-                onSelect={(p) => { applyNode(p); setPickerOpen(false); }}
+                onSelect={(p) => {
+                  applyNode(p);
+                  setPickerOpen(false);
+                }}
               />
             </PopoverContent>
           </Popover>

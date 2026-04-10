@@ -12,7 +12,8 @@ export function renderField(
     label: string;
     placeholder?: string;
     readOnly?: boolean;
-    enum?: string[];
+    enum?: (string | number)[];
+    enumNames?: string[];
     items?: { type?: string; properties?: Record<string, unknown> };
     refType?: string;
   },
@@ -26,9 +27,7 @@ export function renderField(
 
   // If value is a $ref/$map, show ref editor instead of the normal field handler
   if (isRefValue) {
-    const onFieldChange = fieldSchema.readOnly
-      ? undefined
-      : (next: unknown) => set(name, next);
+    const onFieldChange = fieldSchema.readOnly ? undefined : (next: unknown) => set(name, next);
     return (
       <div key={name} className="field">
         <FieldLabel label={fieldSchema.label} value={rawValue} onChange={onFieldChange} />
@@ -58,6 +57,7 @@ export function renderField(
   };
   if (fieldSchema.items) fieldData.items = fieldSchema.items;
   if (fieldSchema.enum) fieldData.enum = fieldSchema.enum;
+  if (fieldSchema.enumNames) fieldData.enumNames = fieldSchema.enumNames;
   if (fieldSchema.refType) fieldData.refType = fieldSchema.refType;
 
   const isComplex = fieldSchema.type === 'object' || fieldSchema.type === 'array';

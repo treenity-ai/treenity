@@ -24,14 +24,31 @@ const DefaultEditForm: View<ComponentData> = ({ value, onChange }) => {
       <div className="py-0.5 pb-2.5">
         {Object.entries(schema.properties).map(([field, prop]) => {
           const p = prop as {
-            type: string; title: string; format?: string; description?: string;
-            readOnly?: boolean; enum?: string[]; items?: { type?: string; properties?: Record<string, unknown> };
+            type: string;
+            title: string;
+            format?: string;
+            description?: string;
+            readOnly?: boolean;
+            enum?: (string | number)[];
+            enumNames?: string[];
+            items?: { type?: string; properties?: Record<string, unknown> };
             refType?: string;
           };
-          return renderField(field, {
-            type: p.format ?? p.type, label: p.title ?? field, placeholder: p.description,
-            readOnly: p.readOnly || !onChange, enum: p.enum, items: p.items, refType: p.refType,
-          }, data, set);
+          return renderField(
+            field,
+            {
+              type: p.format ?? p.type,
+              label: p.title ?? field,
+              placeholder: p.description,
+              readOnly: p.readOnly || !onChange,
+              enum: p.enum,
+              enumNames: p.enumNames,
+              items: p.items,
+              refType: p.refType,
+            },
+            data,
+            set,
+          );
         })}
       </div>
     );
@@ -52,33 +69,48 @@ const DefaultEditForm: View<ComponentData> = ({ value, onChange }) => {
             );
           }
           return (
-            <div key={k} className={`field${Array.isArray(v) || (typeof v === 'object' && v !== null) ? ' stack' : ''}`}>
+            <div
+              key={k}
+              className={`field${Array.isArray(v) || (typeof v === 'object' && v !== null) ? ' stack' : ''}`}
+            >
               <FieldLabel label={k} value={v} onChange={onCh} />
               {typeof v === 'boolean' ? (
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox checked={!!data[k]}
-                    onChange={(e) => set(k, (e.target as HTMLInputElement).checked)} />
+                  <Checkbox
+                    checked={!!data[k]}
+                    onChange={(e) => set(k, (e.target as HTMLInputElement).checked)}
+                  />
                   {data[k] ? 'true' : 'false'}
                 </label>
               ) : typeof v === 'number' ? (
-                <Input type="number" className="h-7 text-xs" value={String(data[k] ?? 0)}
-                  onChange={(e) => set(k, Number(e.target.value))} />
+                <Input
+                  type="number"
+                  className="h-7 text-xs"
+                  value={String(data[k] ?? 0)}
+                  onChange={(e) => set(k, Number(e.target.value))}
+                />
               ) : Array.isArray(v) ? (
-                <StringArrayField value={data[k] as unknown[]}
-                  onChange={(next) => set(k, next)} />
+                <StringArrayField value={data[k] as unknown[]} onChange={(next) => set(k, next)} />
               ) : typeof v === 'object' ? (
                 (() => {
                   const h = resolve('object', 'react:form');
-                  return h
-                    ? createElement(h as any, {
-                        value: { $type: 'object', value: data[k] },
-                        onChange: (next: { value: unknown }) => set(k, next.value),
-                      })
-                    : <pre className="text-[11px] font-mono text-foreground/60">{JSON.stringify(data[k], null, 2)}</pre>;
+                  return h ? (
+                    createElement(h as any, {
+                      value: { $type: 'object', value: data[k] },
+                      onChange: (next: { value: unknown }) => set(k, next.value),
+                    })
+                  ) : (
+                    <pre className="text-[11px] font-mono text-foreground/60">
+                      {JSON.stringify(data[k], null, 2)}
+                    </pre>
+                  );
                 })()
               ) : (
-                <Input className="h-7 text-xs" value={String(data[k] ?? '')}
-                  onChange={(e) => set(k, e.target.value)} />
+                <Input
+                  className="h-7 text-xs"
+                  value={String(data[k] ?? '')}
+                  onChange={(e) => set(k, e.target.value)}
+                />
               )}
             </div>
           );

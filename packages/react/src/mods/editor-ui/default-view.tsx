@@ -23,19 +23,42 @@ function ComponentFieldsView({ value }: { value: ComponentData }) {
     return (
       <>
         {titleEntry && data[titleEntry[0]] && (
-          <div className="text-base font-medium text-[--text] mb-1">{String(data[titleEntry[0]])}</div>
+          <div className="text-base font-medium text-[--text] mb-1">
+            {String(data[titleEntry[0]])}
+          </div>
         )}
         {descEntry && data[descEntry[0]] && (
-          <p className="text-sm text-[--text-2] mb-3 leading-relaxed whitespace-pre-wrap">{String(data[descEntry[0]])}</p>
+          <p className="text-sm text-[--text-2] mb-3 leading-relaxed whitespace-pre-wrap">
+            {String(data[descEntry[0]])}
+          </p>
         )}
         {Object.entries(schema.properties)
           .filter(([k]) => k !== titleEntry?.[0] && k !== descEntry?.[0])
           .map(([k, prop]) => {
-            const p = prop as { type: string; title: string; format?: string; description?: string; enum?: string[]; items?: { type?: string; properties?: Record<string, unknown> }; refType?: string };
-            return renderField(k, {
-              type: p.format ?? p.type, label: p.title ?? k,
-              readOnly: true, enum: p.enum, items: p.items, refType: p.refType,
-            }, data, noop);
+            const p = prop as {
+              type: string;
+              title: string;
+              format?: string;
+              description?: string;
+              enum?: (string | number)[];
+              enumNames?: string[];
+              items?: { type?: string; properties?: Record<string, unknown> };
+              refType?: string;
+            };
+            return renderField(
+              k,
+              {
+                type: p.format ?? p.type,
+                label: p.title ?? k,
+                readOnly: true,
+                enum: p.enum,
+                enumNames: p.enumNames,
+                items: p.items,
+                refType: p.refType,
+              },
+              data,
+              noop,
+            );
           })}
       </>
     );
@@ -50,8 +73,14 @@ function ComponentFieldsView({ value }: { value: ComponentData }) {
 
   return (
     <>
-      {titleKey && titleKey[1] && <div className="text-base font-medium text-[--text] mb-1">{String(titleKey[1])}</div>}
-      {descKey && descKey[1] && <p className="text-sm text-[--text-2] mb-3 leading-relaxed whitespace-pre-wrap">{String(descKey[1])}</p>}
+      {titleKey && titleKey[1] && (
+        <div className="text-base font-medium text-[--text] mb-1">{String(titleKey[1])}</div>
+      )}
+      {descKey && descKey[1] && (
+        <p className="text-sm text-[--text-2] mb-3 leading-relaxed whitespace-pre-wrap">
+          {String(descKey[1])}
+        </p>
+      )}
       {meta.length > 0 && (
         <div className="dv-meta">
           {meta.map(([k, v]) => (
@@ -67,8 +96,12 @@ function ComponentFieldsView({ value }: { value: ComponentData }) {
 }
 
 function FieldValue({ value }: { value: unknown }) {
-  if (value === undefined || value === null || value === '') return <span className="text-[--text-3]">—</span>;
-  if (typeof value === 'boolean') return <span className={value ? 'text-green-400' : 'text-[--text-3]'}>{value ? 'Yes' : 'No'}</span>;
+  if (value === undefined || value === null || value === '')
+    return <span className="text-[--text-3]">—</span>;
+  if (typeof value === 'boolean')
+    return (
+      <span className={value ? 'text-green-400' : 'text-[--text-3]'}>{value ? 'Yes' : 'No'}</span>
+    );
   if (typeof value === 'number') return <span className="tabular-nums">{value}</span>;
   if (typeof value === 'string') {
     if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -83,7 +116,13 @@ const TITLE_KEYS = new Set(['title', 'name', 'label']);
 const DESC_KEYS = new Set(['description', 'desc', 'summary', 'text', 'body', 'content']);
 
 /** Reusable plain-fields renderer: promotes title/desc, renders rest as key-value rows */
-export function PlainFieldsView({ plain, typeName }: { plain: Record<string, unknown>; typeName: string }) {
+export function PlainFieldsView({
+  plain,
+  typeName,
+}: {
+  plain: Record<string, unknown>;
+  typeName: string;
+}) {
   const schema = getSchema(typeName);
   const keys = Object.keys(plain);
   if (keys.length === 0) return null;
@@ -97,23 +136,45 @@ export function PlainFieldsView({ plain, typeName }: { plain: Record<string, unk
   return (
     <>
       {title && <h2 className="text-lg font-semibold text-[--text] mb-1">{title}</h2>}
-      {desc && <p className="text-sm text-[--text-2] mb-4 leading-relaxed whitespace-pre-wrap">{desc}</p>}
+      {desc && (
+        <p className="text-sm text-[--text-2] mb-4 leading-relaxed whitespace-pre-wrap">{desc}</p>
+      )}
 
       {metaKeys.length > 0 && schema && Object.keys(schema.properties).length > 0 && (
         <div className="py-0.5 pb-2.5">
           {metaKeys.map((k) => {
             const prop = schema.properties[k];
-            if (!prop) return (
-              <div key={k} className="dv-meta-row">
-                <span className="dv-meta-label">{k}</span>
-                <FieldValue value={plain[k]} />
-              </div>
+            if (!prop)
+              return (
+                <div key={k} className="dv-meta-row">
+                  <span className="dv-meta-label">{k}</span>
+                  <FieldValue value={plain[k]} />
+                </div>
+              );
+            const p = prop as {
+              type: string;
+              title: string;
+              format?: string;
+              description?: string;
+              enum?: (string | number)[];
+              enumNames?: string[];
+              items?: { type?: string; properties?: Record<string, unknown> };
+              refType?: string;
+            };
+            return renderField(
+              k,
+              {
+                type: p.format ?? p.type,
+                label: p.title ?? k,
+                readOnly: true,
+                enum: p.enum,
+                enumNames: p.enumNames,
+                items: p.items,
+                refType: p.refType,
+              },
+              plain,
+              noop,
             );
-            const p = prop as { type: string; title: string; format?: string; description?: string; enum?: string[]; items?: { type?: string; properties?: Record<string, unknown> }; refType?: string };
-            return renderField(k, {
-              type: p.format ?? p.type, label: p.title ?? k,
-              readOnly: true, enum: p.enum, items: p.items, refType: p.refType,
-            }, plain, noop);
           })}
         </div>
       )}

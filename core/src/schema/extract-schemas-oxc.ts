@@ -4,8 +4,17 @@ import { parseSync } from 'oxc-parser';
 import fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-interface ComponentEntry { typeName: string; className: string; fileName: string }
-interface ExternalAction { name: string; description?: string; arguments?: any[]; fileName: string }
+interface ComponentEntry {
+  typeName: string;
+  className: string;
+  fileName: string;
+}
+interface ExternalAction {
+  name: string;
+  description?: string;
+  arguments?: any[];
+  fileName: string;
+}
 
 type N = Record<string, any>;
 type Comment = { type: string; value: string; start: number; end: number };
@@ -14,7 +23,12 @@ type Comment = { type: string; value: string; start: number; end: number };
 
 function parseJSDoc(raw: string): Record<string, string> {
   const result: Record<string, string> = {};
-  const lines = raw.replace(/^\s*\*\s?/gm, '').trim().split('\n').map(l => l.trim()).filter(Boolean);
+  const lines = raw
+    .replace(/^\s*\*\s?/gm, '')
+    .trim()
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   for (const line of lines) {
     const m = line.match(/^@(\w+)(?:\s+(.*))?/);
@@ -41,30 +55,85 @@ function buildJSDocMap(comments: Comment[], source: string): Map<number, Record<
 interface SchemaCtx {
   jsDocMap?: Map<number, Record<string, string>>;
   typeAliases?: Map<string, N>;
+  enums?: Map<string, N>;
   resolving?: Set<string>;
+}
+
+// TS enum members: numeric by default (auto-incrementing from 0 or last explicit number),
+// string if explicitly assigned a string literal. Complex constant expressions
+// (`B = A + 1`, cross-member refs, computed members) are NOT supported — we fail loud
+// rather than silently falling back to auto-increment, which would corrupt the schema.
+function getEnumValues(enumNode: N): { name: string; value: string | number }[] {
+  const members: N[] = enumNode.body?.members ?? [];
+  const out: { name: string; value: string | number }[] = [];
+  let auto = 0;
+  for (const m of members) {
+    const name = m.id?.name ?? m.key?.name;
+    if (!name) continue;
+    const init = m.initializer;
+    if (init) {
+      const v = evalInit(init);
+      if (typeof v === 'number') {
+        out.push({ name, value: v });
+        auto = v + 1;
+      } else if (typeof v === 'string') {
+        out.push({ name, value: v });
+      } else
+        throw new Error(
+          `[schema/oxc] unsupported enum initializer for member "${name}" in enum "${enumNode.id?.name ?? '?'}" — only literal strings/numbers are supported`,
+        );
+    } else {
+      out.push({ name, value: auto++ });
+    }
+  }
+  return out;
+}
+
+function enumToSchema(enumNode: N): any {
+  const entries = getEnumValues(enumNode);
+  const values = entries.map((e) => e.value);
+  const names = entries.map((e) => e.name);
+  const allString = values.every((v) => typeof v === 'string');
+  const allNumber = values.every((v) => typeof v === 'number');
+  if (!allString && !allNumber)
+    throw new Error(
+      `[schema/oxc] heterogeneous enum "${enumNode.id?.name ?? '?'}" (mixed string/number members) is not supported`,
+    );
+  // enumNames provides UI labels for number enums (where runtime values are opaque) and
+  // for string enums whose member names differ from their values. Non-standard extension
+  // consumed by the schema-form editor.
+  const namesDiffer = allString ? names.some((n, i) => n !== values[i]) : true;
+  const base = allString
+    ? { type: 'string' as const, enum: values }
+    : { type: 'number' as const, enum: values };
+  return namesDiffer ? { ...base, enumNames: names } : base;
 }
 
 function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
   if (!node) return {};
 
   switch (node.type) {
-    case 'TSStringKeyword': return { type: 'string' };
-    case 'TSNumberKeyword': return { type: 'number' };
-    case 'TSBooleanKeyword': return { type: 'boolean' };
-    case 'TSBigIntKeyword': return { type: 'integer' };
+    case 'TSStringKeyword':
+      return { type: 'string' };
+    case 'TSNumberKeyword':
+      return { type: 'number' };
+    case 'TSBooleanKeyword':
+      return { type: 'boolean' };
+    case 'TSBigIntKeyword':
+      return { type: 'integer' };
 
     case 'TSArrayType':
       return { type: 'array', items: typeToSchema(node.elementType, ctx) };
 
     case 'TSUnionType': {
       const types = node.types as N[];
-      if (types.every(t => t.type === 'TSLiteralType' && typeof t.literal?.value === 'string'))
-        return { type: 'string', enum: types.map(t => t.literal.value) };
-      if (types.every(t => t.type === 'TSLiteralType' && typeof t.literal?.value === 'boolean'))
+      if (types.every((t) => t.type === 'TSLiteralType' && typeof t.literal?.value === 'string'))
+        return { type: 'string', enum: types.map((t) => t.literal.value) };
+      if (types.every((t) => t.type === 'TSLiteralType' && typeof t.literal?.value === 'boolean'))
         return { type: 'boolean' };
-      const nonUndef = types.filter(t => t.type !== 'TSUndefinedKeyword');
+      const nonUndef = types.filter((t) => t.type !== 'TSUndefinedKeyword');
       if (nonUndef.length === 1) return typeToSchema(nonUndef[0], ctx);
-      return { anyOf: nonUndef.map(t => typeToSchema(t, ctx)) };
+      return { anyOf: nonUndef.map((t) => typeToSchema(t, ctx)) };
     }
 
     case 'TSLiteralType': {
@@ -95,8 +164,7 @@ function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
       if (name === 'Record') return { type: 'object' };
       if (name === 'Array' && tparams?.[0])
         return { type: 'array', items: typeToSchema(tparams[0], ctx) };
-      if (name === 'Promise' && tparams?.[0])
-        return typeToSchema(tparams[0], ctx);
+      if (name === 'Promise' && tparams?.[0]) return typeToSchema(tparams[0], ctx);
       if ((name === 'AsyncGenerator' || name === 'Generator') && tparams?.[0])
         return typeToSchema(tparams[0], ctx);
 
@@ -110,12 +178,17 @@ function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
         return result;
       }
 
+      // Resolve TS enum references → { type, enum: [...runtime values] }
+      if (name && ctx.enums?.has(name)) return enumToSchema(ctx.enums.get(name)!);
+
       return {};
     }
 
-    case 'TSTypeAnnotation': return typeToSchema(node.typeAnnotation, ctx);
+    case 'TSTypeAnnotation':
+      return typeToSchema(node.typeAnnotation, ctx);
 
-    default: return {};
+    default:
+      return {};
   }
 }
 
@@ -131,15 +204,25 @@ function typeFromInit(value: N | null | undefined): any {
   return {};
 }
 
-function evalInit(node: N | null | undefined): unknown {
+function evalInit(node: N | null | undefined, enums?: Map<string, N>): unknown {
   if (!node) return undefined;
-  if (node.type === 'Literal') return typeof node.value === 'bigint' ? Number(node.value) : node.value;
+  if (node.type === 'Literal')
+    return typeof node.value === 'bigint' ? Number(node.value) : node.value;
   if (node.type === 'UnaryExpression' && node.operator === '-' && node.argument?.type === 'Literal')
     return -(node.argument.value as number);
+  if (
+    node.type === 'MemberExpression' &&
+    enums &&
+    node.object?.type === 'Identifier' &&
+    node.property?.type === 'Identifier'
+  ) {
+    const enumNode = enums.get(node.object.name);
+    if (enumNode) return getEnumValues(enumNode).find((e) => e.name === node.property.name)?.value;
+  }
   if (node.type === 'ArrayExpression') {
     const arr: unknown[] = [];
     for (const el of node.elements ?? []) {
-      const v = evalInit(el);
+      const v = evalInit(el, enums);
       if (v === undefined) return undefined;
       arr.push(v);
     }
@@ -149,7 +232,7 @@ function evalInit(node: N | null | undefined): unknown {
     const obj: Record<string, unknown> = {};
     for (const prop of node.properties ?? []) {
       if (prop.type !== 'Property' || !prop.key?.name) return undefined;
-      const v = evalInit(prop.value);
+      const v = evalInit(prop.value, enums);
       if (v === undefined) return undefined;
       obj[prop.key.name] = v;
     }
@@ -164,7 +247,7 @@ function walk(node: N, visitor: (n: N) => void) {
   if (!node || typeof node !== 'object') return;
   visitor(node);
   for (const v of Object.values(node)) {
-    if (Array.isArray(v)) v.forEach(n => walk(n, visitor));
+    if (Array.isArray(v)) v.forEach((n) => walk(n, visitor));
     else if (typeof v === 'object' && v !== null) walk(v, visitor);
   }
 }
@@ -173,14 +256,18 @@ const REGISTER_FNS = new Set(['defineComponent', 'registerType']);
 
 function findRegistrations(ast: N, fileName: string): ComponentEntry[] {
   const entries: ComponentEntry[] = [];
-  walk(ast, node => {
+  walk(ast, (node) => {
     if (
       node.type === 'CallExpression' &&
       node.callee?.type === 'Identifier' &&
       REGISTER_FNS.has(node.callee.name)
     ) {
       const [typeArg, classArg] = node.arguments ?? [];
-      if (typeArg?.type === 'Literal' && typeof typeArg.value === 'string' && classArg?.type === 'Identifier')
+      if (
+        typeArg?.type === 'Literal' &&
+        typeof typeArg.value === 'string' &&
+        classArg?.type === 'Identifier'
+      )
         entries.push({ typeName: typeArg.value, className: classArg.name, fileName });
     }
   });
@@ -189,7 +276,7 @@ function findRegistrations(ast: N, fileName: string): ComponentEntry[] {
 
 function findClasses(ast: N): Map<string, N> {
   const classes = new Map<string, N>();
-  walk(ast, node => {
+  walk(ast, (node) => {
     if (node.type === 'ClassDeclaration' && node.id?.name) classes.set(node.id.name, node);
   });
   return classes;
@@ -197,16 +284,33 @@ function findClasses(ast: N): Map<string, N> {
 
 function findTypeAliases(ast: N): Map<string, N> {
   const aliases = new Map<string, N>();
-  walk(ast, node => {
+  walk(ast, (node) => {
     if (node.type === 'TSTypeAliasDeclaration' && node.id?.name && node.typeAnnotation)
       aliases.set(node.id.name, node.typeAnnotation);
   });
   return aliases;
 }
 
+function findEnums(ast: N, fileName: string): Map<string, N> {
+  const enums = new Map<string, N>();
+  walk(ast, (node) => {
+    if (node.type === 'TSEnumDeclaration' && node.id?.name) {
+      if (enums.has(node.id.name)) {
+        // TS allows enum merging (`enum E { A } enum E { B }`) but we don't support it —
+        // warn rather than silently dropping earlier members.
+        console.warn(
+          `[schema/oxc] enum "${node.id.name}" is declared more than once in ${fileName} — enum merging is not supported, only the last declaration is used`,
+        );
+      }
+      enums.set(node.id.name, node);
+    }
+  });
+  return enums;
+}
+
 function findExternalActions(ast: N, fileName: string): Map<string, ExternalAction[]> {
   const byType = new Map<string, ExternalAction[]>();
-  walk(ast, node => {
+  walk(ast, (node) => {
     if (
       node.type === 'CallExpression' &&
       node.callee?.type === 'Identifier' &&
@@ -215,21 +319,27 @@ function findExternalActions(ast: N, fileName: string): Map<string, ExternalActi
     ) {
       const [typeArg, ctxArg, handlerArg] = node.arguments;
       if (
-        typeArg?.type === 'Literal' && typeof typeArg.value === 'string' &&
-        ctxArg?.type === 'Literal' && typeof ctxArg.value === 'string' &&
-        ctxArg.value.startsWith('action:') && !ctxArg.value.includes(':', 7)
+        typeArg?.type === 'Literal' &&
+        typeof typeArg.value === 'string' &&
+        ctxArg?.type === 'Literal' &&
+        typeof ctxArg.value === 'string' &&
+        ctxArg.value.startsWith('action:') &&
+        !ctxArg.value.includes(':', 7)
       ) {
         const actionName = ctxArg.value.slice(7);
         if (actionName.startsWith('_')) return;
 
         if (!byType.has(typeArg.value)) byType.set(typeArg.value, []);
         const list = byType.get(typeArg.value)!;
-        if (list.some(a => a.name === actionName)) return;
+        if (list.some((a) => a.name === actionName)) return;
 
         const action: ExternalAction = { name: actionName, fileName };
 
         // Extract handler param types (skip 1st ctx param)
-        if (handlerArg?.type === 'ArrowFunctionExpression' || handlerArg?.type === 'FunctionExpression') {
+        if (
+          handlerArg?.type === 'ArrowFunctionExpression' ||
+          handlerArg?.type === 'FunctionExpression'
+        ) {
           const params = handlerArg.params ?? [];
           const args: any[] = [];
           for (let i = 1; i < params.length; i++) {
@@ -253,8 +363,9 @@ function generateClassSchema(
   jsDocMap: Map<number, Record<string, string>>,
   classToType: Map<string, string>,
   typeAliases?: Map<string, N>,
+  enums?: Map<string, N>,
 ): any {
-  const ctx: SchemaCtx = { jsDocMap, typeAliases };
+  const ctx: SchemaCtx = { jsDocMap, typeAliases, enums };
   const properties: Record<string, any> = {};
   const required: string[] = [];
   const methods: Record<string, any> = {};
@@ -267,19 +378,28 @@ function generateClassSchema(
       const ta = member.typeAnnotation?.typeAnnotation;
 
       // Registered component class → refType
-      if (ta?.type === 'TSTypeReference' && ta.typeName?.name && classToType.has(ta.typeName.name)) {
-        properties[name] = { type: 'string', format: 'path', refType: classToType.get(ta.typeName.name) };
+      if (
+        ta?.type === 'TSTypeReference' &&
+        ta.typeName?.name &&
+        classToType.has(ta.typeName.name)
+      ) {
+        properties[name] = {
+          type: 'string',
+          format: 'path',
+          refType: classToType.get(ta.typeName.name),
+        };
       } else {
         properties[name] = ta ? typeToSchema(ta, ctx) : typeFromInit(member.value);
       }
 
       Object.assign(properties[name], jsDocMap.get(member.start) ?? {});
 
-      const def = evalInit(member.value);
+      const def = evalInit(member.value, enums);
       if (def !== undefined) properties[name].default = def;
 
       // `?` or `| undefined` in union → optional
-      const hasUndef = ta?.type === 'TSUnionType' &&
+      const hasUndef =
+        ta?.type === 'TSUnionType' &&
         (ta.types as N[]).some((t: N) => t.type === 'TSUndefinedKeyword');
       if (!member.optional && !hasUndef) required.push(name);
     }
@@ -294,7 +414,10 @@ function generateClassSchema(
       const args: any[] = [];
       for (const param of params) {
         const p = param.type === 'AssignmentPattern' ? param.left : param;
-        args.push({ name: p.name ?? 'arg', ...typeToSchema(p.typeAnnotation?.typeAnnotation, ctx) });
+        args.push({
+          name: p.name ?? 'arg',
+          ...typeToSchema(p.typeAnnotation?.typeAnnotation, ctx),
+        });
       }
 
       const isGenerator = !!fn.generator;
@@ -305,7 +428,8 @@ function generateClassSchema(
       if (isGenerator && returnTa?.type === 'TSTypeReference') {
         const genName = returnTa.typeName?.name;
         if (genName === 'AsyncGenerator' || genName === 'Generator') {
-          const yieldType = (returnTa.typeArguments?.params ?? returnTa.typeParameters?.params)?.[0];
+          const yieldType = (returnTa.typeArguments?.params ??
+            returnTa.typeParameters?.params)?.[0];
           if (yieldType) yieldsSchema = typeToSchema(yieldType, ctx);
         }
       }
@@ -313,15 +437,21 @@ function generateClassSchema(
       const ret = isGenerator ? {} : typeToSchema(returnTa, ctx);
       const methodDoc = { ...(jsDocMap.get(member.start) ?? {}) };
 
-      if (typeof methodDoc.pre === 'string') (methodDoc as any).pre = methodDoc.pre.split(/\s+/).filter(Boolean);
-      if (typeof methodDoc.post === 'string') (methodDoc as any).post = methodDoc.post.split(/\s+/).filter(Boolean);
+      if (typeof methodDoc.pre === 'string')
+        (methodDoc as any).pre = methodDoc.pre.split(/\s+/).filter(Boolean);
+      if (typeof methodDoc.post === 'string')
+        (methodDoc as any).post = methodDoc.post.split(/\s+/).filter(Boolean);
 
       methods[name] = {
         ...methodDoc,
         ...(isGenerator ? { streaming: true } : {}),
         arguments: args,
-        ...(isGenerator && yieldsSchema && Object.keys(yieldsSchema).length ? { yields: yieldsSchema } : {}),
-        ...(!isGenerator && Object.keys(ret).length && ret.type !== undefined ? { return: ret } : {}),
+        ...(isGenerator && yieldsSchema && Object.keys(yieldsSchema).length
+          ? { yields: yieldsSchema }
+          : {}),
+        ...(!isGenerator && Object.keys(ret).length && ret.type !== undefined
+          ? { return: ret }
+          : {}),
       };
     }
   }
@@ -342,11 +472,21 @@ async function globSourceFiles(dirs: string[]): Promise<string[]> {
   for (const dir of dirs) {
     await (async function walkDir(d: string) {
       let entries;
-      try { entries = await fs.readdir(d, { withFileTypes: true }); } catch { return; }
+      try {
+        entries = await fs.readdir(d, { withFileTypes: true });
+      } catch {
+        return;
+      }
       for (const e of entries) {
         const full = path.join(d, e.name);
         if (e.isDirectory() && e.name !== 'node_modules' && e.name !== 'dist') await walkDir(full);
-        else if (e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.test.ts') && !e.name.endsWith('.d.ts')) files.push(full);
+        else if (
+          e.isFile() &&
+          e.name.endsWith('.ts') &&
+          !e.name.endsWith('.test.ts') &&
+          !e.name.endsWith('.d.ts')
+        )
+          files.push(full);
       }
     })(path.resolve(dir));
   }
@@ -362,15 +502,23 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
   const allEntries: ComponentEntry[] = [];
   const allClasses = new Map<string, { node: N; jsDocMap: Map<number, Record<string, string>> }>();
   const allExternalActions = new Map<string, ExternalAction[]>();
-  const allTypeAliases = new Map<string, N>();
+  // Type aliases and enums are file-scoped: two modules may each define `type Entry = {...}`
+  // or `enum Status` with different shapes. A global map would silently corrupt whichever
+  // class was parsed second. Same-file references are supported; cross-file imports would
+  // require import resolution (out of scope).
+  const aliasesByFile = new Map<string, Map<string, N>>();
+  const enumsByFile = new Map<string, Map<string, N>>();
 
   for (const file of files) {
     const source = await fs.readFile(file, 'utf-8');
     const { program: ast, comments } = parseSync(path.basename(file), source);
     const jsDocMap = buildJSDocMap(comments as Comment[], source);
 
-    for (const [name, node] of findTypeAliases(ast as N))
-      allTypeAliases.set(name, node);
+    const fileAliases = findTypeAliases(ast as N);
+    if (fileAliases.size) aliasesByFile.set(file, fileAliases);
+
+    const fileEnums = findEnums(ast as N, file);
+    if (fileEnums.size) enumsByFile.set(file, fileEnums);
 
     for (const e of findRegistrations(ast as N, file)) allEntries.push(e);
 
@@ -384,8 +532,19 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
     }
   }
 
+  // classToType is kept global because class references (e.g. `linked?: OtherWidget`) are
+  // commonly cross-file via ES imports. Detect name collisions and warn — if two classes
+  // share a name but register different type names, refType resolution is ambiguous.
   const classToType = new Map<string, string>();
-  for (const e of allEntries) classToType.set(e.className, e.typeName);
+  for (const e of allEntries) {
+    const prev = classToType.get(e.className);
+    if (prev && prev !== e.typeName) {
+      console.warn(
+        `[schema/oxc] class name collision: "${e.className}" registered as both "${prev}" and "${e.typeName}" — refType lookups may be ambiguous`,
+      );
+    }
+    classToType.set(e.className, e.typeName);
+  }
 
   const generated = new Set<string>();
   let updated = 0;
@@ -396,7 +555,15 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
     const classInfo = allClasses.get(entry.className + '\0' + entry.fileName);
     if (!classInfo) continue;
 
-    const schema = generateClassSchema(classInfo.node, classInfo.jsDocMap, classToType, allTypeAliases);
+    const fileAliases = aliasesByFile.get(entry.fileName);
+    const fileEnums = enumsByFile.get(entry.fileName);
+    const schema = generateClassSchema(
+      classInfo.node,
+      classInfo.jsDocMap,
+      classToType,
+      fileAliases,
+      fileEnums,
+    );
     schema.$id = entry.typeName;
     schema.$schema = 'http://json-schema.org/draft-07/schema#';
     generated.add(entry.typeName);
@@ -435,8 +602,11 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
       methods[name] = { arguments: [], ...rest };
     }
     const schema = {
-      $id: typeName, $schema: 'http://json-schema.org/draft-07/schema#',
-      type: 'object' as const, properties: {}, methods,
+      $id: typeName,
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      type: 'object' as const,
+      properties: {},
+      methods,
     };
     const schemasDir = path.join(path.dirname(actions[0].fileName), 'schemas');
     const outFile = path.join(schemasDir, `${typeName}.json`);

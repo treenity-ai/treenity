@@ -7,6 +7,33 @@ type HistoryEntry = {
   ts: number;
 };
 
+// Numeric enum (auto-incrementing) + explicit start
+enum Level {
+  Low,
+  Medium,
+  High,
+}
+enum Rank {
+  First = 1,
+  Second,
+  Third,
+}
+
+// String enum where member names match values (enumNames should be omitted)
+enum Color {
+  red = 'red',
+  green = 'green',
+  blue = 'blue',
+}
+
+// String enum where names differ from values (enumNames emitted for UI labels)
+enum Direction {
+  North = 'N',
+  South = 'S',
+  East = 'E',
+  West = 'W',
+}
+
 /** A complex widget for testing schema extraction */
 class SchemaTestWidget {
   // Primitives (inferred from initializer)
@@ -23,6 +50,12 @@ class SchemaTestWidget {
   status: 'draft' | 'active' | 'archived' = 'draft';
   priority: 'low' | 'medium' | 'high' = 'medium';
 
+  // TS enum declarations
+  level: Level = Level.Medium;
+  rank: Rank = Rank.First;
+  color: Color = Color.red;
+  direction: Direction = Direction.North;
+
   // Arrays
   tags: string[] = [];
   scores: number[] = [];
@@ -34,7 +67,9 @@ class SchemaTestWidget {
 
   // Inline object
   config: { color: string; opacity: number; nested: { x: number; y: number } } = {
-    color: 'blue', opacity: 1, nested: { x: 0, y: 0 },
+    color: 'blue',
+    opacity: 1,
+    nested: { x: 0, y: 0 },
   };
 
   // Default values
@@ -133,7 +168,9 @@ class SchemaTestWidget {
    * Returns an async generator that yields
    * serialized event strings.
    */
-  async *watch(filter: string): AsyncGenerator<string> { yield ''; }
+  async *watch(filter: string): AsyncGenerator<string> {
+    yield '';
+  }
 
   /**
    * Reset all counters to zero.

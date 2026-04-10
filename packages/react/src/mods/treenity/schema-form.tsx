@@ -43,6 +43,7 @@ function DefaultSchemaForm({ value, onChange }: RenderProps) {
         };
         if (fieldSchema.items) fieldData.items = fieldSchema.items;
         if (fieldSchema.enum) fieldData.enum = fieldSchema.enum;
+        if (fieldSchema.enumNames) fieldData.enumNames = fieldSchema.enumNames;
 
         return (
           <div key={name} className="flex flex-col gap-1">
