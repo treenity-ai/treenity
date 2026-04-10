@@ -14,7 +14,8 @@ export type PropertySchema = {
   refType?: string; // component type name — field can hold ref or embedded value of this type
   default?: unknown;
   readOnly?: boolean;
-  enum?: string[]; // allowed values → renders as <select>
+  enum?: (string | number)[]; // allowed values → renders as <select>
+  enumNames?: string[]; // optional UI labels aligned with enum (for TS enum members with different names)
   items?: { type?: string; properties?: Record<string, unknown> }; // for array fields
 };
 
@@ -30,7 +31,7 @@ export type MethodSchema = {
   }>;
   yields?: { type: string }; // yield type for streaming actions
   return?: { type: string };
-  pre?: string[];  // @pre fields — Design by Contract preconditions
+  pre?: string[]; // @pre fields — Design by Contract preconditions
   post?: string[]; // @post fields — Design by Contract postconditions
 };
 

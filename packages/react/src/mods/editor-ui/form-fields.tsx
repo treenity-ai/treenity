@@ -151,11 +151,20 @@ function EnumSelect({
         <SelectValue placeholder="—" />
       </SelectTrigger>
       <SelectContent>
-        {options.map((v, i) => (
-          <SelectItem key={String(v)} value={String(v)}>
-            {names?.[i] ?? String(v)}
-          </SelectItem>
-        ))}
+        {options.map((v, i) => {
+          const label = names?.[i];
+          return (
+            <SelectItem key={String(v)} value={String(v)}>
+              {label ? (
+                <span>
+                  {label} <span className="text-muted-foreground/60">({String(v)})</span>
+                </span>
+              ) : (
+                String(v)
+              )}
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
