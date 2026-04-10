@@ -9,6 +9,7 @@ import { type ServiceHandle, startServices } from '#contexts/service/index';
 import { type NodeData } from '#core';
 import { addOnLog, makeLogPath } from '#log';
 import { loadAllMods } from '#mod';
+import { loadSchemasFromDir } from '#schema/load';
 import { createMemoryTree, type Tree } from '#tree';
 import type { Server } from 'node:http';
 import { deploySeedPrefabs } from './prefab';
@@ -44,6 +45,12 @@ export async function treenity(config: TreenityConfig): Promise<TreenityServer> 
   if (config.modsDir !== false) {
     const extraDirs = config.modsDir ? [config.modsDir] : [];
     await loadAllMods('server', ...extraDirs);
+  }
+
+  // Dev-only: register test.schema-widget (exercises every form field widget)
+  if (process.env.NODE_ENV !== 'production') {
+    await import('#schema/schema-test-widget');
+    loadSchemasFromDir(new URL('../schema/schemas', import.meta.url).pathname);
   }
 
   // 2. Bootstrap: root node from config (root.json)
