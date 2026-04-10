@@ -7,11 +7,13 @@ import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { NodeLink } from './node-link';
+import { buildNodeLinkHref, getNodeLinkPath } from './node-link-click';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { checkBeforeNavigate, pushHistory } from '@treenity/react';
 import { Input } from '@treenity/react/ui/input';
 import { common, createLowlight } from 'lowlight';
-import { useEffect, useMemo, useRef } from 'react';
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef } from 'react';
 import { SlashCommand } from './slash-command';
 import { Toolbar } from './toolbar';
 import { TreenityBlock } from './treenity-block';
@@ -81,6 +83,19 @@ export function DocPageView({ value, onChange }: BlockProps) {
     if (editor.isEditable !== editable) editor.setEditable(editable);
   }, [editor, editable]);
 
+  const handleNodeLinkClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const path = getNodeLinkPath(event.target);
+    if (!path) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!checkBeforeNavigate()) return;
+
+    pushHistory(buildNodeLinkHref(path, location.pathname, location.search));
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
       {/* Title */}
@@ -104,6 +119,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
       {/* Editor content */}
       <div
         className={`min-h-[300px] ${onChange ? 'pt-4' : ''}`}
+        onClickCapture={handleNodeLinkClick}
         onDrop={(e) => {
           if (!editor || !onChange) return;
           const path = e.dataTransfer.getData('application/treenity-path');
