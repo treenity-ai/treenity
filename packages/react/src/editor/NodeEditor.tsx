@@ -20,6 +20,7 @@ import { useRef, useState } from 'react';
 import { proxy, useSnapshot } from 'valtio';
 import { AclEditor } from './AclEditor';
 import { ComponentSection } from './ComponentSection';
+import { getNodeEditorJsonText } from './node-editor-state';
 
 function NodeCard({ path, type, onChangeType }: {
   path: string;
@@ -87,10 +88,11 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   }
 
   // Derived from node + system edits
+  const formattedNodeJson = getNodeEditorJsonText(node, 'json');
   const nodeType = snap.typeEdit ?? node.$type;
   const aclOwner = snap.aclEdit?.owner ?? (node.$owner as string) ?? '';
   const aclRules = snap.aclEdit?.rules ?? (node.$acl as GroupPerm[]) ?? [];
-  const jsonDirty = snap.jsonText !== '' && snap.jsonText !== JSON.stringify(node, null, 2);
+  const jsonDirty = snap.jsonText !== '' && snap.jsonText !== formattedNodeJson;
   const hasPendingSystemEdits = snap.typeEdit != null || snap.aclEdit != null;
 
   const nodeName = node.$path === '/' ? '/' : node.$path.slice(node.$path.lastIndexOf('/') + 1);
@@ -104,7 +106,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   function handleReset() {
     st.typeEdit = null;
     st.aclEdit = null;
-    st.jsonText = '';
+    st.jsonText = getNodeEditorJsonText(node, st.tab);
     resetSave();
   }
 
@@ -155,7 +157,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
       <Tabs value={snap.tab} onValueChange={(v) => {
         st.tab = v as 'properties' | 'json';
         if (v === 'json' && !st.jsonText) {
-          st.jsonText = JSON.stringify(node, null, 2);
+          st.jsonText = formattedNodeJson;
         }
       }} className="px-3 pt-2 shrink-0">
         <TabsList className="h-8 bg-secondary">
