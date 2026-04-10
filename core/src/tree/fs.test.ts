@@ -1,6 +1,6 @@
 import { createNode } from '#core';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, it } from 'node:test';
@@ -287,5 +287,34 @@ describe('FsStore', () => {
     await tree.set(createNode('/secret', 'test'));
     const s = await stat(join(dir, 'secret.json'));
     assert.equal(s.mode & 0o777, 0o600);
+  });
+
+  it('does not persist $path in leaf file body; reconstructs from location on read', async () => {
+    const tree = await setup();
+    await tree.set(createNode('/foo/bar', 'test', { x: 1 }));
+
+    // On-disk body must not contain $path — location is authoritative
+    const leaf = join(dir, 'foo', 'bar.json');
+    const raw = JSON.parse(await readFile(leaf, 'utf-8'));
+    assert.equal(raw.$path, undefined);
+    assert.equal(raw.$type, 't.test');
+    assert.equal(raw.x, 1);
+
+    // Physically move the file — get() must return node with updated $path
+    await mkdir(join(dir, 'moved'), { recursive: true });
+    await rename(leaf, join(dir, 'moved', 'bar.json'));
+    const moved = await tree.get('/moved/bar');
+    assert.equal(moved?.$path, '/moved/bar');
+    assert.equal(moved?.x, 1);
+  });
+
+  it('does not persist $path in dir-form $.json body', async () => {
+    const tree = await setup();
+    await tree.set(createNode('/parent', 'test', { a: 1 }));
+    await tree.set(createNode('/parent/child', 'test')); // forces promotion to dir form
+    const raw = JSON.parse(await readFile(join(dir, 'parent', '$.json'), 'utf-8'));
+    assert.equal(raw.$path, undefined);
+    assert.equal(raw.$type, 't.test');
+    assert.equal(raw.a, 1);
   });
 });

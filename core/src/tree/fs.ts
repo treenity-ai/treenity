@@ -46,12 +46,20 @@ export async function createFsTree(rootDir: string): Promise<Tree> {
     return next;
   }
 
+  // Parse a JSON file into NodeData, stamping $path from the logical tree path.
+  // On-disk body has no $path — file location is authoritative.
+  async function parseNode(file: string, path: string): Promise<NodeData> {
+    const obj = JSON.parse(await readFile(file, 'utf-8'));
+    obj.$path = path;
+    return obj;
+  }
+
   // Read node from whichever form exists: dir (path/$.json) or leaf (path.json)
   async function readNode(path: string): Promise<NodeData | undefined> {
     const dirFile = resolve(join(rootDir, path, '$.json'));
     await securityCheck(rootDir, dirFile);
     try {
-      return JSON.parse(await readFile(dirFile, 'utf-8'));
+      return await parseNode(dirFile, path);
     } catch (e: any) {
       if (e.code === 'ENOENT') { /* fall through to leaf form */ }
       else throw e; // SyntaxError = corrupted JSON, propagate loudly
@@ -61,7 +69,7 @@ export async function createFsTree(rootDir: string): Promise<Tree> {
       const leafFile = resolve(join(rootDir, path + '.json'));
       await securityCheck(rootDir, leafFile);
       try {
-        return JSON.parse(await readFile(leafFile, 'utf-8'));
+        return await parseNode(leafFile, path);
       } catch (e: any) {
         if (e.code === 'ENOENT') { /* not found */ }
         else throw e;
@@ -166,9 +174,9 @@ export async function createFsTree(rootDir: string): Promise<Tree> {
           if (node) results.push(node);
           if (currentDepth < depth) await walk(full, currentDepth + 1);
         } else if (e.name.endsWith('.json')) {
-          // Leaf child — name.json
-          const node: NodeData = JSON.parse(await readFile(full, 'utf-8'));
-          results.push(node);
+          // Leaf child — name.json. Compute logical path from FS location and stamp $path.
+          const childPath = full.slice(rootDir.length).replace(/\.json$/, '');
+          results.push(await parseNode(full, childPath));
         }
       }
     }
@@ -209,8 +217,12 @@ export async function createFsTree(rootDir: string): Promise<Tree> {
           }
         }
 
-        node.$rev = (node.$rev ?? 0) + 1;
-        const data = JSON.stringify(node, null, 2) + '\n';
+        // Strip $path from on-disk body — file location is authoritative.
+        // Stamped back on read via parseNode. Prevents stale $path when files are copied/moved.
+        const { $path: _, ...rest } = node;
+        rest.$rev = (node.$rev ?? 0) + 1;
+        node.$rev = rest.$rev; // preserve caller-visible $rev bump
+        const data = JSON.stringify(rest, null, 2) + '\n';
 
         if (path === '/' || await hasChildren(path)) {
           // Dir form: has children
