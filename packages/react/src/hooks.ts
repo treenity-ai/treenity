@@ -20,6 +20,7 @@ import {
 import * as cache from '#tree/cache';
 import { tree } from '#tree/client';
 import { trpc } from '#tree/trpc';
+import { ensureType } from '#schema-loader';
 export { useNavigate, useBeforeNavigate } from '#navigate';
 
 // ── Watch ref-counting ──
@@ -171,8 +172,11 @@ export async function set(next: NodeData) {
 
 // ── createNode: optimistic create + server persist ──
 
-export async function createNode(path: string, type: string, defaults: Record<string, unknown> = {}) {
-  const node: NodeData = { $path: path, $type: type, ...defaults };
+export async function createNode(path: string, type: string, data?: Record<string, unknown>) {
+  // Lazy-load schema so getDefaults can fill required fields for types not
+  // yet registered on the client. Caller data overrides defaults.
+  await ensureType(type);
+  const node: NodeData = { $path: path, $type: type, ...getDefaults(type), ...data };
   cache.put(node);
   try {
     await tree.set(node);
@@ -185,6 +189,9 @@ export async function createNode(path: string, type: string, defaults: Record<st
 // ── addComponent: attach a typed component to a node (optimistic + patch) ──
 
 export async function addComponent(path: string, name: string, type: string) {
+  // Lazy-load schema so getDefaults can fill required fields for types not
+  // yet registered on the client.
+  await ensureType(type);
   const comp = { $type: type, ...getDefaults(type) };
   const node = cache.get(path);
   if (node) cache.put({ ...node, [name]: comp });

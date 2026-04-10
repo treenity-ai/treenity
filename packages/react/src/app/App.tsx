@@ -13,7 +13,6 @@ import { Input } from '#components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#components/ui/resizable';
 import { TypePicker } from '#mods/editor-ui/type-picker';
 import type { NodeData } from '@treenity/core';
-import { getDefaults } from '@treenity/core/comp';
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import * as cache from '#tree/cache';
@@ -341,7 +340,7 @@ export function App() {
       const parentPath = creatingAt!;
       setCreatingAt(null);
       const childPath = parentPath === '/' ? `/${name}` : `${parentPath}/${name}`;
-      await createNode(childPath, type, getDefaults(type));
+      await createNode(childPath, type);
       await loadChildren(parentPath);
       if (!expanded.has(parentPath)) {
         setExpanded((prev) => new Set(prev).add(parentPath));
