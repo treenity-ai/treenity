@@ -3,7 +3,8 @@
   "properties": {
     "code": {
       "type": "string",
-      "title": "Code @format textarea",
+      "title": "Code",
+      "format": "textarea",
       "default": ""
     },
     "active": {

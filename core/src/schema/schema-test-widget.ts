@@ -50,6 +50,9 @@ class SchemaTestWidget {
   status: 'draft' | 'active' | 'archived' = 'draft';
   priority: 'low' | 'medium' | 'high' = 'medium';
 
+  // Numeric literal union — should collapse to { type: 'number', enum: [...] }
+  trustLevel: 0 | 1 | 2 | 3 | 4 = 2;
+
   // TS enum declarations
   level: Level = Level.Medium;
   rank: Rank = Rank.First;

@@ -15,26 +15,10 @@
             },
             "level": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "enum": [
-                    "debug",
-                    "info",
-                    "warn",
-                    "error"
-                  ]
-                },
+                {},
                 {
                   "type": "array",
-                  "items": {
-                    "type": "string",
-                    "enum": [
-                      "debug",
-                      "info",
-                      "warn",
-                      "error"
-                    ]
-                  }
+                  "items": {}
                 }
               ],
               "title": "Log level(s) to include"

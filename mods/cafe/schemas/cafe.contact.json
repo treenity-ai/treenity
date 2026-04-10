@@ -4,7 +4,8 @@
   "properties": {
     "recipient": {
       "type": "string",
-      "title": "Recipient @format email",
+      "title": "Recipient",
+      "format": "email",
       "default": ""
     },
     "mailService": {

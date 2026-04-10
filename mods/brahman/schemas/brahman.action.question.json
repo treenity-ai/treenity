@@ -3,7 +3,8 @@
   "properties": {
     "text": {
       "type": "object",
-      "title": "Prompt text @format tstring",
+      "title": "Prompt text",
+      "format": "tstring",
       "default": {}
     },
     "inputType": {
@@ -22,7 +23,8 @@
     },
     "deleteMessages": {
       "type": "boolean",
-      "title": "Delete messages @description Delete question and answer after receiving",
+      "title": "Delete messages",
+      "description": "Delete question and answer after receiving",
       "default": false
     }
   },
@@ -36,47 +38,7 @@
     "run": {
       "arguments": [
         {
-          "name": "bCtx",
-          "type": "object",
-          "properties": {
-            "ctx": {},
-            "tree": {},
-            "session": {
-              "type": "object"
-            },
-            "sessionNode": {},
-            "user": {},
-            "lang": {
-              "type": "string"
-            },
-            "botPath": {
-              "type": "string"
-            },
-            "userTags": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "botLangs": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "error": {}
-          },
-          "required": [
-            "ctx",
-            "tree",
-            "session",
-            "sessionNode",
-            "user",
-            "lang",
-            "botPath",
-            "userTags",
-            "botLangs"
-          ]
+          "name": "bCtx"
         }
       ]
     }

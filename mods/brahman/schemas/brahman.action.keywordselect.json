@@ -3,7 +3,8 @@
   "properties": {
     "textFrom": {
       "type": "string",
-      "title": "Source text @description Template for text to analyze",
+      "title": "Source text",
+      "description": "Template for text to analyze",
       "default": ""
     },
     "elements": {
@@ -26,7 +27,8 @@
           "message"
         ]
       },
-      "title": "Keyword entries @description Array of {keywords, message} pairs",
+      "title": "Keyword entries",
+      "description": "Array of {keywords, message} pairs",
       "default": []
     }
   },
@@ -38,47 +40,7 @@
     "run": {
       "arguments": [
         {
-          "name": "bCtx",
-          "type": "object",
-          "properties": {
-            "ctx": {},
-            "tree": {},
-            "session": {
-              "type": "object"
-            },
-            "sessionNode": {},
-            "user": {},
-            "lang": {
-              "type": "string"
-            },
-            "botPath": {
-              "type": "string"
-            },
-            "userTags": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "botLangs": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "error": {}
-          },
-          "required": [
-            "ctx",
-            "tree",
-            "session",
-            "sessionNode",
-            "user",
-            "lang",
-            "botPath",
-            "userTags",
-            "botLangs"
-          ]
+          "name": "bCtx"
         }
       ]
     }

@@ -3,12 +3,15 @@
   "properties": {
     "condition": {
       "type": "string",
-      "title": "Condition @format textarea @description JS expression evaluated at runtime",
+      "title": "Condition",
+      "format": "textarea",
+      "description": "JS expression evaluated at runtime",
       "default": ""
     },
     "actionIf": {
       "type": "string",
-      "title": "Action if true @description Path to action node",
+      "title": "Action if true",
+      "description": "Path to action node",
       "default": ""
     },
     "actionElse": {
@@ -32,47 +35,7 @@
     "run": {
       "arguments": [
         {
-          "name": "bCtx",
-          "type": "object",
-          "properties": {
-            "ctx": {},
-            "tree": {},
-            "session": {
-              "type": "object"
-            },
-            "sessionNode": {},
-            "user": {},
-            "lang": {
-              "type": "string"
-            },
-            "botPath": {
-              "type": "string"
-            },
-            "userTags": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "botLangs": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "error": {}
-          },
-          "required": [
-            "ctx",
-            "tree",
-            "session",
-            "sessionNode",
-            "user",
-            "lang",
-            "botPath",
-            "userTags",
-            "botLangs"
-          ]
+          "name": "bCtx"
         }
       ]
     }

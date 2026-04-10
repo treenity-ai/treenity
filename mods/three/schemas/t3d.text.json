@@ -3,7 +3,8 @@
   "properties": {
     "text": {
       "type": "string",
-      "title": "Text @format textarea",
+      "title": "Text",
+      "format": "textarea",
       "default": "Hello"
     },
     "fontSize": {

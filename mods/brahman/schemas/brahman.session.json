@@ -18,7 +18,8 @@
     },
     "callbacks": {
       "type": "object",
-      "title": "Pending callbacks @description messageType → action path",
+      "title": "Pending callbacks",
+      "description": "messageType → action path",
       "default": {}
     }
   },

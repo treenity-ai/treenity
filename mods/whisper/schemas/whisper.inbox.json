@@ -3,12 +3,14 @@
   "properties": {
     "source": {
       "type": "string",
-      "format": "path @description Whisper channel to watch, e.g. /whisper/kriz",
+      "format": "path",
+      "description": "Whisper channel to watch, e.g. /whisper/kriz",
       "default": ""
     },
     "target": {
       "type": "string",
-      "format": "path @description Target inbox, e.g. /agent",
+      "format": "path",
+      "description": "Target inbox, e.g. /agent",
       "default": ""
     }
   },

@@ -14,7 +14,8 @@
     },
     "from": {
       "type": "string",
-      "title": "Sender address @format email",
+      "title": "Sender address",
+      "format": "email",
       "default": ""
     }
   },

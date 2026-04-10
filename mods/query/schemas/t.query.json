@@ -28,7 +28,8 @@
           "value"
         ]
       },
-      "title": "Filters @format hidden",
+      "title": "Filters",
+      "format": "hidden",
       "default": []
     },
     "mode": {

@@ -21,20 +21,48 @@ type Comment = { type: string; value: string; start: number; end: number };
 
 // ── JSDoc ──
 
+// Parse JSDoc comment body into a tag map.
+// Line-oriented: first non-tag line becomes the implicit title (matches prior
+// behavior for multi-line doc blocks). Within a line we also parse multiple
+// inline tags: `@title Foo @format bar` yields both title and format.
+// Tag boundary = start-of-line or whitespace followed by `@word`, so that
+// `user@example.com` inside a tag value is NOT treated as a new tag.
 function parseJSDoc(raw: string): Record<string, string> {
   const result: Record<string, string> = {};
+  if (!raw) return result;
+
   const lines = raw
     .replace(/^\s*\*\s?/gm, '')
-    .trim()
     .split('\n')
     .map((l) => l.trim())
     .filter(Boolean);
 
   for (const line of lines) {
-    const m = line.match(/^@(\w+)(?:\s+(.*))?/);
-    if (m) result[m[1]] = (m[2] ?? '').trim();
-    else if (!result.title && !line.startsWith('@')) result.title = line;
+    // Find all `@tag` positions on this line; boundary = start or whitespace.
+    const tagRe = /(?:^|\s)@(\w+)/g;
+    const hits: Array<{ idx: number; name: string; valueStart: number }> = [];
+    let m: RegExpExecArray | null;
+    while ((m = tagRe.exec(line))) {
+      const at = m.index + m[0].indexOf('@');
+      hits.push({ idx: at, name: m[1], valueStart: at + 1 + m[1].length });
+    }
+
+    if (hits.length === 0) {
+      if (!result.title) result.title = line;
+      continue;
+    }
+
+    // Text before the first tag on this line → implicit title (first wins).
+    const head = line.slice(0, hits[0].idx).trim();
+    if (head && !result.title) result.title = head;
+
+    for (let i = 0; i < hits.length; i++) {
+      const { name, valueStart } = hits[i];
+      const end = i + 1 < hits.length ? hits[i + 1].idx : line.length;
+      result[name] = line.slice(valueStart, end).trim();
+    }
   }
+
   return result;
 }
 
@@ -129,6 +157,8 @@ function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
       const types = node.types as N[];
       if (types.every((t) => t.type === 'TSLiteralType' && typeof t.literal?.value === 'string'))
         return { type: 'string', enum: types.map((t) => t.literal.value) };
+      if (types.every((t) => t.type === 'TSLiteralType' && typeof t.literal?.value === 'number'))
+        return { type: 'number', enum: types.map((t) => t.literal.value) };
       if (types.every((t) => t.type === 'TSLiteralType' && typeof t.literal?.value === 'boolean'))
         return { type: 'boolean' };
       const nonUndef = types.filter((t) => t.type !== 'TSUndefinedKeyword');

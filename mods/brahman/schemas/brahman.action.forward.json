@@ -3,12 +3,14 @@
   "properties": {
     "msgIdFrom": {
       "type": "string",
-      "title": "Message ID from @description Session field with msg id. Empty = current msg",
+      "title": "Message ID from",
+      "description": "Session field with msg id. Empty = current msg",
       "default": ""
     },
     "toFrom": {
       "type": "string",
-      "title": "Forward to @description Chat/user ID template",
+      "title": "Forward to",
+      "description": "Chat/user ID template",
       "default": ""
     }
   },
@@ -20,47 +22,7 @@
     "run": {
       "arguments": [
         {
-          "name": "bCtx",
-          "type": "object",
-          "properties": {
-            "ctx": {},
-            "tree": {},
-            "session": {
-              "type": "object"
-            },
-            "sessionNode": {},
-            "user": {},
-            "lang": {
-              "type": "string"
-            },
-            "botPath": {
-              "type": "string"
-            },
-            "userTags": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "botLangs": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "error": {}
-          },
-          "required": [
-            "ctx",
-            "tree",
-            "session",
-            "sessionNode",
-            "user",
-            "lang",
-            "botPath",
-            "userTags",
-            "botLangs"
-          ]
+          "name": "bCtx"
         }
       ]
     }

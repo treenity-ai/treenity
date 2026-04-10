@@ -18,37 +18,13 @@
       "default": "offline"
     },
     "trustLevel": {
-      "anyOf": [
-        {
-          "type": "number",
-          "enum": [
-            0
-          ]
-        },
-        {
-          "type": "number",
-          "enum": [
-            1
-          ]
-        },
-        {
-          "type": "number",
-          "enum": [
-            2
-          ]
-        },
-        {
-          "type": "number",
-          "enum": [
-            3
-          ]
-        },
-        {
-          "type": "number",
-          "enum": [
-            4
-          ]
-        }
+      "type": "number",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4
       ],
       "title": "Trust level (metadata only — not enforced by guardian yet).",
       "default": 2

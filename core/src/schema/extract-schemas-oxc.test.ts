@@ -79,6 +79,14 @@ describe('extract-schemas-oxc', () => {
     });
   });
 
+  it('numeric literal union → number enum (not anyOf)', () => {
+    assert.deepEqual(schema.properties.trustLevel, {
+      type: 'number',
+      enum: [0, 1, 2, 3, 4],
+      default: 2,
+    });
+  });
+
   // ── TS enum declarations ──
 
   it('numeric enum (auto-increment) → number + enumNames labels', () => {
@@ -286,6 +294,17 @@ describe('extract-schemas-oxc', () => {
 
   it('@format password', () => {
     assert.equal(schema.properties.apiKey.format, 'password');
+  });
+
+  it('multiple tags on one line: @title + @description', () => {
+    // Regression: parser used to greedily consume the whole line into the first tag,
+    // yielding title = "Display Name @description The human-readable name shown in UI"
+    // and no description at all.
+    assert.equal(schema.properties.displayName.title, 'Display Name');
+    assert.equal(
+      schema.properties.displayName.description,
+      'The human-readable name shown in UI',
+    );
   });
 
   // ── Methods ──

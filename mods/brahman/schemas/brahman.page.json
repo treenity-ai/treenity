@@ -3,7 +3,8 @@
   "properties": {
     "command": {
       "type": "string",
-      "title": "Command @description Telegram command, e.g. /start",
+      "title": "Command",
+      "description": "Telegram command, e.g. /start",
       "default": ""
     },
     "positions": {
