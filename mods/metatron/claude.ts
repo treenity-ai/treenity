@@ -3,9 +3,11 @@
 // Sessions persist via `resume` option. If resume fails, auto-retries fresh.
 // Active query registry: keyed by configPath, enables abort from stop action.
 
-import type { LogEntry } from '#agent/types';
-import { type CanUseTool, query, type Query } from '@anthropic-ai/claude-agent-sdk';
+import { abortQuery, isQueryRunning, type LogEntry, registerQuery, unregisterQuery } from '#agent/types';
+import { type CanUseTool, query } from '@anthropic-ai/claude-agent-sdk';
 import { evaluatePermission, type PermissionRule } from './permissions';
+
+export { abortQuery, isQueryRunning };
 
 function ts(): string {
   const d = new Date();
@@ -27,25 +29,7 @@ export type ClaudeStreamCallback = (chunk: string) => void;
 
 const log = (msg: string) => console.log(`[metatron:claude] ${msg}`);
 
-// ── Active query registry ──
-
-type ActiveEntry = { query: Query; ac: AbortController };
-const activeQueries = new Map<string, ActiveEntry>();
-
-/** Abort a running query by key (config path). Returns true if aborted. */
-export function abortQuery(key: string): boolean {
-  const entry = activeQueries.get(key);
-  if (!entry) return false;
-  log(`aborting query: ${key}`);
-  entry.ac.abort();
-  entry.query.close();
-  return true;
-}
-
-/** Check if a query is currently running for the given key */
-export function isQueryRunning(key: string): boolean {
-  return activeQueries.has(key);
-}
+// Query registry lives in ./query-registry (SDK-free, browser-safe).
 
 // Extract readable text from tool_result content.
 // MCP tools return {content: [{type:"text", text:"already formatted string"}]}.
@@ -144,7 +128,7 @@ async function runQuery(
   });
 
   // Register in active queries map
-  if (opts.key) activeQueries.set(opts.key, { query: stream, ac });
+  if (opts.key) registerQuery(opts.key, { query: stream, ac });
 
   const append = (text: string) => {
     outputChunks.push(text);
@@ -228,7 +212,7 @@ async function runQuery(
     }
     throw err;
   } finally {
-    if (opts.key) activeQueries.delete(opts.key);
+    if (opts.key) unregisterQuery(opts.key);
   }
 
   return {

@@ -2,10 +2,44 @@
 // Role determines prompt + tool policy. Uses metatron's invokeClaude for LLM.
 // Agent = node, tree = protocol.
 
-import { abortQuery } from '#metatron/claude';
 import { resolvePermission } from '#metatron/permissions';
 import { getComponent } from '@treenity/core';
 import { getCtx, registerType } from '@treenity/core/comp';
+
+// ── Active query registry ──
+// Server-only runtime state: tracks running Claude queries so AiRun.stop()
+// can abort them. Lives here (not in metatron/claude.ts) so this module can
+// be safely imported by the client bundle — importing claude.ts would drag
+// @anthropic-ai/claude-agent-sdk (uses node:crypto) into the browser.
+// The Map exists in the client too but is always empty and harmless.
+
+type QueryLike = { close: () => void };
+type ActiveEntry = { query: QueryLike; ac: AbortController };
+
+const activeQueries = new Map<string, ActiveEntry>();
+
+export function registerQuery(key: string, entry: ActiveEntry): void {
+  activeQueries.set(key, entry);
+}
+
+export function unregisterQuery(key: string): void {
+  activeQueries.delete(key);
+}
+
+/** Abort a running query by key (config path). Returns true if aborted. */
+export function abortQuery(key: string): boolean {
+  const entry = activeQueries.get(key);
+  if (!entry) return false;
+  entry.ac.abort();
+  entry.query.close();
+  activeQueries.delete(key);
+  return true;
+}
+
+/** Check if a query is currently running for the given key */
+export function isQueryRunning(key: string): boolean {
+  return activeQueries.has(key);
+}
 
 // ── Structured log entry — atomic unit of observability ──
 
