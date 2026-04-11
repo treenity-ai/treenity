@@ -136,4 +136,35 @@ describe('cache', () => {
     cache.put({ $path: '/a', $type: 'x', items: [4, 5] } as any);
     assert.deepStrictEqual([...(cache.get('/a') as any).items], [4, 5]);
   });
+
+  // Regression: node lives under /data naturally AND virtual parent /vp via addToParent.
+  // An in-place put() (result of rebase, patch application, or stayVps routing)
+  // must fire childSubs for BOTH parents, not just the natural one.
+  it('put() notifies all virtual parents a node is linked to', () => {
+    cache.put({ $path: '/data/x', $type: 'task', v: 1 } as any);
+    cache.addToParent('/data/x', '/vp');
+
+    let vpCalls = 0;
+    let dataCalls = 0;
+    cache.subscribeChildren('/vp', () => vpCalls++);
+    cache.subscribeChildren('/data', () => dataCalls++);
+
+    cache.put({ $path: '/data/x', $type: 'task', v: 2 } as any);
+
+    assert.ok(vpCalls >= 1, '/vp childSubs must fire on in-place update');
+    assert.ok(dataCalls >= 1, '/data childSubs must fire too');
+  });
+
+  it('remove() unlinks node from every parent that listed it', () => {
+    cache.put({ $path: '/data/x', $type: 'task' } as any);
+    cache.addToParent('/data/x', '/vp');
+
+    let vpCalls = 0;
+    cache.subscribeChildren('/vp', () => vpCalls++);
+
+    cache.remove('/data/x');
+
+    assert.ok(vpCalls >= 1, '/vp childSubs must fire on remove');
+    assert.strictEqual(cache.getChildren('/vp').length, 0, '/vp must no longer list removed node');
+  });
 });

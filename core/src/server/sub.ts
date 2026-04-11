@@ -14,8 +14,8 @@ const { compare } = fjp;
 // ── Event types ──
 
 export type NodeEvent =
-  | { type: 'set'; path: string; node: Omit<NodeData, '$path'>; addVps?: string[]; rmVps?: string[] }
-  | { type: 'patch'; path: string; patches: Operation[]; rev?: number; addVps?: string[]; rmVps?: string[] }
+  | { type: 'set'; path: string; node: Omit<NodeData, '$path'>; addVps?: string[]; rmVps?: string[]; stayVps?: string[] }
+  | { type: 'patch'; path: string; patches: Operation[]; rev?: number; addVps?: string[]; rmVps?: string[]; stayVps?: string[] }
   | { type: 'remove'; path: string; rmVps?: string[] }
   | { type: 'reconnect'; preserved: boolean };
 
@@ -24,6 +24,7 @@ function cleanEvent<T extends NodeEvent>(event: T): T {
   const e = { ...event };
   if ('addVps' in e && e.addVps && e.addVps.length === 0) delete e.addVps;
   if ('rmVps' in e && e.rmVps && e.rmVps.length === 0) delete e.rmVps;
+  if ('stayVps' in e && e.stayVps && e.stayVps.length === 0) delete e.stayVps;
   return e;
 }
 
@@ -75,6 +76,7 @@ export function withSubscriptions(
   function cdcEval(path: string, oldNode: NodeData | null, newNode: NodeData | null) {
     const addVps: string[] = [];
     const rmVps: string[] = [];
+    const stayVps: string[] = [];
     const oldSift = oldNode ? mapNodeForSift(oldNode) : null;
     const newSift = newNode ? mapNodeForSift(newNode) : null;
 
@@ -86,10 +88,11 @@ export function withSubscriptions(
       const isIn = newSift ? q.test(newSift) : false;
 
       if (!wasIn && isIn) addVps.push(q.vp);
-      if (wasIn && !isIn) rmVps.push(q.vp);
+      else if (wasIn && !isIn) rmVps.push(q.vp);
+      else if (wasIn && isIn) stayVps.push(q.vp);
     }
 
-    return { addVps, rmVps };
+    return { addVps, rmVps, stayVps };
   }
 
   const wrappedTree: Tree = {
@@ -104,7 +107,7 @@ export function withSubscriptions(
       }
 
       const oldNode = await tree.get(node.$path, ctx);
-      const { addVps, rmVps } = cdcEval(node.$path, oldNode ?? null, node);
+      const { addVps, rmVps, stayVps } = cdcEval(node.$path, oldNode ?? null, node);
 
       await tree.set(node, ctx);
 
@@ -113,10 +116,10 @@ export function withSubscriptions(
       if (oldNode) {
         const computed = compare(oldNode, node);
         emit(computed.length > 0
-          ? { type: 'patch', path: $path, patches: computed, rev: node.$rev, addVps, rmVps }
-          : { type: 'set', path: $path, node: body, addVps, rmVps });
+          ? { type: 'patch', path: $path, patches: computed, rev: node.$rev, addVps, rmVps, stayVps }
+          : { type: 'set', path: $path, node: body, addVps, rmVps, stayVps });
       } else {
-        emit({ type: 'set', path: $path, node: body, addVps, rmVps });
+        emit({ type: 'set', path: $path, node: body, addVps, rmVps, stayVps });
       }
     },
 
@@ -137,12 +140,12 @@ export function withSubscriptions(
       await tree.patch(path, ops, ctx);
 
       const newNode = await tree.get(path, ctx);
-      const { addVps, rmVps } = cdcEval(path, oldNode ?? null, newNode ?? null);
+      const { addVps, rmVps, stayVps } = cdcEval(path, oldNode ?? null, newNode ?? null);
 
       // Emit only mutation ops (filter out test ops)
       const mutations = ops.filter((o): o is Exclude<PatchOp, readonly ['t', ...any]> => o[0] !== 't');
       if (mutations.length > 0) {
-        emit({ type: 'patch', path, patches: toRfc6902(mutations) as Operation[], rev: newNode?.$rev, addVps, rmVps });
+        emit({ type: 'patch', path, patches: toRfc6902(mutations) as Operation[], rev: newNode?.$rev, addVps, rmVps, stayVps });
       }
     },
   };

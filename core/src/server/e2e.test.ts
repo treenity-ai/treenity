@@ -688,6 +688,49 @@ describe('e2e: tRPC over HTTP', () => {
       const vpEvents = received.filter(e => e.path === '/items4/t1');
       assert.equal(vpEvents.length, 0, 'Should receive no events for non-matching mutation');
     });
+
+    it('in-vp mutation (membership unchanged) notifies vp watcher', async () => {
+      // Regression: when a field NOT in the query predicate changes, the node stays
+      // in the same virtual parent. Previously cdcEval emitted empty addVps/rmVps and
+      // watch.ts routed nothing to vp watchers — the card went stale. Fix: stayVps.
+      const pub = createClient(url);
+      const reg = await pub.register.mutate({ userId: 'cdc-live5', password: 'pass' });
+      const client = createClient(url, reg.token);
+
+      await pub.set.mutate({ node: { $path: '/items5', $type: 'folder' } });
+      await pub.set.mutate({ node: {
+        $path: '/items5/t1', $type: 'task',
+        pri: { $type: 'task.priority', level: 'high' },
+        assignee: 'alice',
+      } });
+      await pub.set.mutate({ node: { $path: '/qm5', $type: 'folder' } });
+      await setupQueryMount(pub, '/qm5/hot', '/items5', { 'pri.level': 'high' });
+
+      const events = collectEvents<DataEvent>(
+        (cbs) => client.events.subscribe(undefined, cbs),
+        { count: 1, timeoutMs: 3000 },
+      );
+      await new Promise(r => setTimeout(r, 300));
+
+      // Subscribe ONLY to /qm5/hot — NOT to /items5. The only way this client
+      // can learn about the mutation is through VP routing.
+      await client.getChildren.query({ path: '/qm5/hot', watchNew: true, watch: true });
+
+      // Change a field that is NOT part of the query predicate.
+      // pri.level stays 'high' → membership in /qm5/hot unchanged → stayVps.
+      await pub.set.mutate({ node: {
+        $path: '/items5/t1', $type: 'task',
+        pri: { $type: 'task.priority', level: 'high' },
+        assignee: 'bob',
+      } });
+
+      const received = await events;
+      const ev = received.find(e => e.path === '/items5/t1');
+      assert.ok(ev, 'VP watcher must receive event for in-vp mutation');
+      assert.ok((ev as any).stayVps?.includes('/qm5/hot'), 'stayVps should contain /qm5/hot');
+      assert.ok(!(ev as any).addVps, 'addVps should be absent (no membership delta)');
+      assert.ok(!(ev as any).rmVps, 'rmVps should be absent (no membership delta)');
+    });
   });
 
   // ── Query mount virtual API ──

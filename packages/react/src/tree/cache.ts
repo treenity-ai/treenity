@@ -16,6 +16,10 @@ const nodes = new Map<string, NodeData>();
 // Explicit parent -> children index. This allows nodes to have their real $path
 // while still appearing as children of virtual folders like query mounts.
 const parentIndex = new Map<string, Set<string>>();
+// Reverse index: child path -> set of parents that list it. Needed so an
+// in-place update to a node living in N parents (natural + virtual query mounts)
+// fans out childSubs to every parent, not just the natural one.
+const nodeToParents = new Map<string, Set<string>>();
 const pathSubs = new Map<string, Set<Sub>>();
 const childSubs = new Map<string, Set<Sub>>();
 const globalSubs = new Set<Sub>();
@@ -53,6 +57,29 @@ function parentOf(p: string): string | null {
   if (p === '/') return null;
   const i = p.lastIndexOf('/');
   return i <= 0 ? '/' : p.slice(0, i);
+}
+
+function linkParent(path: string, parent: string) {
+  let parents = nodeToParents.get(path);
+  if (!parents) { parents = new Set(); nodeToParents.set(path, parents); }
+  parents.add(parent);
+}
+
+function unlinkParent(path: string, parent: string) {
+  const parents = nodeToParents.get(path);
+  if (!parents) return;
+  parents.delete(parent);
+  if (parents.size === 0) nodeToParents.delete(path);
+}
+
+/** Fire childSubs for every parent currently listing this path. */
+function fireAllParents(path: string) {
+  const parents = nodeToParents.get(path);
+  if (!parents) return;
+  for (const p of parents) {
+    childSnap.delete(p);
+    fire(childSubs, p);
+  }
 }
 
 // ── Reads ──
@@ -95,6 +122,7 @@ export function addToParent(path: string, parent: string) {
   if (!parentIndex.has(parent)) parentIndex.set(parent, new Set());
   if (!parentIndex.get(parent)!.has(path)) {
     parentIndex.get(parent)!.add(path);
+    linkParent(path, parent);
     childSnap.delete(parent);
     fire(childSubs, parent);
     bump();
@@ -105,6 +133,7 @@ export function removeFromParent(path: string, parent: string) {
   const children = parentIndex.get(parent);
   if (children && children.has(path)) {
     children.delete(path);
+    unlinkParent(path, parent);
     childSnap.delete(parent);
     fire(childSubs, parent);
     bump();
@@ -121,10 +150,12 @@ export function put(node: NodeData, virtualParent?: string) {
   if (p !== null) {
     if (!parentIndex.has(p)) parentIndex.set(p, new Set());
     parentIndex.get(p)!.add(node.$path);
-    childSnap.delete(p);
+    linkParent(node.$path, p);
   }
   fire(pathSubs, node.$path);
-  if (p !== null) fire(childSubs, p);
+  // Fan-out to every parent currently listing this node (natural + any VPs).
+  // In-place updates on a node visible in multiple parents notify all of them.
+  fireAllParents(node.$path);
   bump();
   for (const h of putHooks) h(node.$path);
 
@@ -151,9 +182,12 @@ export function putMany(items: NodeData[], virtualParent?: string) {
     if (p !== null) {
       if (!parentIndex.has(p)) parentIndex.set(p, new Set());
       parentIndex.get(p)!.add(n.$path);
+      linkParent(n.$path, p);
       dirty.add(p);
-      childSnap.delete(p);
     }
+    // Collect all parents already listing this node so fan-out hits them too.
+    const existing = nodeToParents.get(n.$path);
+    if (existing) for (const ep of existing) dirty.add(ep);
     idbEntries.push({ path: n.$path, data: n, lastUpdated: ts, virtualParent });
   }
   for (const p of dirty) {
@@ -167,13 +201,31 @@ export function putMany(items: NodeData[], virtualParent?: string) {
 export function remove(path: string, virtualParent?: string) {
   nodes.delete(path);
   lastUpdated.delete(path);
+
+  // Snapshot parents before unlinking so we can fire them after.
+  // A removed node must clear out of every parent that listed it —
+  // leaving stale entries in other parentIndex buckets would dangle.
+  const parents = nodeToParents.get(path);
+  const toFire = new Set<string>();
+  if (parents) {
+    for (const p of parents) {
+      parentIndex.get(p)?.delete(path);
+      childSnap.delete(p);
+      toFire.add(p);
+    }
+    nodeToParents.delete(path);
+  }
+  // Honor explicit virtualParent hint even if reverse index is empty
+  // (legacy callers may remove before put).
   const p = virtualParent ?? parentOf(path);
-  if (p !== null) {
+  if (p !== null && !toFire.has(p)) {
     parentIndex.get(p)?.delete(path);
     childSnap.delete(p);
+    toFire.add(p);
   }
+
   fire(pathSubs, path);
-  if (p !== null) fire(childSubs, p);
+  for (const fp of toFire) fire(childSubs, fp);
   bump();
   idb.del(path).catch(() => {});
 }
@@ -222,6 +274,7 @@ export function signalReconnect() {
 export function clear() {
   nodes.clear();
   parentIndex.clear();
+  nodeToParents.clear();
   childSnap.clear();
   lastUpdated.clear();
   bump();
@@ -242,6 +295,7 @@ export async function hydrate(): Promise<void> {
       if (p !== null) {
         if (!parentIndex.has(p)) parentIndex.set(p, new Set());
         parentIndex.get(p)!.add(data.$path);
+        linkParent(data.$path, p);
         childSnap.delete(p);
       }
     }

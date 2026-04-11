@@ -208,8 +208,12 @@ export function createWatchManager(opts?: WatchManagerOpts): WatchManager {
           }
         }
 
-      // Virtual Parent Match (CDC Matrix events)
-      const vps = [...('addVps' in event && event.addVps ? event.addVps : []), ...(event.rmVps || [])];
+      // Virtual Parent Match (CDC Matrix events) — route on add/rm/stay union
+      const vps = [
+        ...('addVps' in event && event.addVps ? event.addVps : []),
+        ...(event.rmVps || []),
+        ...('stayVps' in event && event.stayVps ? event.stayVps : []),
+      ];
       for (const vp of vps) {
         const vpWatchers = prefixToUsers.get(vp);
         if (vpWatchers) {

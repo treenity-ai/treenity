@@ -70,10 +70,14 @@ export function startEvents(config: EventsConfig) {
 
       if (event.type === 'set') {
         const node = { $path: event.path, ...event.node } as NodeData;
+        // Order: rmVps → put → addVps. Unlinking first prevents cache.put's
+        // reverse-index fan-out from firing a vp about to be removed.
+        if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));
         if (!applyServerSet(event.path, node)) cache.put(node);
         if (event.addVps) event.addVps.forEach((vp: string) => cache.addToParent(event.path, vp));
-        if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));
       } else if (event.type === 'patch') {
+        // Same rm→put→add ordering as 'set' above.
+        if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));
         if (event.patches && applyServerPatch(event.path, event.patches as Operation[])) {
           // rebase handled it
         } else {
@@ -96,7 +100,6 @@ export function startEvents(config: EventsConfig) {
           }
         }
         if (event.addVps) event.addVps.forEach((vp: string) => cache.addToParent(event.path, vp));
-        if (event.rmVps) event.rmVps.forEach((vp: string) => cache.removeFromParent(event.path, vp));
       } else if (event.type === 'remove') {
         cache.remove(event.path);
         // Also clean up virtual parents (CDC queries)
