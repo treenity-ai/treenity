@@ -228,7 +228,12 @@ function BooleanForm({ value, onChange }: FP) {
         checked={!!value.value}
         onCheckedChange={(checked) => onChange?.({ ...value, value: checked })}
       />
-      <span className="text-xs text-muted-foreground">{value.label}</span>
+      <span
+        className="text-xs text-muted-foreground overflow-hidden text-ellipsis"
+        title={value.label}
+      >
+        {value.label}
+      </span>
     </label>
   );
 }

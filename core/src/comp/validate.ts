@@ -77,7 +77,7 @@ const typeValidators: Record<string, TypeValidator> = {
     if (d.required) {
       const obj = value as Record<string, unknown>;
       for (const key of d.required) {
-        if (obj[key] === undefined || obj[key] === null) {
+        if (obj[key] === undefined) {
           errors.push({ path: path ? `${path}.${key}` : key, message: `required field missing` });
         }
       }
@@ -116,7 +116,7 @@ export function validateComponent(comp: ComponentData, schema: TypeSchema, field
   if (schema.required) {
     const obj = comp as unknown as Record<string, unknown>;
     for (const key of schema.required) {
-      if (obj[key] === undefined || obj[key] === null) {
+      if (obj[key] === undefined) {
         errors.push({ path: basePath ? `${basePath}.${key}` : key, message: `required field missing` });
       }
     }

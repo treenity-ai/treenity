@@ -56,7 +56,10 @@ function DefaultSchemaForm({ value, onChange }: RenderProps) {
         return (
           <div key={name} className="flex flex-col gap-1">
             {resolvedType !== 'boolean' && (
-              <label className="text-xs font-medium text-muted-foreground">
+              <label
+                className="text-xs font-medium text-muted-foreground block overflow-hidden text-ellipsis"
+                title={fieldData.label as string}
+              >
                 {fieldData.label as string}
               </label>
             )}

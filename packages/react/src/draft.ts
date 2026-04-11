@@ -22,12 +22,14 @@ export type DraftHandle = {
   close: () => void;
 };
 
+let draftSeq = 0;
+
 export function useDraft(type: string): DraftHandle {
   const state = useMemo(() => proxy<{ node: NodeData | null }>({ node: null }), []);
   const snap = useSnapshot(state);
 
   const create = useCallback((initial?: Record<string, unknown>) => {
-    const n = makeNode(`/draft/${crypto.randomUUID()}`, type, initial);
+    const n = makeNode(`/draft/${Date.now()}-${++draftSeq}`, type, initial);
     stampNode(n);
     state.node = n;
   }, [type, state]);

@@ -3,6 +3,7 @@ import { getContextsForType } from '@treenity/core';
 import { getRegistryVersion, subscribeRegistry } from '@treenity/core/core/registry';
 import { Render, RenderContext } from '@treenity/react';
 import { usePath } from '@treenity/react';
+import { useAutoSave } from '@treenity/react/tree/auto-save';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 export function TreenityBlockView({ node, updateAttributes, deleteNode, editor, getPos }: any) {
@@ -10,6 +11,7 @@ export function TreenityBlockView({ node, updateAttributes, deleteNode, editor, 
   const type = node.attrs.type as string | null;
   const refNode = usePath(ref);
   const editable = editor?.isEditable;
+  const save = useAutoSave(ref ?? '');
 
   const attrCtx = (node.attrs.context as string | null) ?? 'react';
   const ctx = editable && attrCtx === 'react' ? 'react:edit' : attrCtx;
@@ -43,7 +45,7 @@ export function TreenityBlockView({ node, updateAttributes, deleteNode, editor, 
     if (ref && refNode) {
       return (
         <RenderContext name={ctx}>
-          <Render value={refNode} />
+          <Render value={refNode} onChange={editable ? save.onChange : undefined} />
         </RenderContext>
       );
     }

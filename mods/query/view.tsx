@@ -4,7 +4,7 @@ import { Render, RenderContext, type View } from '@treenity/react';
 import { useChildren, useNavigate } from '@treenity/react/hooks';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@treenity/react/ui/table';
 import { List, Plus, Rows3, Table2, X } from 'lucide-react';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useChildTypes, useFiltered } from './hooks';
 import { type QueryFilter, QueryView } from './types';
 
@@ -172,8 +172,15 @@ const QueryViewComponent: View<QueryView> = ({ value, onChange }) => {
   const source = value.source || '/';
   const typeFilter = value.typeFilter || '';
   const filters = value.filters || [];
-  const mode = value.mode || 'list';
   const groupBy = value.groupBy || '';
+
+  const [localMode, setLocalMode] = useState<Mode>(value.mode || 'list');
+  const mode = onChange ? (value.mode || 'list') : localMode;
+
+  const setMode = (m: Mode) => {
+    if (onChange) onChange({ mode: m });
+    else setLocalMode(m);
+  };
 
   const children = useChildren(source, { limit: 50 }) ?? [];
   const filtered = useFiltered(children, typeFilter, filters);
@@ -189,7 +196,7 @@ const QueryViewComponent: View<QueryView> = ({ value, onChange }) => {
           {MODES.map(m => (
             <button
               key={m.id}
-              onClick={() => onChange?.({ mode: m.id })}
+              onClick={() => setMode(m.id)}
               title={m.label}
               className={`p-1.5 rounded transition-colors ${mode === m.id ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground'}`}
             >

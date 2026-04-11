@@ -20,11 +20,23 @@ type Props = {
   docPath: string;
 };
 
+function scrollToSelected(container: HTMLDivElement | null, index: number) {
+  if (!container) return;
+  const el = container.children[index] as HTMLElement | undefined;
+  if (!el) return;
+  const cRect = container.getBoundingClientRect();
+  const eRect = el.getBoundingClientRect();
+  if (eRect.top < cRect.top) container.scrollTop += eRect.top - cRect.top;
+  else if (eRect.bottom > cRect.bottom) container.scrollTop += eRect.bottom - cRect.bottom;
+}
+
 export const SlashMenu = forwardRef<unknown, Props>(({ items, command, editor, range, docPath }, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [pickerMode, setPickerMode] = useState<'ref' | 'component' | 'link' | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setSelectedIndex(0), [items]);
+  useEffect(() => { scrollToSelected(menuRef.current, selectedIndex); }, [selectedIndex]);
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
@@ -62,7 +74,7 @@ export const SlashMenu = forwardRef<unknown, Props>(({ items, command, editor, r
 
   const close = () => {
     setPickerMode(null);
-    command(items[0]); // close suggestion popup
+    command({ title: '', group: '', command: () => {} });
   };
 
   const insertRef = (path: string) => {
@@ -136,7 +148,7 @@ export const SlashMenu = forwardRef<unknown, Props>(({ items, command, editor, r
   }
 
   return (
-    <div className="slash-menu">
+    <div className="slash-menu" ref={menuRef}>
       {items.map((item, i) => (
         <button
           key={item.title}
@@ -159,6 +171,7 @@ function TypePicker({ onSelect }: { onSelect: (type: string) => void }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const allTypes = useMemo(() => getRegisteredTypes('react').sort(), []);
 
@@ -170,6 +183,8 @@ function TypePicker({ onSelect }: { onSelect: (type: string) => void }) {
 
   useEffect(() => setSelectedIndex(0), [filtered]);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => { scrollToSelected(listRef.current, selectedIndex); }, [selectedIndex]);
 
   const confirm = () => {
     const selected = filtered[selectedIndex];
@@ -201,7 +216,7 @@ function TypePicker({ onSelect }: { onSelect: (type: string) => void }) {
           className="slash-picker-input"
         />
       </div>
-      <div className="slash-picker-list">
+      <div className="slash-picker-list" ref={listRef}>
         {filtered.slice(0, 20).map((t, i) => (
           <button
             key={t}

@@ -5,6 +5,7 @@ import TableHeader from '@tiptap/extension-table-header';
 import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import { NodeLink } from './node-link';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { register } from '@treenity/core';
@@ -26,6 +27,7 @@ const extensions = [
   TableRow,
   TableCell,
   TableHeader,
+  NodeLink,
   TreenityBlock,
   SlashCommand,
 ];
@@ -35,6 +37,7 @@ type BlockProps = { value: any; onChange?: (data: any) => void };
 function DocPageView({ value, onChange }: BlockProps) {
   const suppressRef = useRef(false);
   const contentRef = useRef(value.content);
+  const dirtyRef = useRef(false);
   const parsedContent = useMemo(() => parseContent(value.content), [value.content]);
   const editable = !!onChange;
 
@@ -44,6 +47,7 @@ function DocPageView({ value, onChange }: BlockProps) {
     editable,
     onUpdate: ({ editor }: { editor: Editor }) => {
       if (suppressRef.current) return;
+      dirtyRef.current = true;
       const json = JSON.stringify(editor.getJSON());
       contentRef.current = json;
       onChange?.({ content: json });
@@ -52,9 +56,15 @@ function DocPageView({ value, onChange }: BlockProps) {
 
   const editor = useEditor(editorOptions);
 
-  // Sync editor content when node changes (navigating between docs)
+  // Reset dirty flag on navigation (path change) so sync accepts new doc content
+  useEffect(() => { dirtyRef.current = false; }, [value.$path]);
+
+  // Sync editor content from tree subscription.
+  // Skip when dirty (local edits not yet confirmed by server) to prevent
+  // stale server values from reverting the editor mid-edit.
   useEffect(() => {
     if (value.content === contentRef.current) return;
+    if (dirtyRef.current) return;
     contentRef.current = value.content;
     suppressRef.current = true;
     editor.commands.setContent(parsedContent);

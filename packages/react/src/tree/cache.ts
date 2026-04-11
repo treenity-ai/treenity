@@ -89,6 +89,11 @@ export const has = (path: string) => nodes.has(path);
 export const size = () => nodes.size;
 export const getVersion = () => version;
 
+/** True iff children for `parent` have been registered via putMany (even an empty list).
+ *  Distinguishes "not yet fetched" from "fetched, zero children" — getChildren() always
+ *  returns an array, so consumers that care about the loading boundary must use this. */
+export const hasChildrenLoaded = (parent: string) => parentIndex.has(parent);
+
 export function getChildren(parent: string): NodeData[] {
   let snap = childSnap.get(parent);
   if (snap) return snap;

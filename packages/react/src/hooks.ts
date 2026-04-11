@@ -154,6 +154,18 @@ export function useChildren(parentPath: string, opts?: WatchOpts) {
   );
 }
 
+// ── useChildrenLoaded: reactive "first fetch completed?" flag ──
+// useChildren returns [] in two indistinguishable states: (1) cache empty, tRPC in
+// flight, (2) fetch completed, zero children. Consumers that must gate initial
+// rendering on the first real response use this hook alongside useChildren.
+
+export function useChildrenLoaded(parentPath: string): boolean {
+  return useSyncExternalStore(
+    useCallback((cb: () => void) => cache.subscribeChildren(parentPath, cb), [parentPath]),
+    useCallback(() => cache.hasChildrenLoaded(parentPath), [parentPath]),
+  );
+}
+
 // ── set: optimistic update + server persist ──
 
 export async function set(next: NodeData) {

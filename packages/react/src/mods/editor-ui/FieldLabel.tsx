@@ -45,7 +45,11 @@ export function FieldLabel({ label, value, onChange }: {
   }
 
   if (!onChange) {
-    return <label>{label}</label>;
+    return (
+      <label className="block overflow-hidden text-ellipsis" title={label}>
+        {label}
+      </label>
+    );
   }
 
   return (
@@ -70,7 +74,9 @@ export function FieldLabel({ label, value, onChange }: {
     >
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <span className="block overflow-hidden text-ellipsis">{label}</span>
+          <span className="block overflow-hidden text-ellipsis" title={label}>
+            {label}
+          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="min-w-[100px]">
           {(['value', 'ref', 'map'] as FieldMode[]).map((m) => (

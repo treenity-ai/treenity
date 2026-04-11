@@ -463,7 +463,7 @@ const KanbanColumn: View<BoardColumn, ColumnExtra> = ({ value, onChange, ctx, on
   );
 };
 
-register('board.column', 'react:kanban', KanbanColumn as View<BoardColumn>);
+register('board.column', 'react:kanban', KanbanColumn);
 
 function TaskDialog({ node, onChange, onClose, onSave }: {
   node: NodeData;

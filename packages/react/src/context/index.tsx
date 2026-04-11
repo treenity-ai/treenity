@@ -99,7 +99,8 @@ export function useActions<T>(value: T): Actions<T> {
 
 declare module '@treenity/core/core/context' {
   interface ContextHandlers<T> {
-    react: FC<RenderProps<T>>;
+    // method syntax = bivariant: View<T, Extra> assignable without casts
+    react(props: RenderProps<T>): ReturnType<FC>;
   }
 }
 
