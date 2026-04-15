@@ -2,6 +2,7 @@ import './editor-ui.css';
 import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
 import { type ComponentData, type NodeData, register } from '@treenity/core';
+import type { PropertySchema } from '@treenity/core/schema/types';
 import { EmptyNodePlaceholder } from './empty-placeholder';
 import { renderField } from './form-field';
 import { getComponents, getPlainFields, getSchema } from './node-utils';
@@ -34,33 +35,9 @@ function ComponentFieldsView({ value }: { value: ComponentData }) {
         )}
         {Object.entries(schema.properties)
           .filter(([k]) => k !== titleEntry?.[0] && k !== descEntry?.[0])
-          .map(([k, prop]) => {
-            const p = prop as {
-              type: string;
-              title: string;
-              format?: string;
-              description?: string;
-              enum?: (string | number)[];
-              enumNames?: string[];
-              items?: { type?: string; properties?: Record<string, unknown> };
-              refType?: string;
-            };
-            return renderField(
-              k,
-              {
-                type: p.type,
-                format: p.format,
-                label: p.title ?? k,
-                readOnly: true,
-                enum: p.enum,
-                enumNames: p.enumNames,
-                items: p.items,
-                refType: p.refType,
-              },
-              data,
-              noop,
-            );
-          })}
+          .map(([k, prop]) =>
+            renderField(k, { ...(prop as PropertySchema), readOnly: true }, data, noop),
+          )}
       </>
     );
   }
@@ -152,28 +129,9 @@ export function PlainFieldsView({
                   <FieldValue value={plain[k]} />
                 </div>
               );
-            const p = prop as {
-              type: string;
-              title: string;
-              format?: string;
-              description?: string;
-              enum?: (string | number)[];
-              enumNames?: string[];
-              items?: { type?: string; properties?: Record<string, unknown> };
-              refType?: string;
-            };
             return renderField(
               k,
-              {
-                type: p.type,
-                format: p.format,
-                label: p.title ?? k,
-                readOnly: true,
-                enum: p.enum,
-                enumNames: p.enumNames,
-                items: p.items,
-                refType: p.refType,
-              },
+              { ...(prop as PropertySchema), readOnly: true },
               plain,
               noop,
             );

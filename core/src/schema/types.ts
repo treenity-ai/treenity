@@ -7,7 +7,7 @@ declare module '#core/context' {
 }
 
 export type PropertySchema = {
-  type: string; // JSON Schema type or custom (e.g. "image")
+  type?: string; // JSON Schema type or custom (e.g. "image") — absent for anyOf unions
   title?: string;
   description?: string;
   format?: string; // JSON Schema format hint (e.g. "uri", "textarea", "integer", "timestamp")
@@ -16,27 +16,27 @@ export type PropertySchema = {
   readOnly?: boolean;
   enum?: (string | number)[]; // allowed values → renders as <select>
   enumNames?: string[]; // optional UI labels aligned with enum (for TS enum members with different names)
-  items?: { type?: string; properties?: Record<string, unknown> }; // for array fields
+  items?: PropertySchema; // for array fields — recursive
+  anyOf?: PropertySchema[]; // union types (e.g. string | number) — rendered as JSON fallback widget
+  properties?: Record<string, PropertySchema>; // for nested object fields
+  required?: string[]; // required fields within nested object
 };
+
+export type MethodArgSchema = { name: string } & PropertySchema;
 
 export type MethodSchema = {
   title?: string;
   description?: string;
   streaming?: boolean; // true if async generator — use streamAction, not execute
-  arguments: Array<{
-    name: string;
-    type: string;
-    properties?: Record<string, Partial<PropertySchema>>;
-    required?: string[];
-  }>;
-  yields?: { type: string }; // yield type for streaming actions
-  return?: { type: string };
+  arguments: MethodArgSchema[];
+  yields?: PropertySchema; // yield type for streaming actions
+  return?: PropertySchema;
   pre?: string[]; // @pre fields — Design by Contract preconditions
   post?: string[]; // @post fields — Design by Contract postconditions
 };
 
 export type TypeSchema = {
-  title: string;
+  title?: string;
   type: 'object';
   properties: Record<string, PropertySchema>;
   required?: string[];

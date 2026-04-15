@@ -2,6 +2,7 @@ import { Checkbox } from '#components/ui/checkbox';
 import { Input } from '#components/ui/input';
 import { useSchema } from '#schema-loader';
 import { type ComponentData, isRef, register, resolve } from '@treenity/core';
+import type { PropertySchema } from '@treenity/core/schema/types';
 import type { View } from '#context';
 import { createElement } from 'react';
 import { FieldLabel, RefEditor } from './FieldLabel';
@@ -23,33 +24,11 @@ const DefaultEditForm: View<ComponentData> = ({ value, onChange }) => {
     return (
       <div className="py-0.5 pb-2.5">
         {Object.entries(schema.properties).map(([field, prop]) => {
-          const p = prop as {
-            type: string;
-            title: string;
-            format?: string;
-            description?: string;
-            readOnly?: boolean;
-            enum?: (string | number)[];
-            enumNames?: string[];
-            items?: { type?: string; properties?: Record<string, unknown> };
-            refType?: string;
+          const p: PropertySchema = {
+            ...(prop as PropertySchema),
+            readOnly: (prop as PropertySchema).readOnly || !onChange,
           };
-          return renderField(
-            field,
-            {
-              type: p.type,
-              format: p.format,
-              label: p.title ?? field,
-              placeholder: p.description,
-              readOnly: p.readOnly || !onChange,
-              enum: p.enum,
-              enumNames: p.enumNames,
-              items: p.items,
-              refType: p.refType,
-            },
-            data,
-            set,
-          );
+          return renderField(field, p, data, set);
         })}
       </div>
     );

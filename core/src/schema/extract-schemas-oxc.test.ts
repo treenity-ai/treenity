@@ -436,3 +436,26 @@ describe('extract-schemas-oxc', () => {
     assert.equal(stat1.mtimeMs, stat2.mtimeMs, 'file should not be rewritten when unchanged');
   });
 });
+
+describe('extract-schemas-oxc: merged enum rejection', () => {
+  // Dynamic fixture dir — must be outside schema/ to avoid being scanned by the main test.
+  // Created/destroyed per test run.
+  const FIXTURE_DIR = path.join(IMPORT_FIXTURES_DIR, '_merged-enum');
+
+  after(async () => {
+    await fs.rm(FIXTURE_DIR, { recursive: true, force: true });
+  });
+
+  it('throws on duplicate enum declaration in the same file', async () => {
+    await fs.mkdir(FIXTURE_DIR, { recursive: true });
+    await fs.writeFile(
+      path.join(FIXTURE_DIR, 'bad-enum.ts'),
+      `enum Status { Active, Inactive }\nenum Status { Pending }\n`,
+    );
+
+    await assert.rejects(
+      () => generateSchemas([FIXTURE_DIR]),
+      (err: Error) => err.message.includes('declared more than once'),
+    );
+  });
+});

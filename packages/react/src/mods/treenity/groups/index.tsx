@@ -60,6 +60,23 @@ function TagsForm({ value, onChange }: FP) {
   );
 }
 
+function TagsView({ value }: FP) {
+  const tags: string[] = Array.isArray(value?.value) ? (value.value as string[]) : [];
+  if (tags.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <Badge key={tag} variant="secondary" className="text-xs">
+          {tag}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
 export function registerGroups() {
   register('tags', 'react:form', TagsForm as any);
+  register('tags', 'react:compact', TagsView as any);
+  register('tags', 'react', TagsView as any);
 }

@@ -2,36 +2,60 @@ import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { DraftTextarea } from '#mods/editor-ui/DraftTextarea';
 import { isRef, resolveExact } from '@treenity/core';
+import type { PropertySchema } from '@treenity/core/schema/types';
 import { createElement, useState } from 'react';
 import { FieldLabel, RefEditor } from './FieldLabel';
 
 export function renderField(
   name: string,
-  fieldSchema: {
-    type: string;
-    format?: string;
-    label: string;
-    placeholder?: string;
-    readOnly?: boolean;
-    enum?: (string | number)[];
-    enumNames?: string[];
-    items?: { type?: string; properties?: Record<string, unknown> };
-    refType?: string;
-  },
+  prop: PropertySchema,
   data: Record<string, unknown>,
   set: (field: string, value: unknown) => void,
 ) {
-  if (!fieldSchema.type) return null;
+  const label = prop.title ?? name;
+  const placeholder = prop.description;
+
+  // anyOf fields (e.g. string | number unions) — show JSON fallback widget
+  if (!prop.type && prop.anyOf) {
+    return (
+      <div key={name} className="field stack">
+        <FieldLabel
+          label={label}
+          value={data[name]}
+          onChange={prop.readOnly ? undefined : (next: unknown) => set(name, next)}
+        />
+        {prop.readOnly ? (
+          <pre className="text-[11px] font-mono text-foreground/60 bg-muted/30 rounded p-1.5 whitespace-pre-wrap">
+            {JSON.stringify(data[name], null, 2)}
+          </pre>
+        ) : (
+          <DraftTextarea
+            className="min-h-16 text-xs font-mono"
+            value={JSON.stringify(data[name], null, 2)}
+            onChange={(text) => {
+              try {
+                set(name, JSON.parse(text));
+              } catch {
+                /* typing in progress */
+              }
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (!prop.type) return null;
 
   const rawValue = data[name];
   const isRefValue = rawValue && typeof rawValue === 'object' && isRef(rawValue);
 
   // If value is a $ref/$map, show ref editor instead of the normal field handler
   if (isRefValue) {
-    const onFieldChange = fieldSchema.readOnly ? undefined : (next: unknown) => set(name, next);
+    const onFieldChange = prop.readOnly ? undefined : (next: unknown) => set(name, next);
     return (
       <div key={name} className="field">
-        <FieldLabel label={fieldSchema.label} value={rawValue} onChange={onFieldChange} />
+        <FieldLabel label={label} value={rawValue} onChange={onFieldChange} />
         {onFieldChange && (
           <RefEditor value={rawValue as { $ref: string; $map?: string }} onChange={onFieldChange} />
         )}
@@ -42,47 +66,47 @@ export function renderField(
   // Resolve handler: try format first (specific widget), fall back to base type,
   // then to a generic 'string' handler. This keeps unknown formats from masking
   // the underlying structural type.
-  const ctx = fieldSchema.readOnly ? 'react:compact' : 'react:form';
-  const altCtx = fieldSchema.readOnly ? 'react' : ctx;
+  const ctx = prop.readOnly ? 'react:compact' : 'react:form';
+  const altCtx = prop.readOnly ? 'react' : ctx;
   const tryResolve = (t: string) =>
-    fieldSchema.readOnly
+    prop.readOnly
       ? (resolveExact(t, 'react:compact') ?? resolveExact(t, 'react'))
       : resolveExact(t, ctx);
   const resolvedType =
-    (fieldSchema.format && tryResolve(fieldSchema.format) ? fieldSchema.format : null) ??
-    (tryResolve(fieldSchema.type) ? fieldSchema.type : null) ??
+    (prop.format && tryResolve(prop.format) ? prop.format : null) ??
+    (tryResolve(prop.type) ? prop.type : null) ??
     'string';
   const handler = tryResolve(resolvedType) ?? resolveExact('string', altCtx);
   if (!handler)
     return (
       <div key={name} className="text-destructive text-xs">
-        No form handler: {fieldSchema.format ?? fieldSchema.type}
+        No form handler: {prop.format ?? prop.type}
       </div>
     );
 
   const fieldData: { $type: string; [k: string]: unknown } = {
     $type: resolvedType,
     value: rawValue,
-    label: fieldSchema.label,
-    placeholder: fieldSchema.placeholder,
+    label,
+    placeholder,
   };
-  if (fieldSchema.items) fieldData.items = fieldSchema.items;
-  if (fieldSchema.enum) fieldData.enum = fieldSchema.enum;
-  if (fieldSchema.enumNames) fieldData.enumNames = fieldSchema.enumNames;
-  if (fieldSchema.refType) fieldData.refType = fieldSchema.refType;
+  if (prop.items) fieldData.items = prop.items;
+  if (prop.enum) fieldData.enum = prop.enum;
+  if (prop.enumNames) fieldData.enumNames = prop.enumNames;
+  if (prop.refType) fieldData.refType = prop.refType;
 
-  const isComplex = fieldSchema.type === 'object' || fieldSchema.type === 'array';
-  const onFieldChange = fieldSchema.readOnly
+  const isComplex = prop.type === 'object' || prop.type === 'array';
+  const onFieldChange = prop.readOnly
     ? undefined
     : (next: unknown) => set(name, (next as { value: unknown }).value);
 
   return (
     <div key={name} className={isComplex ? 'field stack' : 'field'}>
-      {(fieldSchema.type !== 'boolean' || fieldSchema.readOnly) && (
+      {(prop.type !== 'boolean' || prop.readOnly) && (
         <FieldLabel
-          label={fieldSchema.label}
+          label={label}
           value={rawValue}
-          onChange={fieldSchema.readOnly ? undefined : (next: unknown) => set(name, next)}
+          onChange={prop.readOnly ? undefined : (next: unknown) => set(name, next)}
         />
       )}
       {createElement(handler as any, {

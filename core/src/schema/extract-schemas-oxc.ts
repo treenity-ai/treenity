@@ -3,6 +3,7 @@
 import { parseSync } from 'oxc-parser';
 import fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { MethodArgSchema, MethodSchema, PropertySchema, TypeSchema } from '#schema/types';
 
 interface ComponentEntry {
   typeName: string;
@@ -12,7 +13,7 @@ interface ComponentEntry {
 interface ExternalAction {
   name: string;
   description?: string;
-  arguments?: any[];
+  arguments?: MethodArgSchema[];
   fileName: string;
 }
 
@@ -154,7 +155,7 @@ function getEnumValues(enumNode: N): { name: string; value: string | number }[] 
   return out;
 }
 
-function enumToSchema(enumNode: N): any {
+function enumToSchema(enumNode: N): PropertySchema {
   const entries = getEnumValues(enumNode);
   const values = entries.map((e) => e.value);
   const names = entries.map((e) => e.name);
@@ -174,7 +175,7 @@ function enumToSchema(enumNode: N): any {
   return namesDiffer ? { ...base, enumNames: names } : base;
 }
 
-function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
+function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): PropertySchema {
   if (!node) return {};
 
   switch (node.type) {
@@ -212,7 +213,7 @@ function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
     }
 
     case 'TSTypeLiteral': {
-      const properties: Record<string, any> = {};
+      const properties: Record<string, PropertySchema> = {};
       const required: string[] = [];
       for (const m of node.members ?? []) {
         if (m.type === 'TSPropertySignature' && m.key?.name) {
@@ -267,7 +268,7 @@ function typeToSchema(node: N | null | undefined, ctx: SchemaCtx = {}): any {
   }
 }
 
-function typeFromInit(value: N | null | undefined): any {
+function typeFromInit(value: N | null | undefined): PropertySchema {
   if (!value) return {};
   if (value.type === 'Literal') {
     if (typeof value.value === 'string') return { type: 'string' };
@@ -514,10 +515,8 @@ function findEnums(ast: N, fileName: string): Map<string, N> {
   walk(ast, (node) => {
     if (node.type === 'TSEnumDeclaration' && node.id?.name) {
       if (enums.has(node.id.name)) {
-        // TS allows enum merging (`enum E { A } enum E { B }`) but we don't support it —
-        // warn rather than silently dropping earlier members.
-        console.warn(
-          `[schema/oxc] enum "${node.id.name}" is declared more than once in ${fileName} — enum merging is not supported, only the last declaration is used`,
+        throw new Error(
+          `[schema/oxc] enum "${node.id.name}" is declared more than once in ${fileName} — enum merging is not supported`,
         );
       }
       enums.set(node.id.name, node);
@@ -559,7 +558,7 @@ function findExternalActions(ast: N, fileName: string): Map<string, ExternalActi
           handlerArg?.type === 'FunctionExpression'
         ) {
           const params = handlerArg.params ?? [];
-          const args: any[] = [];
+          const args: MethodArgSchema[] = [];
           for (let i = 1; i < params.length; i++) {
             const p = params[i];
             args.push({ name: p.name ?? 'arg', ...typeToSchema(p.typeAnnotation?.typeAnnotation) });
@@ -584,7 +583,7 @@ function generateClassSchema(
   aliasesByFile: Map<string, Map<string, N>>,
   enumsByFile: Map<string, Map<string, N>>,
   importsByFile: Map<string, Map<string, ImportEntry>>,
-): any {
+): TypeSchema & { $id?: string; $schema?: string } {
   const ctx: SchemaCtx = {
     jsDocMap,
     currentFile,
@@ -592,9 +591,9 @@ function generateClassSchema(
     enumsByFile,
     importsByFile,
   };
-  const properties: Record<string, any> = {};
+  const properties: Record<string, PropertySchema> = {};
   const required: string[] = [];
-  const methods: Record<string, any> = {};
+  const methods: Record<string, MethodSchema> = {};
 
   for (const member of classNode.body?.body ?? []) {
     if (member.type === 'PropertyDefinition' && member.key?.name && !member.static) {
@@ -637,7 +636,7 @@ function generateClassSchema(
 
       const fn = member.value;
       const params = fn.params ?? [];
-      const args: any[] = [];
+      const args: MethodArgSchema[] = [];
       for (const param of params) {
         const p = param.type === 'AssignmentPattern' ? param.left : param;
         args.push({
@@ -650,7 +649,7 @@ function generateClassSchema(
       const returnTa = fn.returnType?.typeAnnotation;
 
       // For generators, unwrap AsyncGenerator<Y> → yields Y
-      let yieldsSchema: any;
+      let yieldsSchema: PropertySchema | undefined;
       if (isGenerator && returnTa?.type === 'TSTypeReference') {
         const genName = returnTa.typeName?.name;
         if (genName === 'AsyncGenerator' || genName === 'Generator') {
@@ -661,12 +660,12 @@ function generateClassSchema(
       }
 
       const ret = isGenerator ? {} : typeToSchema(returnTa, ctx);
-      const methodDoc = { ...(jsDocMap.get(member.start) ?? {}) };
+      const methodDoc: Record<string, unknown> = { ...(jsDocMap.get(member.start) ?? {}) };
 
       if (typeof methodDoc.pre === 'string')
-        (methodDoc as any).pre = methodDoc.pre.split(/\s+/).filter(Boolean);
+        methodDoc.pre = (methodDoc.pre as string).split(/\s+/).filter(Boolean);
       if (typeof methodDoc.post === 'string')
-        (methodDoc as any).post = methodDoc.post.split(/\s+/).filter(Boolean);
+        methodDoc.post = (methodDoc.post as string).split(/\s+/).filter(Boolean);
 
       methods[name] = {
         ...methodDoc,
@@ -678,7 +677,7 @@ function generateClassSchema(
         ...(!isGenerator && Object.keys(ret).length && ret.type !== undefined
           ? { return: ret }
           : {}),
-      };
+      } as MethodSchema;
     }
   }
 
@@ -688,7 +687,7 @@ function generateClassSchema(
     properties,
     ...(required.length ? { required } : {}),
     ...(Object.keys(methods).length ? { methods } : {}),
-  };
+  } as TypeSchema;
 }
 
 // ── File scanning ──
@@ -801,7 +800,7 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
     // Merge external actions
     const external = allExternalActions.get(entry.typeName);
     if (external) {
-      const methods: Record<string, any> = schema.methods ?? {};
+      const methods: Record<string, MethodSchema> = schema.methods ?? {};
       for (const act of external) {
         if (!methods[act.name]) {
           const { name, fileName: _, ...rest } = act;
@@ -826,7 +825,7 @@ export async function generateSchemas(dirs: string[]): Promise<void> {
 
   // Orphan external actions
   for (const [typeName, actions] of allExternalActions) {
-    const methods: Record<string, any> = {};
+    const methods: Record<string, MethodSchema> = {};
     for (const act of actions) {
       const { name, fileName: _, ...rest } = act;
       methods[name] = { arguments: [], ...rest };
