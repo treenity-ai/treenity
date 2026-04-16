@@ -459,8 +459,11 @@ export function App() {
   const isAnon = authed.startsWith('anon:');
   const needsLogin = showLoginModal;
   if (mode === 'routed') return <NavigateProvider value={navigate}><RoutedPage path={viewPath} /></NavigateProvider>;
-  if (mode === 'view') return <NavigateProvider value={navigate}><ViewPage path={viewPath} /></NavigateProvider>;
-
+  if (mode === 'view') {
+    const ctx = new URLSearchParams(location.search).get('ctx') || 'react';
+    return <NavigateProvider value={navigate}><ViewPage path={viewPath} ctx={ctx} /></NavigateProvider>;
+  }
+  
   const handleSetRoot = (path: string) => {
     setRoot(path);
   };

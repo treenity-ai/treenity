@@ -4,7 +4,7 @@ import { Render, RenderContext } from '#context';
 import { usePath } from '#hooks';
 import { useAutoSave } from '#tree/auto-save';
 
-export function ViewPage({ path, editorLink }: { path: string; editorLink?: boolean }) {
+export function ViewPage({ path, ctx, editorLink }: { path: string; ctx?: string, editorLink?: boolean }) {
   const { data: node, loading } = usePath(path);
   const { onChange } = useAutoSave(path);
 
@@ -38,7 +38,7 @@ export function ViewPage({ path, editorLink }: { path: string; editorLink?: bool
         </div>
       )}
       <div className="flex-1 overflow-auto p-4 has-[.view-full]:p-0">
-        <RenderContext name="react">
+        <RenderContext name={ctx ?? 'react'}>
           <Render value={node} onChange={onChange} />
         </RenderContext>
       </div>
