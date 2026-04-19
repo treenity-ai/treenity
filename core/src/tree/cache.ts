@@ -8,16 +8,11 @@ import { type Tree, treeEnsure, treeNavigate, type TreeNode } from './index';
 import { createInflight } from './inflight';
 import { patchViaSet } from './patch';
 
-// Recursively freeze plain objects/arrays. Callers must clone before mutating —
-// structuredClone/applyOps/patchViaSet already do. Prevents external mutation
-// leaking into the cache and bypassing the write pipeline.
-function deepFreeze<T>(value: T): T {
-  if (value === null || typeof value !== 'object') return value;
-  if (Object.isFrozen(value)) return value;
-  Object.freeze(value);
-  for (const key of Object.keys(value)) deepFreeze((value as any)[key]);
-  return value;
-}
+// Cache stores live refs. Callers MUST clone before mutating —
+// patchViaSet / applyOps / set() already do. Previously `deepFreeze`d on write
+// for belt-and-suspenders protection, but that broke upper layers that need
+// to attach metadata (e.g. `@treenity/react` stamps $key/$node symbols on
+// returned nodes) — `Object.defineProperty` throws on frozen objects.
 
 export function withCache(tree: Tree): Tree {
   const root: TreeNode<NodeData> = { children: new Map() };
@@ -29,14 +24,14 @@ export function withCache(tree: Tree): Tree {
       if (cached?.data !== undefined) return cached.data;
       return dedup(path, async () => {
         const node = await tree.get(path, ctx);
-        if (node) treeEnsure(root, node.$path).data = deepFreeze(node);
+        if (node) treeEnsure(root, node.$path).data = node;
         return node;
       });
     },
 
     async getChildren(path, opts, ctx) {
       const result = await tree.getChildren(path, opts, ctx);
-      for (const node of result.items) treeEnsure(root, node.$path).data = deepFreeze(node);
+      for (const node of result.items) treeEnsure(root, node.$path).data = node;
       return result;
     },
 
@@ -44,7 +39,7 @@ export function withCache(tree: Tree): Tree {
       await tree.set(node, ctx);
       // Write-populate: re-read to capture $rev bump, warm cache for subscribers
       const fresh = await tree.get(node.$path, ctx);
-      if (fresh) treeEnsure(root, node.$path).data = deepFreeze(fresh);
+      if (fresh) treeEnsure(root, node.$path).data = fresh;
     },
 
     async remove(path, ctx) {

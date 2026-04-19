@@ -46,6 +46,26 @@ describe('withCache — reads', () => {
     const fresh = await cached.get('/nonexistent');
     assert.ok(fresh);
   });
+
+  // Regression: prior deepFreeze on cached nodes broke upper layers that
+  // attach metadata via Object.defineProperty (e.g. @treenity/react stamps
+  // $key/$node symbols on returned nodes). Extensibility is part of the
+  // cache's contract — consumers must be able to annotate results.
+  it('returned nodes are extensible', async () => {
+    const mem = createMemoryTree();
+    await mem.set(makeNode('/a', { comp: { $type: 'c', v: 1 } }));
+    const cached = withCache(mem);
+
+    const node = await cached.get('/a');
+    assert.ok(node);
+    assert.equal(Object.isExtensible(node), true, 'node must be extensible');
+    assert.equal(Object.isExtensible((node as any).comp), true, 'nested component must be extensible');
+
+    const { items } = await cached.getChildren('/');
+    for (const item of items) {
+      assert.equal(Object.isExtensible(item), true, `${item.$path} must be extensible`);
+    }
+  });
 });
 
 describe('withCache — writes populate', () => {

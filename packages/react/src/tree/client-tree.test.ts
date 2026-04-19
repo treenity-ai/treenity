@@ -2,6 +2,7 @@ import type { NodeData } from '@treenity/core';
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { createClientTree } from './client-tree';
+import { stampNode } from '#symbols';
 
 // ── Mock tRPC client ──
 
@@ -112,5 +113,61 @@ describe('createClientTree — unified client tree', () => {
     mock.resetCalls();
     await tree.get('/x'); // should hit cache
     assert.equal(mock.calls, 0, 'second get should come from cache');
+  });
+
+  // Regression — DO NOT DELETE. This has broken 3 times already:
+  //   a85fd7e (react): guarded stampNode against re-stamping
+  //   ed09479 (core):  deepFreeze-on-write → froze nodes upper layer must stamp
+  //   a51f64b:         surfaced it via engine bump
+  //
+  // Symptom in UI: "Cannot define property Symbol(treenity.$key), object is
+  // not extensible" when loading the tree editor. App.tsx calls
+  // tree.getChildren() then cache.replaceChildren() which calls stampNode()
+  // on every returned node. If ANY layer between createRemoteTree and the
+  // consumer freezes nodes, stampNode throws via Object.defineProperty.
+  //
+  // Don't "fix" a future freeze regression by making stampNode tolerant —
+  // fix the layer that froze data it doesn't own.
+  describe('client tree output is stampable end-to-end', () => {
+    it('tree.get returns nodes stampNode can annotate', async () => {
+      const backing = new Map<string, NodeData>();
+      backing.set('/x', { $path: '/x', $type: 'test', comp: { $type: 'c', v: 1 } } as NodeData);
+      const mock = createMockTrpc(backing);
+      const { tree } = createClientTree(mock as any);
+
+      const node = await tree.get('/x');
+      assert.ok(node);
+      assert.doesNotThrow(() => stampNode(node));
+    });
+
+    it('tree.getChildren returns items stampNode can annotate', async () => {
+      const backing = new Map<string, NodeData>();
+      backing.set('/a', { $path: '/a', $type: 'test' } as NodeData);
+      backing.set('/b', { $path: '/b', $type: 'test', comp: { $type: 'c' } } as NodeData);
+      const mock = createMockTrpc(backing);
+      const { tree } = createClientTree(mock as any);
+
+      const { items } = await tree.getChildren('/');
+      assert.ok(items.length > 0);
+      for (const item of items) {
+        assert.doesNotThrow(() => stampNode(item), `stampNode must not throw on ${item.$path}`);
+      }
+    });
+
+    it('tree.getChildren after a cached tree.get still returns stampable items', async () => {
+      // Edge case: get populates the cache, then getChildren returns the SAME
+      // cached object. If get's write path froze it, getChildren inherits the
+      // frozen ref — this is the exact scenario ed09479 caused.
+      const backing = new Map<string, NodeData>();
+      backing.set('/a', { $path: '/a', $type: 'test' } as NodeData);
+      const mock = createMockTrpc(backing);
+      const { tree } = createClientTree(mock as any);
+
+      await tree.get('/a'); // populates core cache
+      const { items } = await tree.getChildren('/');
+      for (const item of items) {
+        assert.doesNotThrow(() => stampNode(item), `stampNode must not throw on ${item.$path}`);
+      }
+    });
   });
 });
