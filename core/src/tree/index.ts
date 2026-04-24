@@ -229,4 +229,4 @@ export function createMemoryTree(): Tree {
   };
 }
 
-export { type PatchOp, type Rfc6902Op, PatchTestError, applyOps, toRfc6902, fromRfc6902, defaultPatch, patchViaSet } from './patch';
+export { type PatchOp, type Rfc6902Op, PatchTestError, applyOps, assertSafePatchPath, toRfc6902, fromRfc6902, defaultPatch, patchViaSet } from './patch';
