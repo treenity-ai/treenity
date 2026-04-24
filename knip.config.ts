@@ -61,7 +61,7 @@ const config: KnipConfig = {
 
     'packages/agent-client': {},
     'packages/create-treenity': {},
-    'packages/treerun': {},
+    'packages/treenix': {},
     'packages/fuse': {},
   },
 
