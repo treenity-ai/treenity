@@ -38,7 +38,7 @@ function LoginForm({ onLogin }: { onLogin: (userId: string) => void }) {
   return (
     <form className="flex flex-col gap-4 w-80 p-8 rounded-lg border border-border bg-card" onSubmit={handleSubmit}>
       <div className="flex items-center justify-center gap-2 mb-2">
-        <img src="/treenity.svg" alt="" width="32" height="32" />
+        <img src="/treenix.svg" alt="" width="32" height="32" />
         <span className="text-lg font-semibold">Treenity</span>
       </div>
 
