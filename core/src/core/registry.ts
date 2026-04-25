@@ -1,8 +1,12 @@
 import { type Class, ComponentData, normalizeType, type TypeId } from './component';
 import { ContextHandler, Handler } from './context';
 
-const registry = new Map<string, Handler>();
-const metaRegistry = new Map<string, Record<string, unknown>>();
+type Entry = { handler: Handler; meta?: Record<string, unknown> };
+
+// Single source of truth: type → context → entry.
+const registry = new Map<string, Map<string, Entry>>();
+
+const DEFAULT_TYPE = normalizeType('default');
 
 // ── Registry subscription — lets React re-render when handlers change ──
 let version = 0;
@@ -17,37 +21,41 @@ export function subscribeRegistry(cb: () => void) {
 }
 export function getRegistryVersion() { return version; }
 
-function key(type: string, context: string): string {
-  return `${type}@${context}`;
+function validateContext(context: string): void {
+  if (typeof context !== 'string') throw new Error('context must be a string');
+  if (!context || !context.trim()) throw new Error('context must be a non-empty string');
 }
 
 export function register<C extends string>(type: string, context: C, handler: ContextHandler<C>, meta?: Record<string, unknown>): void;
 export function register<T, C extends string>(type: Class<T>, context: C, handler: ContextHandler<C, T>, meta?: Record<string, unknown>): void;
 export function register(type: TypeId, context: string, handler: Handler, meta?: Record<string, unknown>): void {
-  const k = key(normalizeType(type), context);
-  // Sealed: no overrides. In dev (HMR) modules re-execute, so we allow silent replace.
-  // In production, duplicate register = bug, caught by tests.
-  if (registry.has(k)) return;
-  registry.set(k, handler as Handler);
-  if (meta) metaRegistry.set(k, meta);
+  validateContext(context);
+  const t = normalizeType(type);
+  let inner = registry.get(t);
+  if (!inner) { inner = new Map(); registry.set(t, inner); }
+  // Sealed: silent dedup matches HMR re-execution behavior of the prior implementation.
+  if (inner.has(context)) return;
+  inner.set(context, meta === undefined ? { handler } : { handler, meta });
   bump();
 }
 
 export function getMeta(type: TypeId, context: string): Record<string, unknown> | null {
-  return metaRegistry.get(key(normalizeType(type), context)) ?? null;
+  validateContext(context);
+  return registry.get(normalizeType(type))?.get(context)?.meta ?? null;
 }
 
 export function resolve<C extends string>(type: TypeId, context: C, _notifyMiss = true): ContextHandler<C> | null {
+  validateContext(context);
   const n = normalizeType(type);
-  const exact = registry.get(key(n, context));
-  if (exact) return exact as ContextHandler<C>;
+  const exact = registry.get(n)?.get(context);
+  if (exact) return exact.handler as ContextHandler<C>;
 
   // Notify miss BEFORE default fallback — async loaders (UIX) start fetching,
-  // register when done, bump triggers re-render → next resolve finds exact match
+  // register when done, bump triggers re-render → next resolve finds exact match.
   if (_notifyMiss) missResolvers.get(context)?.(n);
 
-  const def = registry.get(key(normalizeType('default'), context));
-  if (def) return def as ContextHandler<C>;
+  const def = registry.get(DEFAULT_TYPE)?.get(context);
+  if (def) return def.handler as ContextHandler<C>;
 
   // fallback: strip last segment ("react:compact" → "react")
   const sep = context.lastIndexOf(':');
@@ -56,51 +64,62 @@ export function resolve<C extends string>(type: TypeId, context: C, _notifyMiss 
   return null;
 }
 
-// Returns the exact registered handler, no fallback, no miss notification
+// Returns the exact registered handler — no fallback, no miss notification.
 export function resolveExact<C extends string>(type: TypeId, context: C): ContextHandler<C> | null {
-  return (registry.get(key(normalizeType(type), context)) ?? null) as ContextHandler<C> | null;
+  validateContext(context);
+  return (registry.get(normalizeType(type))?.get(context)?.handler ?? null) as ContextHandler<C> | null;
 }
 
 export function hasMissResolver(context: string): boolean {
+  validateContext(context);
   return missResolvers.has(context);
 }
 
 export function unregister(type: string, context: string): boolean {
-  const k = key(normalizeType(type), context);
-  metaRegistry.delete(k);
-  const deleted = registry.delete(k);
-  if (deleted) bump();
-  return deleted;
+  validateContext(context);
+  const t = normalizeType(type);
+  const inner = registry.get(t);
+  if (!inner?.has(context)) return false;
+  inner.delete(context);
+  if (!inner.size) registry.delete(t);
+  bump();
+  return true;
 }
 
-// TODO: fix, this is so slow. also rewrite usages, reorganize registry fully
+// Snapshot — callers (e.g. clearRegistry) may unregister during iteration.
 export function mapRegistry<T>(fn: (type: string, context: string) => T | undefined): T[] {
+  const entries: Array<[string, string]> = [];
+  for (const [t, inner] of registry) {
+    for (const c of inner.keys()) entries.push([t, c]);
+  }
   const result: T[] = [];
-  for (const k of registry.keys()) {
-    const i = k.lastIndexOf('@');
-    const v = fn(k.slice(0, i), k.slice(i + 1));
+  for (const [t, c] of entries) {
+    const v = fn(t, c);
     if (v !== undefined) result.push(v);
   }
   return result;
 }
 
 export function getRegisteredTypes(context?: string): string[] {
-  return context
-    ? mapRegistry((t, c) => c === context ? t : undefined)
-    : [...new Set(mapRegistry(t => t))];
+  if (context === undefined) return [...registry.keys()];
+  validateContext(context);
+  const result: string[] = [];
+  for (const [t, inner] of registry) {
+    if (inner.has(context)) result.push(t);
+  }
+  return result;
 }
 
 export function getContextsForType(type: TypeId): string[] {
-  const n = normalizeType(type);
-  return mapRegistry((t, c) => t === n ? c : undefined);
+  const inner = registry.get(normalizeType(type));
+  return inner ? [...inner.keys()] : [];
 }
 
 // ── Resolve miss — per-context extension point for dynamic loaders ──
 // One resolver per context. UIX uses this for 'react' to lazy-load views from type nodes.
-// REVIEW: if more per-context behavior emerges (validate, wrap, fallback), consider
-// evolving into defineContext('react', { onMiss, validate, ... }) trait system.
 const missResolvers = new Map<string, (type: string) => void>();
 export function onResolveMiss(context: string, resolver: (type: string) => void) {
+  validateContext(context);
   missResolvers.set(context, resolver);
 }
 
