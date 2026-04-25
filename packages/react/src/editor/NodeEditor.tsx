@@ -20,7 +20,7 @@ import { useRef, useState } from 'react';
 import { proxy, useSnapshot } from 'valtio';
 import { AclEditor } from './AclEditor';
 import { ComponentSection } from './ComponentSection';
-import { getNodeEditorJsonText } from './node-editor-state';
+import { getNodeEditorJsonText, parseNodeEditorJson } from './node-editor-state';
 
 function NodeCard({ path, type, onChangeType }: {
   path: string;
@@ -111,30 +111,29 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   }
 
   async function handleSave() {
-    if (snap.tab === 'json') {
-      // JSON tab — full node replacement via set()
-      try {
-        const toSave = JSON.parse(snap.jsonText);
+    try {
+      if (snap.tab === 'json') {
+        // JSON tab — full node replacement via set()
+        const toSave = parseNodeEditorJson(snap.jsonText);
         await set(toSave);
-      } catch {
-        toast('Invalid JSON');
-        return;
+      } else if (hasPendingSystemEdits) {
+        // System field changes ($type, $acl) — need set()
+        const toSave = { ...node };
+        if (snap.typeEdit) toSave.$type = snap.typeEdit;
+        if (snap.aclEdit) {
+          toSave.$owner = aclOwner;
+          toSave.$acl = [...aclRules] as GroupPerm[];
+        }
+        await set(toSave);
       }
-    } else if (hasPendingSystemEdits) {
-      // System field changes ($type, $acl) — need set()
-      const toSave = { ...node };
-      if (snap.typeEdit) toSave.$type = snap.typeEdit;
-      if (snap.aclEdit) {
-        toSave.$owner = aclOwner;
-        toSave.$acl = [...aclRules] as GroupPerm[];
-      }
-      await set(toSave);
-    }
 
-    // Flush any pending auto-save data
-    await flush();
-    handleReset();
-    toast('Saved');
+      // Flush any pending auto-save data
+      await flush();
+      handleReset();
+      toast('Saved');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Save failed');
+    }
   }
 
   async function handleRemoveComponent(name: string) {
