@@ -5,6 +5,11 @@ class DocPage {
   /** @title Title */
   title = 'Untitled';
   /** @title Content */
-  content = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Press Edit to start editing."}]}]}';
+  content = {
+    type: 'doc',
+    content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Press Edit to start editing.' }] },
+    ],
+  };
 }
 registerType('doc.page', DocPage);

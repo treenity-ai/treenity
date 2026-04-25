@@ -38,19 +38,18 @@ type BlockProps = { value: any; onChange?: (data: any) => void };
 
 export function DocPageView({ value, onChange }: BlockProps) {
   const suppressRef = useRef(false);
-  const contentRef = useRef(value.content);
+  const contentRef = useRef<unknown>(value.content);
   const dirtyRef = useRef(false);
-  const parsedContent = useMemo(() => parseContent(value.content), [value.content]);
   const editable = !!onChange;
 
   const editorOptions = useMemo(() => ({
     extensions,
-    content: parsedContent,
+    content: value.content,
     editable,
     onUpdate: ({ editor }: { editor: Editor }) => {
       if (suppressRef.current) return;
       dirtyRef.current = true;
-      const json = JSON.stringify(editor.getJSON());
+      const json = editor.getJSON();
       contentRef.current = json;
       onChange?.({ content: json });
     },
@@ -69,9 +68,9 @@ export function DocPageView({ value, onChange }: BlockProps) {
     if (dirtyRef.current) return;
     contentRef.current = value.content;
     suppressRef.current = true;
-    editor.commands.setContent(parsedContent);
+    editor.commands.setContent(value.content);
     suppressRef.current = false;
-  }, [editor, parsedContent]);
+  }, [editor, value.content]);
 
   // Sync docPath for slash commands (e.g. /component)
   useEffect(() => {
@@ -142,14 +141,5 @@ export function DocPageView({ value, onChange }: BlockProps) {
       </div>
     </div>
   );
-}
-
-function parseContent(content: string | undefined): any {
-  if (!content) return undefined;
-  try {
-    return JSON.parse(content);
-  } catch {
-    return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: content }] }] };
-  }
 }
 
