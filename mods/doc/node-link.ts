@@ -1,13 +1,22 @@
 // TipTap Mark: inline link to a Treenity tree node
-// Renders as <a> with data-node-path, click handled via event delegation in renderers.tsx
+// Renders as <a href={makeHref(path)} data-node-path> — href makes right-click "open in new tab" work.
+// Click delegation in renderers-impl.tsx intercepts left-click for SPA navigation.
 // Input rule: [[/path]] or [[/path|label]] → creates node link
 
 import { InputRule, Mark, mergeAttributes } from '@tiptap/core';
 
-export const NodeLink = Mark.create({
+export type NodeLinkOptions = {
+  makeHref: ((path: string) => string) | null;
+};
+
+export const NodeLink = Mark.create<NodeLinkOptions>({
   name: 'nodeLink',
   priority: 1000,
   inclusive: false,
+
+  addOptions() {
+    return { makeHref: null };
+  },
 
   addAttributes() {
     return {
@@ -20,10 +29,14 @@ export const NodeLink = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['a', mergeAttributes({
-      'data-node-path': HTMLAttributes.path,
+    const path = HTMLAttributes.path as string | null;
+    const href = path && this.options.makeHref ? this.options.makeHref(path) : null;
+    const attrs: Record<string, string> = {
+      'data-node-path': path ?? '',
       class: 'node-link',
-    }), 0];
+    };
+    if (href) attrs.href = href;
+    return ['a', mergeAttributes(attrs), 0];
   },
 
   addInputRules() {

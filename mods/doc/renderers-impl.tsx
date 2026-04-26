@@ -12,6 +12,7 @@ import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { checkBeforeNavigate, pushHistory } from '@treenity/react';
 import { Input } from '@treenity/react/ui/input';
+import { useNavigate } from '@treenity/react/hooks';
 import { common, createLowlight } from 'lowlight';
 import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef } from 'react';
 import { sanitizeTiptap, type TiptapNode } from './markdown';
@@ -21,7 +22,7 @@ import { TreenityBlock } from './treenity-block';
 
 const lowlight = createLowlight(common);
 
-const extensions = [
+const baseExtensions = [
   StarterKit.configure({ codeBlock: false }),
   CodeBlockLowlight.configure({ lowlight }),
   TaskList,
@@ -42,6 +43,12 @@ export function DocPageView({ value, onChange }: BlockProps) {
   const contentRef = useRef<unknown>(value.content);
   const dirtyRef = useRef(false);
   const editable = !!onChange;
+  const { navigate, makeHref } = useNavigate();
+
+  const extensions = useMemo(
+    () => [...baseExtensions, NodeLink.configure({ makeHref })],
+    [makeHref],
+  );
 
   const editorOptions = useMemo(() => ({
     extensions,
@@ -54,7 +61,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
       contentRef.current = json;
       onChange?.({ content: json });
     },
-  }), [editable]);
+  }), [editable, extensions]);
 
   const editor = useEditor(editorOptions);
 
@@ -92,8 +99,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
 
     if (!checkBeforeNavigate()) return;
 
-    pushHistory(buildNodeLinkHref(path, location.pathname, location.search));
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigate(path);
   };
 
   return (

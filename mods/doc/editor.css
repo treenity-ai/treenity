@@ -136,6 +136,10 @@
 .ProseMirror strong { font-weight: 600; color: var(--text); }
 .ProseMirror em     { font-style: italic; }
 
+/* Bold/italic inside a link must inherit the link's color, not override it. */
+.ProseMirror a strong,
+.ProseMirror a em { color: inherit; }
+
 /* Selection */
 .ProseMirror ::selection {
   background: rgba(46, 204, 113, 0.2);

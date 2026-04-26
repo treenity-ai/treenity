@@ -6,7 +6,7 @@ export type TiptapNode = {
   attrs?: Record<string, unknown>;
   content?: TiptapNode[];
   text?: string;
-  marks?: { type: string }[];
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
 };
 
 // ── Tiptap JSON → Markdown ──
@@ -119,7 +119,40 @@ export function tiptapToMd(node: TiptapNode): string {
 
 // ── Markdown → Tiptap JSON ──
 
-export function mdToTiptap(markdown: string): TiptapNode {
+// Resolve a markdown link href to an absolute tree path, or null if external.
+// External: http(s)://, mailto:, fragment-only (#anchor)
+// treenity:/path → /path
+// /abs → /abs
+// relative (./, ../, foo.md) → resolved against dirname(basePath)
+export function resolveLinkPath(href: string, basePath?: string): string | null {
+  if (!href) return null;
+  if (/^(?:[a-z][a-z0-9+.-]*:)/i.test(href)) {
+    if (href.startsWith('treenity:')) return href.slice('treenity:'.length) || null;
+    return null; // http(s), mailto, etc — external
+  }
+  if (href.startsWith('#')) return null; // fragment only — same-page anchor, not a node
+  // Strip query/fragment for resolution
+  const q = href.indexOf('?');
+  const f = href.indexOf('#');
+  let path = href;
+  const cut = [q, f].filter((n) => n >= 0).sort((a, b) => a - b)[0];
+  if (cut !== undefined) path = href.slice(0, cut);
+  if (!path) return null;
+  if (path.startsWith('/')) return path;
+  if (!basePath) return null;
+  // Resolve relative against parent dir of basePath
+  const dir = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath.slice(0, basePath.lastIndexOf('/'));
+  const segments = (dir + '/' + path).split('/');
+  const stack: string[] = [];
+  for (const seg of segments) {
+    if (!seg || seg === '.') continue;
+    if (seg === '..') stack.pop();
+    else stack.push(seg);
+  }
+  return '/' + stack.join('/');
+}
+
+export function mdToTiptap(markdown: string, basePath?: string): TiptapNode {
   const lines = markdown.split('\n');
   const blocks: TiptapNode[] = [];
   let i = 0;
@@ -130,14 +163,18 @@ export function mdToTiptap(markdown: string): TiptapNode {
     // Empty line → skip
     if (!line.trim()) { i++; continue; }
 
-    // Heading
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    if (headingMatch) {
-      blocks.push({
-        type: 'heading',
-        attrs: { level: headingMatch[1].length },
-        content: parseInline(headingMatch[2]),
-      });
+    // Heading. Allow empty title (e.g. "## ") so we always advance — otherwise
+    // the paragraph fallback below skips heading-like lines and we infinite-loop.
+    const headingMatch = line.match(/^(#{1,6})\s*(.*?)\s*$/);
+    if (headingMatch && headingMatch[1]) {
+      const title = headingMatch[2];
+      if (title) {
+        blocks.push({
+          type: 'heading',
+          attrs: { level: headingMatch[1].length },
+          content: parseInline(title, basePath),
+        });
+      }
       i++;
       continue;
     }
@@ -176,7 +213,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
         items.push({
           type: 'taskItem',
           attrs: { checked },
-          content: [{ type: 'paragraph', content: parseInline(m[2]) }],
+          content: [{ type: 'paragraph', content: parseInline(m[2], basePath) }],
         });
         i++;
       }
@@ -191,7 +228,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
         const text = lines[i].trimStart().replace(/^[-*]\s+/, '');
         items.push({
           type: 'listItem',
-          content: [{ type: 'paragraph', content: parseInline(text) }],
+          content: [{ type: 'paragraph', content: parseInline(text, basePath) }],
         });
         i++;
       }
@@ -206,7 +243,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
         const text = lines[i].trimStart().replace(/^\d+\.\s+/, '');
         items.push({
           type: 'listItem',
-          content: [{ type: 'paragraph', content: parseInline(text) }],
+          content: [{ type: 'paragraph', content: parseInline(text, basePath) }],
         });
         i++;
       }
@@ -223,7 +260,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
       }
       blocks.push({
         type: 'blockquote',
-        content: [{ type: 'paragraph', content: parseInline(quoteLines.join(' ')) }],
+        content: [{ type: 'paragraph', content: parseInline(quoteLines.join(' '), basePath) }],
       });
       continue;
     }
@@ -246,7 +283,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
             content: cells.map((cellText) => ({
               type: cellType,
               attrs: { colspan: 1, rowspan: 1 },
-              content: [{ type: 'paragraph', content: parseInline(cellText) }],
+              content: [{ type: 'paragraph', content: parseInline(cellText, basePath) }],
             })),
           };
         });
@@ -262,7 +299,7 @@ export function mdToTiptap(markdown: string): TiptapNode {
       i++;
     }
     if (paraLines.length) {
-      blocks.push({ type: 'paragraph', content: parseInline(paraLines.join(' ')) });
+      blocks.push({ type: 'paragraph', content: parseInline(paraLines.join(' '), basePath) });
     }
   }
 
@@ -286,31 +323,49 @@ export function sanitizeTiptap(node: TiptapNode): TiptapNode {
   return { ...node, content: cleaned };
 }
 
-function parseInline(text: string): TiptapNode[] {
-  // Tiptap/ProseMirror rejects empty text nodes — never emit { type: 'text', text: '' }.
-  if (!text) return [];
+type Mark = NonNullable<TiptapNode['marks']>[number];
 
+function parseInline(text: string, basePath?: string, parentMarks: Mark[] = []): TiptapNode[] {
   const nodes: TiptapNode[] = [];
-  // Simple regex-based inline parser: **bold**, *italic*, `code`
-  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+?)`)/g;
+  // Inline parser: **bold**, *italic*, `code`, [text](url). Marks nest recursively
+  // so `**[link](x)**` and `- **[Storage](./x.md)**` produce a bold+nodeLink span.
+  // Link match groups: [5]=text, [6]=url
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+?)`|\[([^\]]+)\]\(([^)]+)\))/g;
   let last = 0;
 
-  function pushText(s: string, marks?: { type: string }[]) {
+  function pushPlain(s: string) {
     if (!s) return;
-    nodes.push(marks ? { type: 'text', text: s, marks } : { type: 'text', text: s });
+    nodes.push(parentMarks.length ? { type: 'text', text: s, marks: parentMarks } : { type: 'text', text: s });
   }
 
   for (const match of text.matchAll(re)) {
-    pushText(text.slice(last, match.index!));
+    pushPlain(text.slice(last, match.index!));
 
-    if (match[2]) pushText(match[2], [{ type: 'bold' }]);
-    else if (match[3]) pushText(match[3], [{ type: 'italic' }]);
-    else if (match[4]) pushText(match[4], [{ type: 'code' }]);
+    if (match[2] !== undefined) {
+      // Bold — recurse so nested links/italic/code inside get parsed too.
+      nodes.push(...parseInline(match[2], basePath, [...parentMarks, { type: 'bold' }]));
+    } else if (match[3] !== undefined) {
+      nodes.push(...parseInline(match[3], basePath, [...parentMarks, { type: 'italic' }]));
+    } else if (match[4] !== undefined) {
+      // Code spans don't recurse — markdown spec: no inner formatting.
+      const codeMarks: Mark[] = [...parentMarks, { type: 'code' }];
+      if (match[4]) nodes.push({ type: 'text', text: match[4], marks: codeMarks });
+    } else if (match[5] !== undefined && match[6] !== undefined) {
+      const linkText = match[5];
+      const href = match[6];
+      const treePath = resolveLinkPath(href, basePath);
+      const linkMarks: Mark[] = treePath
+        ? [...parentMarks, { type: 'nodeLink', attrs: { path: treePath } }]
+        : parentMarks;
+      // Recurse on link text in case it has its own marks (e.g. **[bold link](x)**
+      // arrives here as already-bold; literal `[*foo*](x)` resolves *foo* inside).
+      nodes.push(...parseInline(linkText, basePath, linkMarks));
+    }
 
     last = match.index! + match[0].length;
   }
 
-  pushText(text.slice(last));
+  pushPlain(text.slice(last));
 
   return nodes;
 }

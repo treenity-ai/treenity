@@ -111,7 +111,9 @@ register(MountFs, 'mount', async (mount, ctx) => {
 
 register(MountRawFs, 'mount', async (mount, ctx) => {
   if (!mount.root) throw new Error('t.mount.rawfs: root required');
-  const tree = await createRawFsStore(mount.root);
+  // Pass mount path so decoders can resolve self-referential paths in file content
+  // (e.g. relative markdown links → absolute outer tree paths).
+  const tree = await createRawFsStore(mount.root, mount.shared ? '' : ctx.path);
   return mount.shared ? tree : createRepathTree(tree, ctx.path, '/');
 });
 

@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags"
+    },
+    "section": {
+      "type": "string",
+      "title": "Section"
+    },
+    "order": {
+      "type": "number",
+      "title": "Order"
+    },
+    "extra": {
+      "type": "object",
+      "title": "Extra"
+    }
+  },
+  "$id": "doc.frontmatter",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

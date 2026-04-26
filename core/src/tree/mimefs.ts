@@ -33,7 +33,10 @@ function getMime(filename: string): string {
   return MIME[extname(filename).toLowerCase()] ?? 'application/octet-stream';
 }
 
-export type DecodeHandler = (filePath: string, nodePath: string) => Promise<NodeData>;
+// outerPath: nodePath as seen by clients (after mount-prefix). Decoders may need it
+// to resolve self-referential paths inside file content (e.g. relative markdown links).
+// nodePath: tree path as the rawfs sees it (without mount prefix).
+export type DecodeHandler = (filePath: string, nodePath: string, outerPath?: string) => Promise<NodeData>;
 export type EncodeHandler = (node: NodeData, filePath: string) => Promise<void>;
 
 declare module '#core/context' {
@@ -43,8 +46,18 @@ declare module '#core/context' {
   }
 }
 
-export async function createRawFsStore(rootDir: string): Promise<Tree> {
+export async function createRawFsStore(rootDir: string, mountPath: string = ''): Promise<Tree> {
   rootDir = await realpath(resolve(rootDir));
+  // Normalize mount prefix: strip trailing slash, treat '/' or '' as no prefix.
+  // Used only to build outerPath for decoders — not for filesystem resolution.
+  const prefix = !mountPath || mountPath === '/'
+    ? ''
+    : mountPath.endsWith('/') ? mountPath.slice(0, -1) : mountPath;
+  const toOuter = (innerPath: string): string => {
+    if (!prefix) return innerPath;
+    if (innerPath === '/') return prefix;
+    return prefix + innerPath;
+  };
 
   async function safeFilePath(path: string): Promise<string> {
     const full = resolve(join(rootDir, path));
@@ -71,7 +84,7 @@ export async function createRawFsStore(rootDir: string): Promise<Tree> {
     const mime = getMime(filePath);
 
     const decode = ctxResolve(mime, 'decode');
-    if (decode) return decode(filePath, nodePath);
+    if (decode) return decode(filePath, nodePath, toOuter(nodePath));
 
     return {
       $path: nodePath,

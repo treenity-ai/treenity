@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mdToTiptap, type TiptapNode, tiptapToMd } from './markdown';
+import { mdToTiptap, resolveLinkPath, type TiptapNode, tiptapToMd } from './markdown';
 
 describe('mdToTiptap', () => {
   it('parses heading', () => {
@@ -150,6 +150,130 @@ describe('tiptapToMd', () => {
   it('converts horizontal rule', () => {
     const doc: TiptapNode = { type: 'doc', content: [{ type: 'horizontalRule' }] };
     assert.equal(tiptapToMd(doc), '---');
+  });
+});
+
+describe('resolveLinkPath', () => {
+  it('returns null for external URLs', () => {
+    assert.equal(resolveLinkPath('https://x.com'), null);
+    assert.equal(resolveLinkPath('http://x.com', '/docs/a.md'), null);
+    assert.equal(resolveLinkPath('mailto:a@b.c'), null);
+  });
+
+  it('returns null for fragment-only', () => {
+    assert.equal(resolveLinkPath('#section', '/docs/a.md'), null);
+  });
+
+  it('strips treenity: scheme', () => {
+    assert.equal(resolveLinkPath('treenity:/foo/bar'), '/foo/bar');
+  });
+
+  it('returns absolute paths as-is', () => {
+    assert.equal(resolveLinkPath('/abs/path.md'), '/abs/path.md');
+  });
+
+  it('resolves ./ relative against parent of basePath', () => {
+    assert.equal(
+      resolveLinkPath('./concepts/types.md', '/docs/public/index.md'),
+      '/docs/public/concepts/types.md',
+    );
+  });
+
+  it('resolves ../ relative against grandparent', () => {
+    assert.equal(
+      resolveLinkPath('../sibling.md', '/docs/public/index.md'),
+      '/docs/sibling.md',
+    );
+  });
+
+  it('resolves bare relative as ./ relative', () => {
+    assert.equal(
+      resolveLinkPath('foo.md', '/docs/index.md'),
+      '/docs/foo.md',
+    );
+  });
+
+  it('strips query and fragment from href', () => {
+    assert.equal(
+      resolveLinkPath('./x.md?v=1#anchor', '/docs/a.md'),
+      '/docs/x.md',
+    );
+  });
+
+  it('returns null for relative without basePath', () => {
+    assert.equal(resolveLinkPath('./x.md'), null);
+  });
+});
+
+describe('mdToTiptap link parsing', () => {
+  it('parses [text](relative.md) as nodeLink', () => {
+    const doc = mdToTiptap('See [Types](./concepts/types.md).', '/docs/public/index.md');
+    const para = doc.content?.[0];
+    const linkNode = para?.content?.find((n) => n.marks?.[0]?.type === 'nodeLink');
+    assert.ok(linkNode, 'expected a nodeLink');
+    assert.equal(linkNode!.text, 'Types');
+    assert.equal(linkNode!.marks![0].attrs?.path, '/docs/public/concepts/types.md');
+  });
+
+  it('parses [text](treenity:/path) as nodeLink', () => {
+    const doc = mdToTiptap('go [home](treenity:/foo)');
+    const link = doc.content?.[0].content?.find((n) => n.marks?.[0]?.type === 'nodeLink');
+    assert.ok(link);
+    assert.equal(link!.marks![0].attrs?.path, '/foo');
+  });
+
+  it('keeps external link as plain text', () => {
+    const doc = mdToTiptap('see [docs](https://example.com)');
+    const para = doc.content?.[0];
+    const hasNodeLink = para?.content?.some((n) => n.marks?.[0]?.type === 'nodeLink');
+    assert.equal(hasNodeLink, false);
+    const text = para?.content?.map((n) => n.text).join('') ?? '';
+    assert.ok(text.includes('docs'));
+  });
+
+  it('keeps relative link without basePath as plain text', () => {
+    const doc = mdToTiptap('see [Types](./types.md)');
+    const para = doc.content?.[0];
+    const hasNodeLink = para?.content?.some((n) => n.marks?.[0]?.type === 'nodeLink');
+    assert.equal(hasNodeLink, false);
+  });
+
+  // Regression: bold/italic wrapping a link must still parse the link inside,
+  // not treat the whole markdown source as bold text. Common in lists like
+  // "- **[Storage](./types.md)** — every instance persists".
+  it('parses link nested inside bold', () => {
+    const doc = mdToTiptap('- **[Storage](./types.md#storage)** — note', '/docs/index.md');
+    const para = doc.content?.[0]?.content?.[0]?.content?.[0]; // bulletList → listItem → paragraph
+    const linkNode = para?.content?.find((n) =>
+      n.marks?.some((m) => m.type === 'nodeLink'),
+    );
+    assert.ok(linkNode, 'expected a link inside bold');
+    assert.equal(linkNode!.text, 'Storage');
+    const markTypes = (linkNode!.marks ?? []).map((m) => m.type).sort();
+    assert.deepEqual(markTypes, ['bold', 'nodeLink']);
+    const linkMark = linkNode!.marks!.find((m) => m.type === 'nodeLink');
+    assert.equal(linkMark?.attrs?.path, '/docs/types.md');
+  });
+
+  it('parses link nested inside italic', () => {
+    const doc = mdToTiptap('see *[Types](./types.md)* here', '/docs/index.md');
+    const linkNode = doc.content?.[0]?.content?.find((n) =>
+      n.marks?.some((m) => m.type === 'nodeLink'),
+    );
+    assert.ok(linkNode);
+    const markTypes = (linkNode!.marks ?? []).map((m) => m.type).sort();
+    assert.deepEqual(markTypes, ['italic', 'nodeLink']);
+  });
+
+  it('parses bold marker inside link text', () => {
+    const doc = mdToTiptap('see [**bold link**](./types.md) here', '/docs/index.md');
+    const para = doc.content?.[0];
+    const boldLink = para?.content?.find((n) =>
+      n.marks?.some((m) => m.type === 'bold') &&
+      n.marks?.some((m) => m.type === 'nodeLink'),
+    );
+    assert.ok(boldLink, 'link text should preserve bold mark');
+    assert.equal(boldLink!.text, 'bold link');
   });
 });
 

@@ -13,3 +13,15 @@ class DocPage {
   };
 }
 registerType('doc.page', DocPage);
+
+/** YAML frontmatter from a markdown file. Known keys are typed; arbitrary keys
+ *  preserved in `extra` so we round-trip third-party SSG conventions losslessly. */
+export class DocFrontmatter {
+  /** @title Title */ title?: string;
+  /** @title Description */ description?: string;
+  /** @title Tags */ tags?: string[];
+  /** @title Section */ section?: string;
+  /** @title Order */ order?: number;
+  /** @title Extra */ extra?: Record<string, unknown>;
+}
+registerType('doc.frontmatter', DocFrontmatter);
