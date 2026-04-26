@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { toast } from 'sonner';
+import { useCallback } from 'react';
 import { LoginScreen, LoginModal } from './Login';
 import { RoutedPage } from './RoutedPage';
 import { ViewPage } from './ViewPage';
 import { Editor } from './Editor';
-import { checkBeforeNavigate, NavigateProvider, pushHistory } from '#navigate';
-import { AUTH_EXPIRED_EVENT, clearToken, getToken, setToken, trpc } from '#tree/trpc';
+import { useAuth } from './use-auth';
+import { checkBeforeNavigate, NavigateProvider, pushHistory, useLocation } from '#navigate';
 import * as cache from '#tree/cache';
 
 type Mode = 'editor' | 'view' | 'routed';
@@ -32,112 +31,28 @@ cache.hydrate();
  * - `/v/<path>`         → ViewPage (direct node render, requires auth)
  * - `/t/<path>`         → Editor (tree inspector, requires auth)
  *
- * Auth model:
- * - No token → authed=null. Server treats missing session as claims=['public']. RoutedPage
- *   works; editor/view show LoginScreen.
- * - With token → trpc.me resolves userId; used by Editor/ViewPage.
- * - VITE_DEV_LOGIN (dev builds only) → auto-login as admin.
+ * Auth model: see useAuth — anonymous → claims=['public'], otherwise trpc.me userId.
  */
 export function Router() {
-  const [authed, setAuthed] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const retryTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const { authed, authChecked, showLoginModal, setAuthed, closeLoginModal, logout } = useAuth();
+  const { pathname, search } = useLocation();
 
-  const initAuth = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      if (import.meta.env.VITE_DEV_LOGIN) {
-        try {
-          const { token: devToken, userId } = await trpc.devLogin.mutate();
-          setToken(devToken);
-          setAuthed(userId);
-          setAuthChecked(true);
-        } catch {
-          toast.error('Server unavailable, retrying…');
-          retryTimer.current = setTimeout(initAuth, 3000);
-        }
-        return;
-      }
-      // No token, no dev login → anonymous. Server assigns 'public' claims on every request.
-      setAuthed(null);
-      setAuthChecked(true);
-      return;
-    }
-    try {
-      const res = await trpc.me.query();
-      setAuthed(res?.userId ?? null);
-      if (!res) clearToken();
-      setAuthChecked(true);
-    } catch (e: any) {
-      const isAuthError = e?.data?.code === 'UNAUTHORIZED' || e?.data?.httpStatus === 401;
-      if (isAuthError) {
-        clearToken();
-        setAuthChecked(true);
-      } else {
-        toast.error('Server unavailable, retrying…');
-        retryTimer.current = setTimeout(initAuth, 3000);
-      }
-    }
-  }, []);
+  const mode = detectMode(pathname);
+  const viewPath = detectViewPath(pathname);
 
-  useEffect(() => {
-    initAuth();
-    return () => clearTimeout(retryTimer.current);
-  }, [initAuth]);
-
-  // Session expired mid-use → drop token, prompt login.
-  useEffect(() => {
-    const handler = () => {
-      if (showLoginModal) return;
-      clearToken();
-      setAuthed(null);
-      setShowLoginModal(true);
-    };
-    window.addEventListener(AUTH_EXPIRED_EVENT, handler);
-    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, handler);
-  }, [showLoginModal]);
-
-  const [mode, setMode] = useState<Mode>(() => detectMode(location.pathname));
-  const [viewPath, setViewPath] = useState<string>(() => detectViewPath(location.pathname));
-
-  useEffect(() => {
-    const onPop = () => {
-      if (!checkBeforeNavigate()) {
-        pushHistory(location.href);
-        return;
-      }
-      setMode(detectMode(location.pathname));
-      setViewPath(detectViewPath(location.pathname));
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  // Navigate for routed/view subtrees. Editor provides its own NavigateProvider internally.
+  // Push the next URL and let useLocation re-read via the synthetic popstate.
+  // Editor brings its own NavigateProvider; this serves routed/view.
   const navigate = useCallback((path: string) => {
     if (!checkBeforeNavigate()) return;
-    if (mode === 'view') {
-      setViewPath(path);
+    if (mode === 'editor') {
+      pushHistory(`/t${path === '/' ? '' : path}`);
+    } else if (mode === 'view') {
       pushHistory('/v' + path);
-      return;
-    }
-    if (mode === 'routed') {
-      setViewPath(path);
+    } else {
       pushHistory(path);
-      return;
     }
-    // mode === 'editor' — Editor handles its own navigation; fall back to /t/.
-    pushHistory(`/t${path === '/' ? '' : path}`);
-    setMode('editor');
-    setViewPath(path);
+    window.dispatchEvent(new PopStateEvent('popstate'));
   }, [mode]);
-
-  const handleLogout = useCallback(() => {
-    clearToken();
-    setAuthed(null);
-    setShowLoginModal(true);
-  }, []);
 
   if (!authChecked) return null;
 
@@ -154,7 +69,7 @@ export function Router() {
   if (!authed) return <LoginScreen onLogin={setAuthed} />;
 
   if (mode === 'view') {
-    const ctx = new URLSearchParams(location.search).get('ctx') || 'react';
+    const ctx = new URLSearchParams(search).get('ctx') || 'react';
     return (
       <NavigateProvider value={navigate}>
         <ViewPage path={viewPath} ctx={ctx} />
@@ -166,11 +81,11 @@ export function Router() {
   const isAnon = authed.startsWith('anon:');
   return (
     <>
-      <Editor authed={authed} onLogout={handleLogout} />
+      <Editor authed={authed} onLogout={logout} />
       {showLoginModal && (
         <LoginModal
-          onLogin={(uid) => { setAuthed(uid); setShowLoginModal(false); }}
-          onClose={isAnon ? undefined : () => setShowLoginModal(false)}
+          onLogin={(uid) => { setAuthed(uid); closeLoginModal(); }}
+          onClose={isAnon ? undefined : closeLoginModal}
         />
       )}
     </>
