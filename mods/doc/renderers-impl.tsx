@@ -14,6 +14,7 @@ import { checkBeforeNavigate, pushHistory } from '@treenity/react';
 import { Input } from '@treenity/react/ui/input';
 import { common, createLowlight } from 'lowlight';
 import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef } from 'react';
+import { sanitizeTiptap, type TiptapNode } from './markdown';
 import { SlashCommand } from './slash-command';
 import { Toolbar } from './toolbar';
 import { TreenityBlock } from './treenity-block';
@@ -44,7 +45,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
 
   const editorOptions = useMemo(() => ({
     extensions,
-    content: value.content,
+    content: sanitizeTiptap(value.content as TiptapNode),
     editable,
     onUpdate: ({ editor }: { editor: Editor }) => {
       if (suppressRef.current) return;
@@ -68,7 +69,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
     if (dirtyRef.current) return;
     contentRef.current = value.content;
     suppressRef.current = true;
-    editor.commands.setContent(value.content);
+    editor.commands.setContent(sanitizeTiptap(value.content as TiptapNode));
     suppressRef.current = false;
   }, [editor, value.content]);
 
