@@ -8,9 +8,22 @@
       "default": "Untitled"
     },
     "content": {
-      "type": "string",
+      "type": "object",
       "title": "Content",
-      "default": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Press Edit to start editing.\"}]}]}"
+      "default": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Press Edit to start editing."
+              }
+            ]
+          }
+        ]
+      }
     }
   },
   "required": [

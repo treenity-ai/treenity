@@ -269,31 +269,48 @@ export function mdToTiptap(markdown: string): TiptapNode {
   return { type: 'doc', content: blocks.length ? blocks : [{ type: 'paragraph' }] };
 }
 
+// Strip empty text nodes (text === '') anywhere in the tree. ProseMirror
+// throws "RangeError: Empty text nodes are not allowed" when setContent
+// receives one. Defensive filter for legacy doc.page nodes whose content
+// was produced before parseInline learned not to emit empties.
+export function sanitizeTiptap(node: TiptapNode): TiptapNode {
+  if (!node.content) return node;
+  const cleaned: TiptapNode[] = [];
+  for (const child of node.content) {
+    if (child.type === 'text') {
+      if (child.text) cleaned.push(child);
+    } else {
+      cleaned.push(sanitizeTiptap(child));
+    }
+  }
+  return { ...node, content: cleaned };
+}
+
 function parseInline(text: string): TiptapNode[] {
+  // Tiptap/ProseMirror rejects empty text nodes — never emit { type: 'text', text: '' }.
+  if (!text) return [];
+
   const nodes: TiptapNode[] = [];
   // Simple regex-based inline parser: **bold**, *italic*, `code`
   const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+?)`)/g;
   let last = 0;
 
-  for (const match of text.matchAll(re)) {
-    if (match.index! > last) {
-      nodes.push({ type: 'text', text: text.slice(last, match.index!) });
-    }
+  function pushText(s: string, marks?: { type: string }[]) {
+    if (!s) return;
+    nodes.push(marks ? { type: 'text', text: s, marks } : { type: 'text', text: s });
+  }
 
-    if (match[2]) {
-      nodes.push({ type: 'text', text: match[2], marks: [{ type: 'bold' }] });
-    } else if (match[3]) {
-      nodes.push({ type: 'text', text: match[3], marks: [{ type: 'italic' }] });
-    } else if (match[4]) {
-      nodes.push({ type: 'text', text: match[4], marks: [{ type: 'code' }] });
-    }
+  for (const match of text.matchAll(re)) {
+    pushText(text.slice(last, match.index!));
+
+    if (match[2]) pushText(match[2], [{ type: 'bold' }]);
+    else if (match[3]) pushText(match[3], [{ type: 'italic' }]);
+    else if (match[4]) pushText(match[4], [{ type: 'code' }]);
 
     last = match.index! + match[0].length;
   }
 
-  if (last < text.length) {
-    nodes.push({ type: 'text', text: text.slice(last) });
-  }
+  pushText(text.slice(last));
 
-  return nodes.length ? nodes : [{ type: 'text', text: text || '' }];
+  return nodes;
 }
