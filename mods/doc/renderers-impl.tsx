@@ -7,11 +7,14 @@ import TableRow from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { NodeLink } from './node-link';
+import { buildNodeLinkHref, getNodeLinkPath } from './node-link-click';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { checkBeforeNavigate, pushHistory } from '@treenity/react';
 import { Input } from '@treenity/react/ui/input';
 import { common, createLowlight } from 'lowlight';
-import { useEffect, useMemo, useRef } from 'react';
+import { type MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef } from 'react';
+import { sanitizeTiptap, type TiptapNode } from './markdown';
 import { SlashCommand } from './slash-command';
 import { Toolbar } from './toolbar';
 import { TreenityBlock } from './treenity-block';
@@ -36,19 +39,18 @@ type BlockProps = { value: any; onChange?: (data: any) => void };
 
 export function DocPageView({ value, onChange }: BlockProps) {
   const suppressRef = useRef(false);
-  const contentRef = useRef(value.content);
+  const contentRef = useRef<unknown>(value.content);
   const dirtyRef = useRef(false);
-  const parsedContent = useMemo(() => parseContent(value.content), [value.content]);
   const editable = !!onChange;
 
   const editorOptions = useMemo(() => ({
     extensions,
-    content: parsedContent,
+    content: sanitizeTiptap(value.content as TiptapNode),
     editable,
     onUpdate: ({ editor }: { editor: Editor }) => {
       if (suppressRef.current) return;
       dirtyRef.current = true;
-      const json = JSON.stringify(editor.getJSON());
+      const json = editor.getJSON();
       contentRef.current = json;
       onChange?.({ content: json });
     },
@@ -67,9 +69,9 @@ export function DocPageView({ value, onChange }: BlockProps) {
     if (dirtyRef.current) return;
     contentRef.current = value.content;
     suppressRef.current = true;
-    editor.commands.setContent(parsedContent);
+    editor.commands.setContent(sanitizeTiptap(value.content as TiptapNode));
     suppressRef.current = false;
-  }, [editor, parsedContent]);
+  }, [editor, value.content]);
 
   // Sync docPath for slash commands (e.g. /component)
   useEffect(() => {
@@ -80,6 +82,19 @@ export function DocPageView({ value, onChange }: BlockProps) {
   useEffect(() => {
     if (editor.isEditable !== editable) editor.setEditable(editable);
   }, [editor, editable]);
+
+  const handleNodeLinkClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const path = getNodeLinkPath(event.target);
+    if (!path) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!checkBeforeNavigate()) return;
+
+    pushHistory(buildNodeLinkHref(path, location.pathname, location.search));
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
 
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
@@ -104,6 +119,7 @@ export function DocPageView({ value, onChange }: BlockProps) {
       {/* Editor content */}
       <div
         className={`min-h-[300px] ${onChange ? 'pt-4' : ''}`}
+        onClickCapture={handleNodeLinkClick}
         onDrop={(e) => {
           if (!editor || !onChange) return;
           const path = e.dataTransfer.getData('application/treenity-path');
@@ -126,14 +142,5 @@ export function DocPageView({ value, onChange }: BlockProps) {
       </div>
     </div>
   );
-}
-
-function parseContent(content: string | undefined): any {
-  if (!content) return undefined;
-  try {
-    return JSON.parse(content);
-  } catch {
-    return { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: content }] }] };
-  }
 }
 

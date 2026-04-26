@@ -77,6 +77,29 @@ describe('mdToTiptap', () => {
     const types = doc.content?.map((c) => c.type);
     assert.deepEqual(types, ['heading', 'paragraph', 'bulletList', 'codeBlock']);
   });
+
+  // Regression: ProseMirror rejects { type: 'text', text: '' } with
+  // "RangeError: Empty text nodes are not allowed", which kills the editor
+  // when DocPageView tries to setContent on a doc that contains them.
+  it('never produces empty text nodes', () => {
+    const samples = [
+      '',
+      '# ',
+      '## \n\nbody',
+      '\n\n\n',
+      '> \n> ',
+      '- \n- item',
+    ];
+    for (const md of samples) {
+      const doc = mdToTiptap(md);
+      const stack: TiptapNode[] = [doc];
+      while (stack.length) {
+        const n = stack.pop()!;
+        if (n.type === 'text') assert.ok(n.text && n.text.length > 0, `empty text node from input: ${JSON.stringify(md)}`);
+        if (n.content) stack.push(...n.content);
+      }
+    }
+  });
 });
 
 describe('tiptapToMd', () => {
