@@ -4,60 +4,61 @@
 /* @source "../../src/mods"; */
 
 /* Local fonts */
-@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Light.ttf'); font-weight: 300; font-display: swap; }
-@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Regular.ttf'); font-weight: 400; font-display: swap; }
-@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-Medium.ttf'); font-weight: 500; font-display: swap; }
-@font-face { font-family: 'Manrope'; src: url('/fonts/Manrope-SemiBold.ttf'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('./fonts/Manrope-Light.ttf'); font-weight: 300; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('./fonts/Manrope-Regular.ttf'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('./fonts/Manrope-Medium.ttf'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Manrope'; src: url('./fonts/Manrope-SemiBold.ttf'); font-weight: 600; font-display: swap; }
 
 /* shadcn/ui theme tokens — now in CDN (index.html), kept here for reference */
 /* @theme inline extend { ... } — see index.html <style type="text/tailwindcss"> */
 
-/* Tailwind theme tokens — unlayered :root beats CDN's layered output */
+/* Tailwind theme tokens — aligned with mods/prod-landing (dark + green-400 on white-alpha surfaces) */
 :root {
-  --color-background: #0d1117;
-  --color-foreground: #e6edf3;
-  --color-card: #161b22;
-  --color-card-foreground: #e6edf3;
-  --color-popover: #161b22;
-  --color-popover-foreground: #e6edf3;
-  --color-primary: #2ecc71;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #21262d;
-  --color-secondary-foreground: #e6edf3;
-  --color-muted: #161b22;
-  --color-muted-foreground: #7d8590;
-  --color-accent: rgba(46, 204, 113, 0.15);
-  --color-accent-foreground: #2ecc71;
-  --color-destructive: #f85149;
-  --color-destructive-foreground: #e6edf3;
-  --color-border: #30363d;
-  --color-input: #30363d;
-  --color-ring: #2ecc71;
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  --color-background: #0f0f0f;
+  --color-foreground: #fafafa;
+  --color-card: rgba(255, 255, 255, 0.02);
+  --color-card-foreground: #fafafa;
+  --color-popover: #1a1a1a;
+  --color-popover-foreground: #fafafa;
+  --color-primary: #86efac;
+  --color-primary-foreground: #0f0f0f;
+  --color-secondary: rgba(255, 255, 255, 0.03);
+  --color-secondary-foreground: #d4d4d8;
+  --color-muted: rgba(255, 255, 255, 0.02);
+  --color-muted-foreground: #71717a;
+  --color-accent: rgba(134, 239, 172, 0.10);
+  --color-accent-foreground: #86efac;
+  --color-destructive: #f87171;
+  --color-destructive-foreground: #fafafa;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-input: rgba(255, 255, 255, 0.08);
+  --color-ring: #86efac;
+  --radius-sm: 6px;
+  --radius-md: 8px;
   --radius-lg: 8px;
 
   /* Legacy aliases */
   --bg: var(--color-background);
   --surface: var(--color-card);
   --surface-2: var(--color-secondary);
-  --surface-3: var(--color-border);
+  --surface-3: rgba(255, 255, 255, 0.06);
   --border: var(--color-border);
-  --border-subtle: var(--color-border);
+  --border-subtle: rgba(255, 255, 255, 0.05);
   --text: var(--color-foreground);
-  --text-2: var(--color-muted-foreground);
-  --text-3: color-mix(in srgb, var(--color-muted-foreground) 60%, transparent);
+  --text-2: #d4d4d8;
+  --text-3: #a1a1aa;
   --accent: var(--color-primary);
   --accent-subtle: var(--color-accent);
   --danger: var(--color-destructive);
-  --danger-subtle: color-mix(in srgb, var(--color-destructive) 15%, transparent);
-  --success: #3fb950;
-  --success-subtle: rgba(63, 185, 80, 0.15);
-  --warning: #d29922;
+  --danger-subtle: rgba(248, 113, 113, 0.10);
+  --success: #86efac;
+  --success-subtle: rgba(134, 239, 172, 0.15);
+  --warning: #fde047;
+  --warning-subtle: rgba(253, 224, 71, 0.10);
   --radius: var(--radius-md);
   --radius-lg: var(--radius-lg);
   --font: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  --mono: 'SF Mono', SFMono-Regular, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+  --mono: 'SF Mono', SFMono-Regular, 'Cascadia Code', 'Fira Code', ui-monospace, Menlo, Consolas, monospace;
   --transition: 0.15s ease;
 }
 @layer base {

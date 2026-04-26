@@ -21,12 +21,19 @@
   align-items: center;
   padding: 1px 8px 1px 0;
   cursor: pointer;
-  color: var(--text);
-  font-size: 14px;
-  height: 28px;
+  color: var(--text-2);
+  font-size: 13px;
+  height: 26px;
   position: relative;
   user-select: none;
-  transition: background var(--transition);
+  transition: background var(--transition), color var(--transition);
+}
+.tree-row:hover .tree-label {
+  color: var(--text);
+}
+.tree-row.selected .tree-label {
+  color: var(--text);
+  font-weight: 500;
 }
 .tree-row:hover {
   background: var(--surface-2);

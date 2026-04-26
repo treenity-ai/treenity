@@ -1,7 +1,7 @@
-import { register } from '@treenity/core/core';
+import type { View } from '#context';
 import { Render } from '#context';
 import { usePath } from '#hooks';
-import type { View } from '#context';
+import { register } from '@treenity/core/core';
 
 const RootView: View<{ $type: 'root' }> = () => {
   const { data: page, loading } = usePath('/home');
@@ -11,7 +11,7 @@ const RootView: View<{ $type: 'root' }> = () => {
   if (!page) {
     return (
       <div className="flex items-center justify-center h-full text-neutral-500 text-sm">
-        Node <code className="mx-1 text-emerald-400/70 font-mono">/home</code> not found — create a node at that path.
+        Node <code className="mx-1 text-primary/70 font-mono">/home</code> not found — create a node at that path.
       </div>
     );
   }

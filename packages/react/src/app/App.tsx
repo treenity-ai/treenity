@@ -11,20 +11,20 @@ import { Button } from '#components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '#components/ui/dropdown-menu';
 import { Input } from '#components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#components/ui/resizable';
+import { Inspector } from '#editor/Inspector';
+import { Tree } from '#editor/Tree';
+import { addComponent, createNode } from '#hooks';
 import { TypePicker } from '#mods/editor-ui/type-picker';
-import type { NodeData } from '@treenity/core';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { toast } from 'sonner';
+import { checkBeforeNavigate, makeNavigateApi, NavigateProvider, pushHistory } from '#navigate';
 import * as cache from '#tree/cache';
 import { tree } from '#tree/client';
 import { SSE_CONNECTED, SSE_DISCONNECTED, startEvents, stopEvents } from '#tree/events';
-import { addComponent, createNode } from '#hooks';
-import { checkBeforeNavigate, NavigateProvider, pushHistory } from '#navigate';
-import { Inspector } from '#editor/Inspector';
-import { LoginModal, LoginScreen } from './Login';
-import { Tree } from '#editor/Tree';
-import { AUTH_EXPIRED_EVENT, clearToken, getToken, setToken, trpc } from '#tree/trpc';
 import { getModErrors } from '#tree/load-client';
+import { AUTH_EXPIRED_EVENT, clearToken, getToken, setToken, trpc } from '#tree/trpc';
+import type { NodeData } from '@treenity/core';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { toast } from 'sonner';
+import { LoginModal, LoginScreen } from './Login';
 import { RoutedPage } from './RoutedPage';
 import { ViewPage } from './ViewPage';
 
@@ -440,6 +440,12 @@ export function App() {
     location.reload();
   };
 
+  const makeHref = useCallback((path: string) => {
+    if (mode === 'editor') return `/t${path === '/' ? '' : path}`;
+    if (mode === 'view') return `/v${path}`;
+    return path;
+  }, [mode]);
+
   const navigate = useCallback((path: string) => {
     if (!checkBeforeNavigate()) return;
     if (mode === 'editor') {
@@ -451,15 +457,17 @@ export function App() {
     }
   }, [mode, handleSelect]);
 
+  const navCtx = useMemo(() => makeNavigateApi(navigate, makeHref), [navigate, makeHref]);
+
   if (!authChecked) return null;
   if (!authed) return <LoginScreen onLogin={(uid) => setAuthed(uid)} />;
 
   const isAnon = authed.startsWith('anon:');
   const needsLogin = showLoginModal;
-  if (mode === 'routed') return <NavigateProvider value={navigate}><RoutedPage path={viewPath} /></NavigateProvider>;
+  if (mode === 'routed') return <NavigateProvider value={navCtx}><RoutedPage path={viewPath} /></NavigateProvider>;
   if (mode === 'view') {
     const ctx = new URLSearchParams(location.search).get('ctx') || 'react';
-    return <NavigateProvider value={navigate}><ViewPage path={viewPath} ctx={ctx} /></NavigateProvider>;
+    return <NavigateProvider value={navCtx}><ViewPage path={viewPath} ctx={ctx} /></NavigateProvider>;
   }
   
   const handleSetRoot = (path: string) => {
@@ -479,7 +487,7 @@ export function App() {
   }
 
   return (
-    <NavigateProvider value={navigate}>
+    <NavigateProvider value={navCtx}>
     {sseDown && (
       <div className="fixed top-0 inset-x-0 z-50 bg-yellow-500 text-black text-center text-sm py-1">
         Reconnecting to server…

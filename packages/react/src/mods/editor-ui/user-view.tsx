@@ -9,39 +9,18 @@ function UserView({ value }: { value: NodeData }) {
 
   return (
     <div className="node-default-view">
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            background: 'var(--accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 22,
-            fontWeight: 700,
-            color: '#fff',
-            flexShrink: 0,
-          }}
-        >
+      <div className="flex items-center gap-4 mb-4">
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary text-[22px] font-bold text-primary-foreground">
           {id.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>{id}</div>
+          <div className="text-[16px] font-semibold text-foreground">{id}</div>
           {groups?.list && groups.list.length > 0 && (
-            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {groups.list.map((g) => (
                 <span
                   key={g}
-                  style={{
-                    padding: '2px 10px',
-                    borderRadius: 12,
-                    background: 'var(--accent-subtle)',
-                    color: 'var(--accent)',
-                    fontSize: 11,
-                    fontWeight: 500,
-                  }}
+                  className="rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-primary"
                 >
                   {g}
                 </span>
@@ -49,7 +28,7 @@ function UserView({ value }: { value: NodeData }) {
             </div>
           )}
           {value.$owner && (
-            <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
+            <div className="mt-1 text-[11px] text-muted-foreground">
               owner: {String(value.$owner)}
             </div>
           )}

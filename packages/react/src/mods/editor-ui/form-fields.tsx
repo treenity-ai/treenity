@@ -1,33 +1,20 @@
 // react:form handlers — editable fields for inspector panel
-import * as cache from '#tree/cache';
-import { tree as clientStore } from '#tree/client';
 // react view handlers — readOnly display for same types
 // Covers: string, text, textarea, number, integer, boolean, array, object, image, uri, url, select, timestamp, path
 import { Button } from '#components/ui/button';
 import { Input } from '#components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '#components/ui/popover';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '#components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '#components/ui/select';
 import { Switch } from '#components/ui/switch';
 import { Textarea } from '#components/ui/textarea';
 import { DraftTextarea } from '#mods/editor-ui/DraftTextarea';
 import { useSchema } from '#schema-loader';
+import * as cache from '#tree/cache';
+import { tree as clientStore } from '#tree/client';
 import { register, resolve as resolveHandler } from '@treenity/core';
 import dayjs from 'dayjs';
 import { X } from 'lucide-react';
-import {
-  createElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from 'react';
+import { createElement, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 type FP = {
   value: {
@@ -354,7 +341,7 @@ function DateView({ value }: FP) {
 }
 
 function ColorForm({ value, onChange }: FP) {
-  const v = typeof value.value === 'string' && value.value ? value.value : '#000000';
+  const v = typeof value.value === 'string' && value.value ? value.value : '#86efac';
   return (
     <div className="flex items-center gap-2">
       <input
