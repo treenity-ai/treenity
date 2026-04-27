@@ -93,6 +93,125 @@ describe('applyOps', () => {
   });
 });
 
+describe('prototype pollution guard (assertSafePatchPath)', () => {
+  it('rejects __proto__ at root and does not pollute Object.prototype', () => {
+    assert.throws(
+      () => applyOps({} as any, [['r', '__proto__.polluted', 'bad']]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+    assert.equal(({} as any).polluted, undefined);
+  });
+
+  it('rejects __proto__ at any depth', () => {
+    assert.throws(
+      () => applyOps({ a: { b: {} } } as any, [['r', 'a.b.__proto__.polluted', 'bad']]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+    assert.equal(({} as any).polluted, undefined);
+  });
+
+  it('rejects constructor segment', () => {
+    assert.throws(
+      () => applyOps({} as any, [['r', 'constructor.prototype.polluted', 1]]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+    assert.equal(({} as any).polluted, undefined);
+  });
+
+  it('rejects prototype segment', () => {
+    assert.throws(
+      () => applyOps({} as any, [['a', 'foo.prototype.x', 1]]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+  });
+
+  it('rejects all three dangerous keys across all op types', () => {
+    for (const key of ['__proto__', 'prototype', 'constructor']) {
+      for (const op of [['t', key, 1], ['r', key, 1], ['a', key, 1], ['d', key]] as PatchOp[]) {
+        assert.throws(
+          () => applyOps({} as any, [op]),
+          (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+          `should reject op=${op[0]} key=${key}`,
+        );
+      }
+    }
+  });
+
+  it('rejects empty path', () => {
+    assert.throws(
+      () => applyOps({} as any, [['d', '']]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+  });
+
+  it('rejects empty segments (leading, trailing, double dot)', () => {
+    for (const p of ['.foo', 'foo.', 'a..b']) {
+      assert.throws(
+        () => applyOps({} as any, [['r', p, 1]]),
+        (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+        `should reject ${p}`,
+      );
+    }
+  });
+
+  it('rejects null byte in path', () => {
+    assert.throws(
+      () => applyOps({} as any, [['r', 'foo\0bar', 1]]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+  });
+
+  it('rejects non-string paths (undefined, null, number) defensively', () => {
+    for (const bad of [undefined, null, 42, {}]) {
+      assert.throws(
+        () => applyOps({} as any, [['r', bad as any, 1]]),
+        (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+        `should reject ${JSON.stringify(bad)}`,
+      );
+    }
+  });
+
+  it('rejects empty ops array as no-op (does not throw)', () => {
+    // Defensive: empty batch is legal, zero ops means zero validation.
+    const obj = { title: 'x' } as any;
+    assert.doesNotThrow(() => applyOps(obj, []));
+    assert.equal(obj.title, 'x');
+  });
+
+  it('rejects dangerous segment even when legit ops precede it in the batch', () => {
+    // Guard runs per-op inside applyOps loop. First op mutates, then second throws.
+    const obj = { title: 'old' } as any;
+    assert.throws(
+      () => applyOps(obj, [['r', 'title', 'new'], ['r', '__proto__.x', 1]]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+    // First op applied (no transactional rollback at applyOps level — that's up to caller).
+    assert.equal(obj.title, 'new');
+    // Prototype still clean.
+    assert.equal(({} as any).x, undefined);
+  });
+
+  it('allows $-prefixed system fields at applyOps layer (internal ref replay depends on this)', () => {
+    // applyOps is layer 0; it cannot distinguish user vs internal. withRefIndex.patch()
+    // appends ['r', '$refs', ...] ops to user batches before calling inner.patch() — those
+    // must pass through applyOps. User-scoped $-field bans live at withAcl (C1).
+    const obj = { $refs: [] } as any;
+    assert.doesNotThrow(() => applyOps(obj, [['r', '$refs', [{ t: '/x' }]]]));
+    assert.doesNotThrow(() => applyOps({ $rev: 1 } as any, [['t', '$rev', 1]]));
+  });
+
+  it('allows legitimate nested paths and array .- suffix', () => {
+    const obj = { mesh: { width: 5 }, tags: ['a'] } as any;
+    assert.doesNotThrow(() => applyOps(obj, [
+      ['r', 'mesh.width', 20],
+      ['a', 'tags.-', 'b'],
+      ['d', 'mesh.height'],
+    ]));
+    assert.equal(obj.mesh.width, 20);
+    assert.deepEqual(obj.tags, ['a', 'b']);
+  });
+});
+
 describe('RFC 6902 conversion', () => {
   it('toRfc6902 round-trips', () => {
     const ops: PatchOp[] = [
@@ -207,5 +326,37 @@ describe('Tree.patch', () => {
     const result = (await tree.get('/n'))!;
     assert.equal(result.title, 'x');
     assert.equal('obsolete' in result, false);
+  });
+
+  it('rejects prototype-pollution patch end-to-end and leaves node untouched', async () => {
+    const tree = createMemoryTree();
+    await tree.set(createNode('/n', 'mytype', { title: 'x' }));
+
+    await assert.rejects(
+      () => tree.patch('/n', [['r', '__proto__.polluted', 'bad']]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+
+    // Prototype clean
+    assert.equal(({} as any).polluted, undefined);
+    // Node untouched — applyOps guard ran before any mutation in the memory adapter's copy
+    const result = (await tree.get('/n'))!;
+    assert.equal(result.title, 'x');
+  });
+
+  it('rejects prototype-pollution in mixed batch, preserves rev on reject', async () => {
+    const tree = createMemoryTree();
+    await tree.set(createNode('/n', 'mytype', { title: 'x' }));
+    const revBefore = (await tree.get('/n'))!.$rev!;
+
+    await assert.rejects(
+      () => tree.patch('/n', [['r', 'title', 'y'], ['r', 'constructor.prototype.x', 1]]),
+      (e: any) => e instanceof OpError && e.code === 'FORBIDDEN',
+    );
+
+    // Memory adapter applies ops to a copy, then bumps $rev and assigns; throw aborts assignment.
+    const after = (await tree.get('/n'))!;
+    assert.equal(after.title, 'x', 'title unchanged since copy is discarded on throw');
+    assert.equal(after.$rev, revBefore, '$rev unchanged since assignment never happened');
   });
 });

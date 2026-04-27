@@ -25,24 +25,16 @@ register('text/markdown', 'decode', async (filePath: string, nodePath: string) =
     $path: nodePath,
     $type: 'doc.page',
     title,
-    content: JSON.stringify(tiptapDoc),
+    content: tiptapDoc,
   } as NodeData;
 });
 
 register('doc.page', 'encode', async (node: NodeData, filePath: string) => {
-  const { title, content } = node as any;
+  const { title, content } = node as { title?: string; content?: TiptapNode };
   let md = '';
 
   if (title) md += `# ${title}\n\n`;
-
-  if (content) {
-    try {
-      const doc = JSON.parse(content) as TiptapNode;
-      md += tiptapToMd(doc);
-    } catch {
-      md += content;
-    }
-  }
+  if (content) md += tiptapToMd(content);
 
   // Extensionless path → append .md
   const actualPath = filePath.endsWith('.md') ? filePath : filePath + '.md';

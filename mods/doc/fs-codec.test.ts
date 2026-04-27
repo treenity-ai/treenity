@@ -30,7 +30,7 @@ describe('doc fs-codec', () => {
     assert.equal(node?.$type, 'doc.page');
     assert.equal((node as Record<string, unknown>).title, 'Hello World');
 
-    const content = JSON.parse((node as Record<string, unknown>).content as string);
+    const content = (node as Record<string, unknown>).content as { type: string; content: unknown[] };
     assert.equal(content.type, 'doc');
     assert.ok(content.content.length > 0);
   });
@@ -42,7 +42,7 @@ describe('doc fs-codec', () => {
     assert.equal(node?.$type, 'doc.page');
     assert.equal((node as Record<string, unknown>).title, '');
 
-    const content = JSON.parse((node as Record<string, unknown>).content as string);
+    const content = (node as Record<string, unknown>).content as { content: { type: string }[] };
     assert.equal(content.content[0].type, 'paragraph');
     assert.equal(content.content[1].type, 'heading');
   });
@@ -57,7 +57,7 @@ describe('doc fs-codec', () => {
       $path: '/output.md',
       $type: 'doc.page',
       title: 'My Doc',
-      content: JSON.stringify(tiptapDoc),
+      content: tiptapDoc,
     } as NodeData);
 
     const raw = await readFile(join(dir, 'output.md'), 'utf-8');
@@ -75,7 +75,7 @@ describe('doc fs-codec', () => {
       $path: '/bare.md',
       $type: 'doc.page',
       title: '',
-      content: JSON.stringify(tiptapDoc),
+      content: tiptapDoc,
     } as NodeData);
 
     const raw = await readFile(join(dir, 'bare.md'), 'utf-8');

@@ -7,7 +7,7 @@ import { resolve, basename } from 'node:path';
 const args = process.argv.slice(2);
 const cmd = args[0];
 
-// ── treerun init [name] ──
+// ── treenix init [name] ──
 if (cmd === 'init') {
   const name = args[1] || 'my-treenity-app';
   const target = resolve(name);
@@ -33,12 +33,12 @@ if (cmd === 'init') {
   Done! Next:
 
     cd ${name}
-    npx treerun
+    npx treenix
 `);
   process.exit(0);
 }
 
-// ── treerun (default: run server + frontend) ──
+// ── treenix (default: run server + frontend) ──
 
 const rootJson = resolve('root.json');
 if (!existsSync(rootJson)) {
@@ -46,10 +46,10 @@ if (!existsSync(rootJson)) {
   No root.json found in current directory.
 
   To create a new project:
-    npx treerun init my-app
+    npx treenix init my-app
 
   To run an existing project:
-    cd your-treenity-project && npx treerun
+    cd your-treenity-project && npx treenix
 `);
   process.exit(1);
 }

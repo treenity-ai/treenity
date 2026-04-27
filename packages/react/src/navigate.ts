@@ -3,15 +3,33 @@
 import { createContext, useContext, useEffect, useSyncExternalStore } from 'react';
 
 // ── Navigation context — shell provides, views consume ──
+//
+// Dual-shape API:
+//   const navigate = useNavigate()                  → callable: navigate('/path')
+//   const { navigate, makeHref } = useNavigate()    → destructurable
+// makeHref(path) returns the same URL navigate() pushes to history (for <a href>,
+// so right-click "open in new tab" works).
 
 export type NavigateFn = (path: string) => void;
-const NavigateCtx = createContext<NavigateFn | null>(null);
-export const NavigateProvider = NavigateCtx.Provider;
+export type MakeHrefFn = (path: string) => string;
+export type NavigateApi = NavigateFn & { navigate: NavigateFn; makeHref: MakeHrefFn };
 
-export function useNavigate(): NavigateFn {
-  const nav = useContext(NavigateCtx);
-  if (!nav) throw new Error('useNavigate: no NavigateProvider');
-  return nav;
+const NavigateCtxImpl = createContext<NavigateApi | null>(null);
+export const NavigateProvider = NavigateCtxImpl.Provider;
+
+export function useNavigate(): NavigateApi {
+  const api = useContext(NavigateCtxImpl);
+  if (!api) throw new Error('useNavigate: no NavigateProvider');
+  return api;
+}
+
+// Build a NavigateApi from raw navigate + makeHref. The returned function is
+// itself callable AND carries .navigate / .makeHref properties for destructuring.
+export function makeNavigateApi(navigate: NavigateFn, makeHref: MakeHrefFn): NavigateApi {
+  const api = navigate.bind(null) as NavigateApi;
+  api.navigate = navigate;
+  api.makeHref = makeHref;
+  return api;
 }
 
 // ── beforeNavigate guard — one view at a time can block SPA navigation ──

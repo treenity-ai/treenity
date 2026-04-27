@@ -19,7 +19,7 @@ const welcomeMd = `A rich document with **bold**, *italic*, and \`code\`.
 - Editable with WYSIWYG toolbar
 - Supports embedded Treenity components via /slash commands`;
 
-const welcomeContent = JSON.stringify(mdToTiptap(welcomeMd));
+const welcomeContent = mdToTiptap(welcomeMd);
 
 registerPrefab('doc', 'demo', [
   { $path: 'welcome', $type: 'doc.page', title: 'Welcome to Docs', content: welcomeContent },

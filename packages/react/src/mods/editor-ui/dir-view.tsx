@@ -2,10 +2,10 @@ import { Render, RenderContext } from '#context';
 import { useChildren } from '#hooks';
 import { type NodeData } from '@treenity/core';
 
-const STATUS_COLORS: Record<string, [string, string]> = {
-  draft: ['var(--accent-subtle, #1a2a3a)', 'var(--accent)'],
-  published: ['#1a2e1a', '#4c8'],
-  archived: ['#2e2a1a', '#ca4'],
+const STATUS_PILL: Record<string, string> = {
+  draft: 'border-yellow-300/25 bg-yellow-300/10 text-yellow-300',
+  published: 'border-primary/25 bg-primary/10 text-primary',
+  archived: 'border-zinc-400/20 bg-zinc-400/10 text-zinc-400',
 };
 
 function FolderView({ value }: { value: NodeData }) {
@@ -19,52 +19,24 @@ function FolderView({ value }: { value: NodeData }) {
   return (
     <div className="node-default-view">
       {(meta || status || counter) && (
-        <div
-          style={{
-            padding: 16,
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius)',
-            marginBottom: 12,
-          }}
-        >
-          {meta?.title && <div style={{ fontSize: 18, fontWeight: 600 }}>{meta.title}</div>}
+        <div className="mb-3 rounded-lg border border-border bg-card p-4">
+          {meta?.title && <div className="text-[18px] font-semibold text-foreground">{meta.title}</div>}
           {meta?.description && (
-            <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
+            <div className="mt-1 text-[13px] text-muted-foreground">
               {meta.description}
             </div>
           )}
           {(status || counter) && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              {status?.value &&
-                (() => {
-                  const [bg, fg] = STATUS_COLORS[status.value] ?? STATUS_COLORS.draft;
-                  return (
-                    <span
-                      style={{
-                        padding: '2px 10px',
-                        borderRadius: 12,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        background: bg,
-                        color: fg,
-                      }}
-                    >
-                      {status.value}
-                    </span>
-                  );
-                })()}
-              {counter != null && (
+            <div className="mt-2 flex gap-2">
+              {status?.value && (
                 <span
-                  style={{
-                    padding: '2px 10px',
-                    borderRadius: 12,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text-2)',
-                  }}
+                  className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] ${STATUS_PILL[status.value] ?? STATUS_PILL.draft}`}
                 >
+                  {status.value}
+                </span>
+              )}
+              {counter != null && (
+                <span className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                   count: {counter.count ?? 0}
                 </span>
               )}

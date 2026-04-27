@@ -156,7 +156,7 @@ function TreeNode({
         className={`tree-row${selected === path ? ' selected' : ''}${dragOver === 'above' ? ' tree-drop-above' : ''}${dragOver === 'below' ? ' tree-drop-below' : ''}`}
         style={{ paddingLeft: indent }}
         onClick={() => onSelect(path)}
-        draggable
+        draggable={false}
         onDragStart={(e) => {
           e.dataTransfer.setData('text/plain', path);
           e.dataTransfer.setData('application/treenity-path', path);

@@ -4,13 +4,13 @@ Rich document editing with Tiptap. Markdown files on disk become typed `doc.page
 
 ## Type
 
-**`doc.page`** — title (string) + content (Tiptap JSON string)
+**`doc.page`** — title (string) + content (Tiptap JSON object — stored as object, not string, so tree patches diff at field level)
 
 ## FS Codec
 
 Registered on `text/markdown` mime type:
-- **decode:** `.md` file → `doc.page` node. First `# H1` extracted as `title`, rest → Tiptap JSON `content`
-- **encode:** `doc.page` node → `.md` file. Title prepended as `# Title`, content converted via `tiptapToMd()`
+- **decode:** `.md` file → `doc.page` node. First `# H1` extracted as `title`, rest → Tiptap JSON `content` (object)
+- **encode:** `doc.page` node → `.md` file. Title prepended as `# Title`, content (object) converted via `tiptapToMd()`
 
 ## Markdown ↔ Tiptap
 

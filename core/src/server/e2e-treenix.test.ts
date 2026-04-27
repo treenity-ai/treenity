@@ -1,4 +1,4 @@
-// E2E test for the treerun (create-treenity) experience.
+// E2E test for the treenix (create-treenity) experience.
 // Tests: factory boot → seed → tRPC → persistence across restart
 // Covers both: default ACL (authenticated only) and public ACL via custom rootNode.
 
@@ -85,7 +85,7 @@ async function boot(
   tmpDir?: string,
   opts?: { publicAccess?: boolean },
 ): Promise<Ctx> {
-  const dir = tmpDir ?? mkdtempSync(join(tmpdir(), 'treerun-e2e-'))
+  const dir = tmpDir ?? mkdtempSync(join(tmpdir(), 'treenix-e2e-'))
   const rootNode = makeRootNode(dir, opts)
   const app = await treenity({ modsDir: false, seed, autostart: false, rootNode })
   const server = await app.listen(0, { allowedOrigins: ['*'] })
@@ -114,7 +114,7 @@ async function authedClient(url: string, userId = 'e2e-user', password = 'e2e-pa
 
 // -- Default ACL: anonymous access denied --
 
-describe('e2e: treerun default ACL', () => {
+describe('e2e: treenix default ACL', () => {
   let ctx: Ctx
 
   before(async () => { ctx = await boot(minimalSeed) })
@@ -147,7 +147,7 @@ describe('e2e: treerun default ACL', () => {
 
 // -- Public ACL: minimal template --
 
-describe('e2e: treerun minimal (public)', () => {
+describe('e2e: treenix minimal (public)', () => {
   let ctx: Ctx
 
   before(async () => { ctx = await boot(minimalSeed, undefined, { publicAccess: true }) })
@@ -210,7 +210,7 @@ describe('e2e: treerun minimal (public)', () => {
 
 // -- Public ACL: agent-runtime template --
 
-describe('e2e: treerun agent-runtime (public)', () => {
+describe('e2e: treenix agent-runtime (public)', () => {
   let ctx: Ctx
 
   before(async () => { ctx = await boot(agentRuntimeSeed, undefined, { publicAccess: true }) })
@@ -279,11 +279,11 @@ describe('e2e: treerun agent-runtime (public)', () => {
 
 // -- Persistence: data survives server restart --
 
-describe('e2e: treerun persistence', () => {
+describe('e2e: treenix persistence', () => {
   let tmpDir: string
   const ctxs: Ctx[] = []
 
-  before(() => { tmpDir = mkdtempSync(join(tmpdir(), 'treerun-persist-')) })
+  before(() => { tmpDir = mkdtempSync(join(tmpdir(), 'treenix-persist-')) })
   after(async () => {
     for (const ctx of ctxs) await shutdown(ctx).catch(() => {})
     rmSync(tmpDir, { recursive: true, force: true })

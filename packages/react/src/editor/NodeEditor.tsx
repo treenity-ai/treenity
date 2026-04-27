@@ -20,6 +20,7 @@ import { useRef, useState } from 'react';
 import { proxy, useSnapshot } from 'valtio';
 import { AclEditor } from './AclEditor';
 import { ComponentSection } from './ComponentSection';
+import { getNodeEditorJsonText, parseNodeEditorJson } from './node-editor-state';
 
 function NodeCard({ path, type, onChangeType }: {
   path: string;
@@ -87,10 +88,11 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   }
 
   // Derived from node + system edits
+  const formattedNodeJson = getNodeEditorJsonText(node);
   const nodeType = snap.typeEdit ?? node.$type;
   const aclOwner = snap.aclEdit?.owner ?? (node.$owner as string) ?? '';
   const aclRules = snap.aclEdit?.rules ?? (node.$acl as GroupPerm[]) ?? [];
-  const jsonDirty = snap.jsonText !== '' && snap.jsonText !== JSON.stringify(node, null, 2);
+  const jsonDirty = snap.jsonText !== '' && snap.jsonText !== formattedNodeJson;
   const hasPendingSystemEdits = snap.typeEdit != null || snap.aclEdit != null;
 
   const nodeName = node.$path === '/' ? '/' : node.$path.slice(node.$path.lastIndexOf('/') + 1);
@@ -101,38 +103,48 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
   const mainCompCls = resolve(node.$type, 'class') as (new () => Record<string, unknown>) | null;
   const mainCompDefaults = mainCompCls ? new mainCompCls() : null;
 
-  function handleReset() {
+  // Reset only the properties tab state (system field edits + auto-save buffer)
+  function resetProperties() {
     st.typeEdit = null;
     st.aclEdit = null;
-    st.jsonText = '';
     resetSave();
   }
 
-  async function handleSave() {
-    if (snap.tab === 'json') {
-      // JSON tab — full node replacement via set()
-      try {
-        const toSave = JSON.parse(snap.jsonText);
-        await set(toSave);
-      } catch {
-        toast('Invalid JSON');
-        return;
-      }
-    } else if (hasPendingSystemEdits) {
-      // System field changes ($type, $acl) — need set()
-      const toSave = { ...node };
-      if (snap.typeEdit) toSave.$type = snap.typeEdit;
-      if (snap.aclEdit) {
-        toSave.$owner = aclOwner;
-        toSave.$acl = [...aclRules] as GroupPerm[];
-      }
-      await set(toSave);
-    }
+  // Reset only the JSON tab buffer back to current node
+  function resetJson() {
+    st.jsonText = formattedNodeJson;
+  }
 
-    // Flush any pending auto-save data
-    await flush();
-    handleReset();
-    toast('Saved');
+  // Save properties tab: $type/$acl via set(), then flush auto-save buffer
+  async function handleSaveProperties() {
+    try {
+      if (hasPendingSystemEdits) {
+        const toSave = { ...node };
+        if (snap.typeEdit) toSave.$type = snap.typeEdit;
+        if (snap.aclEdit) {
+          toSave.$owner = aclOwner;
+          toSave.$acl = [...aclRules] as GroupPerm[];
+        }
+        await set(toSave);
+      }
+      await flush();
+      resetProperties();
+      toast('Saved');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Save failed');
+    }
+  }
+
+  // Save JSON tab: full-node replacement via set()
+  async function handleSaveJson() {
+    try {
+      const toSave = parseNodeEditorJson(snap.jsonText);
+      await set(toSave);
+      st.jsonText = getNodeEditorJsonText(toSave);
+      toast('Saved');
+    } catch (error) {
+      toast(error instanceof Error ? error.message : 'Save failed');
+    }
   }
 
   async function handleRemoveComponent(name: string) {
@@ -155,7 +167,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
       <Tabs value={snap.tab} onValueChange={(v) => {
         st.tab = v as 'properties' | 'json';
         if (v === 'json' && !st.jsonText) {
-          st.jsonText = JSON.stringify(node, null, 2);
+          st.jsonText = formattedNodeJson;
         }
       }} className="px-3 pt-2 shrink-0">
         <TabsList className="h-8 bg-secondary">
@@ -184,7 +196,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
               value={mainValue}
               onChange={onChange}
               toast={toast}
-              onActionComplete={handleReset}
+              onActionComplete={resetProperties}
             />
 
             {/* Named components — scoped auto-save onChange */}
@@ -199,7 +211,7 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
                 onToggle={() => { st.collapsed[name] = !st.collapsed[name]; }}
                 onRemove={() => handleRemoveComponent(name)}
                 toast={toast}
-                onActionComplete={handleReset}
+                onActionComplete={resetProperties}
               />
             ))}
 
@@ -239,19 +251,32 @@ export function NodeEditor({ node, save, open, onClose, onDelete, currentUserId,
       </ScrollArea>
 
       <div className="edit-panel-actions">
-        {(dirty || hasPendingSystemEdits || jsonDirty) && (
-          <Button size="sm" onClick={handleSave}>Save</Button>
-        )}
-        {(dirty || hasPendingSystemEdits || jsonDirty) && (
-          <Button variant="ghost" size="sm" onClick={handleReset} title="Discard all changes">
-            Reset
-          </Button>
-        )}
-        {stale && (
-          <span className="text-[10px] text-orange-500" title="Node changed externally">stale</span>
-        )}
-        {snap.tab === 'properties' && (
-          <Button variant="outline" size="sm" onClick={() => onAddComponent(node.$path)}>+ Component</Button>
+        {snap.tab === 'properties' ? (
+          <>
+            {(dirty || hasPendingSystemEdits) && (
+              <Button size="sm" onClick={handleSaveProperties}>Save</Button>
+            )}
+            {(dirty || hasPendingSystemEdits) && (
+              <Button variant="ghost" size="sm" onClick={resetProperties} title="Discard property changes">
+                Reset
+              </Button>
+            )}
+            {stale && (
+              <span className="text-[10px] text-orange-500" title="Node changed externally">stale</span>
+            )}
+            <Button variant="outline" size="sm" onClick={() => onAddComponent(node.$path)}>+ Component</Button>
+          </>
+        ) : (
+          <>
+            {jsonDirty && (
+              <Button size="sm" onClick={handleSaveJson}>Save JSON</Button>
+            )}
+            {jsonDirty && (
+              <Button variant="ghost" size="sm" onClick={resetJson} title="Discard JSON edits">
+                Reset
+              </Button>
+            )}
+          </>
         )}
         <span className="flex-1" />
         {onDelete && (

@@ -1,10 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { LoginScreen, LoginModal } from './Login';
 import { RoutedPage } from './RoutedPage';
 import { ViewPage } from './ViewPage';
 import { Editor } from './Editor';
 import { useAuth } from './use-auth';
-import { checkBeforeNavigate, NavigateProvider, pushHistory, useLocation } from '#navigate';
+import { checkBeforeNavigate, makeNavigateApi, NavigateProvider, pushHistory, useLocation } from '#navigate';
 import * as cache from '#tree/cache';
 
 type Mode = 'editor' | 'view' | 'routed';
@@ -42,24 +42,26 @@ export function Router() {
 
   // Push the next URL and let useLocation re-read via the synthetic popstate.
   // Editor brings its own NavigateProvider; this serves routed/view.
+  const makeHref = useCallback((path: string) => {
+    if (mode === 'editor') return `/t${path === '/' ? '' : path}`;
+    if (mode === 'view') return `/v${path}`;
+    return path;
+  }, [mode]);
+
   const navigate = useCallback((path: string) => {
     if (!checkBeforeNavigate()) return;
-    if (mode === 'editor') {
-      pushHistory(`/t${path === '/' ? '' : path}`);
-    } else if (mode === 'view') {
-      pushHistory('/v' + path);
-    } else {
-      pushHistory(path);
-    }
+    pushHistory(makeHref(path));
     window.dispatchEvent(new PopStateEvent('popstate'));
-  }, [mode]);
+  }, [makeHref]);
+
+  const navCtx = useMemo(() => makeNavigateApi(navigate, makeHref), [navigate, makeHref]);
 
   if (!authChecked) return null;
 
   // Public routed pages render for anonymous visitors — no login gate.
   if (mode === 'routed') {
     return (
-      <NavigateProvider value={navigate}>
+      <NavigateProvider value={navCtx}>
         <RoutedPage path={viewPath} />
       </NavigateProvider>
     );
@@ -71,7 +73,7 @@ export function Router() {
   if (mode === 'view') {
     const ctx = new URLSearchParams(search).get('ctx') || 'react';
     return (
-      <NavigateProvider value={navigate}>
+      <NavigateProvider value={navCtx}>
         <ViewPage path={viewPath} ctx={ctx} />
       </NavigateProvider>
     );

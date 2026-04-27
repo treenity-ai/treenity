@@ -13,12 +13,12 @@ import { Input } from '#components/ui/input';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '#components/ui/resizable';
 import { TypePicker } from '#mods/editor-ui/type-picker';
 import type { NodeData } from '@treenity/core';
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as cache from '#tree/cache';
 import { tree } from '#tree/client';
 import { SSE_CONNECTED, SSE_DISCONNECTED, startEvents, stopEvents } from '#tree/events';
 import { addComponent, createNode } from '#hooks';
-import { checkBeforeNavigate, NavigateProvider, pushHistory } from '#navigate';
+import { checkBeforeNavigate, makeNavigateApi, NavigateProvider, pushHistory } from '#navigate';
 import { Inspector } from '#editor/Inspector';
 import { Tree } from '#editor/Tree';
 import { trpc } from '#tree/trpc';
@@ -334,10 +334,14 @@ export function Editor({ authed, onLogout }: EditorProps) {
   const handleSetRoot = (path: string) => setRoot(path);
 
   // Editor owns in-subtree navigation — children call navigate(path), we select it.
-  const navigate = useCallback(async (path: string) => {
+  const makeHref = useCallback((path: string) => `/t${path === '/' ? '' : path}`, []);
+
+  const navigate = useCallback((path: string) => {
     if (!checkBeforeNavigate()) return;
-    await handleSelect(path);
+    handleSelect(path);
   }, [handleSelect]);
+
+  const navCtx = useMemo(() => makeNavigateApi(navigate, makeHref), [navigate, makeHref]);
 
   if (error) {
     return (
@@ -352,7 +356,7 @@ export function Editor({ authed, onLogout }: EditorProps) {
   }
 
   return (
-    <NavigateProvider value={navigate}>
+    <NavigateProvider value={navCtx}>
       {sseDown && (
         <div className="fixed top-0 inset-x-0 z-50 bg-yellow-500 text-black text-center text-sm py-1">
           Reconnecting to server…

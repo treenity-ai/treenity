@@ -26,10 +26,26 @@ export class PatchTestError extends Error {
   }
 }
 
+// ── Path safety (prototype pollution guard) ──
+
+const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+export function assertSafePatchPath(path: string): void {
+  if (typeof path !== 'string' || path.length === 0 || path.includes('\0')) {
+    throw new OpError('FORBIDDEN', `Invalid patch path: ${JSON.stringify(path)}`);
+  }
+  for (const part of path.split('.')) {
+    if (part === '' || DANGEROUS_KEYS.has(part)) {
+      throw new OpError('FORBIDDEN', `Forbidden patch segment: ${JSON.stringify(part)} in ${path}`);
+    }
+  }
+}
+
 // ── Apply ops to object in-place ──
 
 export function applyOps(target: Record<string, unknown>, ops: readonly PatchOp[]): void {
   for (const op of ops) {
+    assertSafePatchPath(op[1]);
     switch (op[0]) {
       case 't': {
         const actual = getByPath(target, op[1]);

@@ -250,9 +250,9 @@
 }
 .json-ed-fold:hover { opacity: 1; color: var(--text); }
 
-/* JSON editor syntax highlighting */
-.jk { color: #7dd3fc; }  /* keys — sky-300 */
-.js { color: #86efac; }  /* strings — green-300 */
-.jn { color: #fdba74; }  /* numbers — orange-300 */
-.jl { color: #c4b5fd; }  /* literals (true/false/null) — violet-300 */
-.jf { color: #a1a1aa; font-style: italic; }  /* fold summary — zinc-400 */
+/* JSON editor syntax highlighting — GitHub-dark palette (matches prod-landing code blocks) */
+.jk { color: #ffa657; }  /* keys — orange (attrs) */
+.js { color: #a5d6ff; }  /* strings — blue-200 */
+.jn { color: #79c0ff; }  /* numbers — blue-400 */
+.jl { color: #d2a8ff; }  /* literals (true/false/null) — purple */
+.jf { color: #8b949e; font-style: italic; }  /* fold summary — gh comment gray */
